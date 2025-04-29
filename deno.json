@@ -1,0 +1,12 @@
+{
+  "vendor": true,
+  "nodeModulesDir": "auto",
+  "tasks": {},
+  "workspace": [
+    "./packages/template",
+    "./packages/oapi-invoker-mcp",
+    "./packages/diagram-thinker-mcp",
+    "./packages/core",
+    "./packages/code-runner-mcp"
+  ]
+}

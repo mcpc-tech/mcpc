@@ -1,0 +1,3 @@
+# basic example
+
+> @mcpc/echo
