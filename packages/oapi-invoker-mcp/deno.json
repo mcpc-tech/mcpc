@@ -13,7 +13,6 @@
         "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
         "@scalar/openapi-parser": "npm:@scalar/openapi-parser@^0.10.14",
         "@scalar/openapi-types": "npm:@scalar/openapi-types@^0.2.0",
-        "@std/path": "jsr:@std/path@^1.0.8",
         "ai": "npm:ai@^4.3.1",
         "hono": "npm:hono@^4.7.5",
         "json-schema-to-zod": "npm:json-schema-to-zod@^2.6.1",

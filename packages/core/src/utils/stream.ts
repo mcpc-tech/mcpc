@@ -1,11 +1,10 @@
 import type { TextStreamPart, ToolSet } from "ai"; // Assuming 'ai' is installed via npm/jsr for Deno
-import { ServerSentEventStream } from "@std/http";
+import { ServerSentEventStream } from "@std/http/server-sent-event-stream";
 import type { WecomIncomingParams } from "../../mod.ts"; // Import the type
 
 import { processBuffer } from "../middleware/imitate-tool-use.middleware.ts";
 import { md } from "./common/md.ts";
 import { truncateJSON } from "../../mod.ts";
-import process from "node:process";
 
 /**
  * Creates a Wecom-compatible stream from an AI SDK fullStream

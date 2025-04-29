@@ -12,7 +12,7 @@ import {
   type JSONRPCMessage,
   JSONRPCMessageSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { ServerSentEventStream } from "@std/http";
+import { ServerSentEventStream } from "@std/http/server-sent-event-stream";
 import { AgentMCPServer } from "../../mod.ts";
 
 /**
