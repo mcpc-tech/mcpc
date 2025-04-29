@@ -15,7 +15,7 @@ export function setUpMcpServer(
   const server = new McpServer(...args);
 
   server.tool(
-    "python code runner",
+    "python-code-runner",
     `Execute a Python snippet using pyodide and return the combined stdout/stderr(To see the results, make sure to write to stdout/stderr ). 
 Send only valid Python code compatible with pyodide runtime.
 # Packages
@@ -38,7 +38,7 @@ as well as packages from PyPI, the JsDelivr CDN or from other URLs.`,
   );
 
   server.tool(
-    "javascript/typescript code runner",
+    "javascript-code-runner",
     `Execute a JavaScript/TypeScript snippet using Deno runtime and return the combined stdout/stderr(To see the results, make sure to write to stdout/stderr ). 
 Send only valid JavaScript/TypeScript code compatible with Deno runtime (prefer ESM syntax).
 ** Runs on server-side, not browser. **

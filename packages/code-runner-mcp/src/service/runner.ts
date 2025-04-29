@@ -4,8 +4,9 @@ import type { Buffer } from "node:buffer";
 import path, { join } from "node:path";
 import { mkdirSync } from "node:fs";
 import process from "node:process";
+import { tmpdir } from "node:os";
 
-const projectRoot = new URL("./", import.meta.url).pathname;
+const projectRoot = tmpdir();
 const cwd = path.join(projectRoot, ".deno_runner_tmp");
 
 mkdirSync(cwd, { recursive: true });
@@ -112,7 +113,7 @@ export async function runJS(
       `--quiet`,
       ...(allowAll
         ? userProvidedPermissions
-        : userProvidedPermissions.concat(selfPermissions)),
+        : selfPermissions.concat(userProvidedPermissions)),
       "-",
     ],
     {
