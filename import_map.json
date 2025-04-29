@@ -1,0 +1,33 @@
+{
+  "imports": {
+    "@hono/zod-openapi": "npm:@hono/zod-openapi@^0.19.2",
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
+    "json-schema-to-zod": "npm:json-schema-to-zod@^2.6.1",
+    "zod": "npm:zod@^3.24.2",
+    "@mcpc/echo": "./packages/template/mod.ts",
+    "@ai-sdk/openai": "npm:@ai-sdk/openai@^1.3.7",
+    "@scalar/openapi-parser": "npm:@scalar/openapi-parser@^0.10.14",
+    "@scalar/openapi-types": "npm:@scalar/openapi-types@^0.2.0",
+    "@std/path": "jsr:@std/path@^1.0.8",
+    "ai": "npm:ai@^4.3.4",
+    "hono": "npm:hono@^4.7.5",
+    "remeda": "npm:remeda@^2.21.2",
+    "yaml": "npm:yaml@^2.7.1",
+    "@mcpc/oapi-invoker-mcp": "./packages/oapi-invoker-mcp/mod.ts",
+    "@pintora/target-wintercg": "jsr:@pintora/target-wintercg@^0.1.4",
+    "@mcpc/diagram-thinker-mcp": "./packages/diagram-thinker-mcp/mod.ts",
+    "@std/http": "jsr:@std/http@^1.0.14",
+    "dayjs": "npm:dayjs@^1.11.13",
+    "jsonrepair": "npm:jsonrepair@^3.12.0",
+    "@mcpc/core": "./packages/core/mod.ts",
+    "pyodide": "npm:pyodide@^0.27.5",
+    "@mcpc/code-runner-mcp": "./packages/code-runner-mcp/mod.ts",
+    "ai/mcp-stdio": "npm:ai@^4.3.1/mcp-stdio",
+    "@modelcontextprotocol/sdk/types.js": "npm:@modelcontextprotocol/sdk@^1.8.0/types.js",
+    "dayjs/plugin/timezone.js": "npm:dayjs@^1.11.13/plugin/timezone.js",
+    "dayjs/plugin/utc.js": "npm:dayjs@^1.11.13/plugin/utc.js",
+    "@modelcontextprotocol/sdk/server/mcp.js": "npm:@modelcontextprotocol/sdk@^1.8.0/server/mcp.js",
+    "@modelcontextprotocol/sdk/server/stdio.js": "npm:@modelcontextprotocol/sdk@^1.8.0/server/stdio.js",
+    "@modelcontextprotocol/sdk/server/index.js": "npm:@modelcontextprotocol/sdk@^1.8.0/server/index.js"
+  }
+}

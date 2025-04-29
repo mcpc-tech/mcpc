@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "diagram-thinker": {
+      "url": "http://0.0.0.0:9000/diagram-thinker/sse",
+      "disabled": true,
+      "autoApprove": []
+    },
+    "capi": {
+      "url": "http://0.0.0.0:9000/capi/sse",
+      "disabled": true
+    },
+    "code-runner": {
+      "url": "http://0.0.0.0:9000/code-runner/sse",
+      "disabled": false
+    }
+  }
+}
