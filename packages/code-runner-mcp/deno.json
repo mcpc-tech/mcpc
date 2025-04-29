@@ -1,6 +1,6 @@
 {
     "name": "@mcpc/code-runner-mcp",
-    "version": "0.0.3",
+    "version": "0.0.6",
     "description": "Run Javascript/Python code in a secure sandbox, with support for importing **any package**! 🚀",
     "tasks": {
         "server:watch": "deno -A --watch ./src/server.ts",
@@ -13,5 +13,9 @@
         "pyodide": "npm:pyodide@^0.27.5",
         "zod": "npm:zod@^3.24.2"
     },
-    "exports": "./mod.ts"
+    "exports": {
+        ".": "./mod.ts",
+        "./server": "./src/server.ts",
+        "./bin": "./src/stdio.server.ts"
+    }
 }
