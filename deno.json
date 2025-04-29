@@ -8,5 +8,8 @@
     "./packages/diagram-thinker-mcp",
     "./packages/core",
     "./packages/code-runner-mcp"
-  ]
+  ],
+  "imports": {
+    "@deno/dnt": "jsr:@deno/dnt@^0.41.3"
+  }
 }
