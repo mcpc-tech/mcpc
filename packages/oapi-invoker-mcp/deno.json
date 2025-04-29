@@ -1,5 +1,5 @@
 {
-    "name": "@mcpc/oapi-invoker-mcp",
+    "name": "@mcpc/oapi-invoker-mcp-node",
     "version": "0.0.2",
     "description": "Invokes any OpenAPI through Model Context Protocol (MCP) server, supporting specification patches, custom authentication protocols, and data encryption/decryption",
     "license": "MIT",

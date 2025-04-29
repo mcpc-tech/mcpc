@@ -5,7 +5,7 @@ import path, { join } from "node:path";
 import { mkdirSync } from "node:fs";
 import process from "node:process";
 
-const projectRoot = new URL("../../../../", import.meta.url).pathname;
+const projectRoot = new URL("./", import.meta.url).pathname;
 const cwd = path.join(projectRoot, ".deno_runner_tmp");
 
 mkdirSync(cwd, { recursive: true });
