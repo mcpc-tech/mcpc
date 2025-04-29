@@ -69,11 +69,11 @@ export async function runPy(
       pyodide.setStderr({ batched: push("[stderr] ") });
 
       // Defer execution so that `start()` returns immediately
-      queueMicrotask(() => {
+      queueMicrotask(async () => {
         try {
           // If an abort happened before execution – don’t run
           if (abortSignal?.aborted) return;
-          pyodide.runPython(code);
+          await pyodide.runPythonAsync(code);
           clearTimeout(timeout);
           controller.close();
         } catch (err) {
