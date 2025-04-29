@@ -2,12 +2,10 @@ import { spawn } from "node:child_process";
 import { getPyodide, getPip, loadDeps, makeStream } from "../tool/py.ts";
 import type { Buffer } from "node:buffer";
 import path, { join } from "node:path";
-import { tmpdir } from "node:os";
 import { mkdirSync } from "node:fs";
 import process from "node:process";
 
-
-const projectRoot = process.cwd();
+const projectRoot = new URL("../../../../", import.meta.url).pathname;
 const cwd = path.join(projectRoot, ".deno_runner_tmp");
 
 mkdirSync(cwd, { recursive: true });
