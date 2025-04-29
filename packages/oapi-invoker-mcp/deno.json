@@ -1,6 +1,7 @@
 {
     "name": "@mcpc/oapi-invoker-mcp",
     "version": "0.0.1",
+    "description": "Invokes any OpenAPI through Model Context Protocol (MCP) server, supporting specification patches, custom authentication protocols, and data encryption/decryption",
     "license": "MIT",
     "tasks": {
         "server:watch": "deno -A --watch ./src/server.ts",
