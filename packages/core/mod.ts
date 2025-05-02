@@ -2,7 +2,6 @@ export * from "./src/utils/common/env.ts";
 export * from "./src/utils/common/ai.ts";
 export * from "./src/utils/common/time.ts";
 export * from "./src/utils/common/json.ts";
-export * from "./src/utils/stream.ts";
 export * from "./src/utils/wecom.ts";
 
 export * from "./src/schemas/error.ts";
