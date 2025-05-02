@@ -15,6 +15,8 @@ import {
 } from "@modelcontextprotocol/sdk/server/index.js";
 import z from "zod";
 
+import { load } from "cheerio";
+
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
  * e.g., ExtractVariables<"Hello {name}! You are {age}."> -> "name" | "age"
@@ -164,11 +166,21 @@ export const p = <T extends string>(
     return result;
   };
 };
+export function parseTags(htmlString: string, tags: Array<string>) {
+  const $ = load(htmlString, { xml: true });
+
+  const tagToResults: Record<string, any[]> = {};
+  for (const tag of tags) {
+    const elements = $(tag);
+    tagToResults[tag] = elements.toArray();
+  }
+  return { tagToResults, $ };
+}
 
 /**
  * Compose all the tools from all the MCP servers.
  */
-export async function composeMcpDeps(
+export async function composeMcpDepTools(
   mcpConfig: z.infer<typeof McpSettingsSchema>,
   filterIn?: (params: {
     toolName: string;

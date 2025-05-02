@@ -10,22 +10,7 @@ export const _ollama: OpenAIProvider = createOpenAI({
   baseURL: process.env.OLLAMA_BASE_URL,
 
   fetch: async (req, options) => {
-    if (options?.body) {
-      let body =
-        typeof options.body === "string"
-          ? JSON.parse(options.body)
-          : options.body;
-
-      // 平台不兼容内部模型的 tools 调用
-      body = {
-        ...body,
-        tools: undefined,
-        tool_choice: undefined,
-      };
-
-      options.body = JSON.stringify(body);
-      console.log("[ollama] request", req);
-    }
+    console.log("[ollama] request", req);
     try {
       const res = await fetch(req, options);
       console.log(`[ollama] responsed`);
