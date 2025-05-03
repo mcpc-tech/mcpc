@@ -1,7 +1,7 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 import type { ErrorSchema as _ErrorSchema } from "../schemas/error.ts";
 import { server } from "../app.ts";
-import { INCOMING_MSG_ROUTE_PATH } from "../set-up-mcp.ts";
+import { INCOMING_MSG_ROUTE_PATH } from "../set-up-mcp-compose.ts";
 import { handleConnecting } from "../transport/sse.ts";
 
 export const sseHandler = (app: OpenAPIHono) =>
