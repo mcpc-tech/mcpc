@@ -113,6 +113,8 @@ export class ComposableMCPServer extends Server {
       }
     );
 
+    console.log(`[composed tools] ${Object.keys(tools)}`);
+
     const argsDef = zodSchema(
       z.discriminatedUnion(
         "toolName",
