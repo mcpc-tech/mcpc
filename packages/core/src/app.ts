@@ -7,7 +7,7 @@ export const server = setUpMcpServer(
     name: "capi-mcp",
     version: "0.1.0",
   },
-  { capabilities: { tools: {} } }
+  { capabilities: { tools: { listChanged: true } } }
 );
 
 export const createApp = () => {

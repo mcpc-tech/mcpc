@@ -18,6 +18,7 @@ import z from "zod";
 import { load } from "cheerio";
 import { ZodDiscriminatedUnionOption } from "zod";
 import { jsonSchemaToZod } from "json-schema-to-zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
@@ -115,44 +116,106 @@ export class ComposableMCPServer extends Server {
 
     console.log(`[composed tools] ${Object.keys(tools)}`);
 
-    const argsDef = zodSchema(
-      z.discriminatedUnion(
-        "toolName",
-        tagToResults.tool.map((v, _index) => {
-          const tool = tools[v.attribs.name];
+    const allToolNames = tagToResults.tool.map((v) => v.attribs.name);
 
-          return eval(jsonSchemaToZod(tool.parameters.jsonSchema))
-            .describe(tool.description)
-            .merge(
-              z
-                .object({
-                  toolName: z
-                    .literal(v.attribs.name)
-                    .describe("The name of the current tool to call"),
-                  nextToolName: z
-                    .enum(
-                      tagToResults.tool.map(
-                        (v) => v.attribs.name as string
-                      ) as [string, ...string[]]
-                    )
-                    .optional()
-                    .describe(
-                      "The name of the next tool to call. Specify this if the user request needs additional actions to be fulfilled"
-                    ),
-                })
-                .describe(tool.description)
-            );
-        }) as unknown as readonly [
-          ZodDiscriminatedUnionOption<"toolName">,
-          ...ZodDiscriminatedUnionOption<"toolName">[]
-        ]
-      )
-    ).jsonSchema as Schema;
+    // For now, z.discriminatedUnion is not well supported by json-schema-to-zod.
+    // const argsDef = zodSchema(
+    //   z.discriminatedUnion(
+    //     "toolName",
+    //     tagToResults.tool.map((v, _index) => {
+    //       const tool = tools[v.attribs.name];
+
+    //       return eval(jsonSchemaToZod(tool.parameters.jsonSchema))
+    //         .describe(tool.description)
+    //         .merge(
+    //           z
+    //             .object({
+    //               toolName: z
+    //                 .literal(v.attribs.name)
+    //                 .describe("The name of the current tool to call"),
+    //               nextToolName: z
+    //                 .enum(
+    //                   tagToResults.tool.map(
+    //                     (v) => v.attribs.name as string
+    //                   ) as [string, ...string[]]
+    //                 )
+    //                 .optional()
+    //                 .describe(
+    //                   "The name of the next tool to call. Specify this if the user request needs additional actions to be fulfilled"
+    //                 ),
+    //             })
+    //             .describe(tool.description)
+    //         );
+    //     }) as unknown as readonly [
+    //       ZodDiscriminatedUnionOption<"toolName">,
+    //       ...ZodDiscriminatedUnionOption<"toolName">[]
+    //     ]
+    //   )
+    // ).jsonSchema as Schema;
+    const argsDef = {
+      oneOf: tagToResults.tool.map((v) => {
+        const toolName = v.attribs.name;
+        const tool = tools[toolName];
+
+        const baseSchema = tool.parameters?.jsonSchema || {
+          type: "object",
+          properties: {},
+          required: [],
+        };
+
+        const baseProperties =
+          baseSchema.type === "object" && baseSchema.properties
+            ? baseSchema.properties
+            : {};
+        const baseRequired =
+          baseSchema.type === "object" && baseSchema.required
+            ? baseSchema.required
+            : [];
+
+        return {
+          type: "object",
+          description: tool.description,
+          properties: {
+            ...baseProperties,
+            toolName: {
+              type: "string",
+              const: toolName,
+              description: "The name of the current tool to call",
+            },
+            nextToolName: {
+              type: "string",
+              enum: allToolNames,
+              description:
+                "The name of the next tool to call. Specify this if the user request needs additional actions to be fulfilled",
+            },
+          },
+
+          required: [...baseRequired, "toolName"],
+        };
+      }),
+
+      discriminator: {
+        propertyName: "toolName",
+      },
+    } as unknown as Schema;
+
+    // console.log(name, "argsDef", JSON.stringify(argsDef, null, 2));
 
     this.tool(name, description, argsDef, async (args: any) => {
       const currentToolElement = tagToResults.tool.find(
         (t) => t.attribs.name === args.toolName
       );
+
+      if (!currentToolElement) {
+        throw new Error(
+          `Tool ${
+            args.toolName
+          } not found, available tools: ${tagToResults.tool.map(
+            (t) => t.attribs.name
+          )}`
+        );
+      }
+
       const currentTool = tools[currentToolElement.attribs.name];
       const currentResult = await currentTool.execute({
         ...args,
@@ -166,12 +229,13 @@ export class ComposableMCPServer extends Server {
   # Previous tool: ${args.toolName}
   # Previous tool result`,
         });
+      } else {
+        currentResult?.content?.unshift({
+          type: "text",
+          text: `# You MUST plan next action if the user request needs additional actions to be fulfilled
+# Previous result`,
+        });
       }
-
-      currentResult?.content?.unshift({
-        type: "text",
-        text: `# You MUST plan next action if the user request needs additional actions to be fulfilled`,
-      });
 
       return currentResult;
     });
