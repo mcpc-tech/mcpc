@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { setUpMcpServer } from "./set-up-mcp-one.ts";
+import { setUpMcpServer } from "./set-up-mcp-compose.ts";
 import { registerAgent } from "./controllers/register.ts";
 
 export const server = setUpMcpServer(

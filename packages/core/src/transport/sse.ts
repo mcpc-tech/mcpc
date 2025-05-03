@@ -13,7 +13,7 @@ import {
   JSONRPCMessageSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { ServerSentEventStream } from "@std/http/server-sent-event-stream";
-import { AgentMCPServer } from "../../mod.ts";
+import { ComposableMCPServer } from "../../mod.ts";
 
 /**
  * Session Manager: Map of session IDs to SSE server transports
@@ -24,7 +24,7 @@ const transports = new Map<string, SSEServerTransport>();
 
 export async function handleConnecting(
   request: Request,
-  server: McpServer | AgentMCPServer,
+  server: McpServer | ComposableMCPServer,
   incomingMsgRoutePath: string
 ): Promise<Response> {
   // Check if a session ID is provided in the request
