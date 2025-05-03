@@ -30,6 +30,27 @@ export function setUpMcpServer(
         playwright: {
           command: "npx",
           args: ["@playwright/mcp@latest"],
+          transportType: "stdio",
+        },
+      },
+    }
+  );
+
+  server.compose(
+    "co-calculator",
+    `When mathematical statistics or logical calculations are needed, complete the calculation by following these steps:
+1. Use <tool name="code-runner.javascript-code-runner"/> to execute the calculation code
+2. Return the calculation result.
+`,
+    {
+      mcpServers: {
+        "code-runner": {
+          command: "deno",
+          args: ["run", "--allow-all", "jsr:@mcpc/code-runner-mcp/bin"],
+          env: {
+            // DENO_PERMISSION_ARGS: "--allow-net",
+          },
+          transportType: "stdio",
         },
       },
     }
