@@ -1,6 +1,6 @@
 import { jsonSchema, Schema, zodSchema } from "ai";
 import {
-  AgentMCPServer,
+  ComposableMCPServer,
   composeMcpDepTools,
   isProdEnv,
   p,
@@ -46,9 +46,9 @@ const tools = await composeMcpDepTools(
 export const INCOMING_MSG_ROUTE_PATH = "/core/messages";
 
 export function setUpMcpServer(
-  ...args: ConstructorParameters<typeof AgentMCPServer>
-): InstanceType<typeof AgentMCPServer> {
-  const server = new AgentMCPServer(...args);
+  ...args: ConstructorParameters<typeof ComposableMCPServer>
+): InstanceType<typeof ComposableMCPServer> {
+  const server = new ComposableMCPServer(...args);
 
   server.tool(
     "google_search",

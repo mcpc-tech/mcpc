@@ -1,4 +1,4 @@
-import { AgentMCPServer } from "@mcpc/core";
+import { ComposableMCPServer } from "@mcpc/core";
 
 import { parseOAPISpecWithExtensions } from "./tool/parser.ts";
 import { openapiToAIToolSchema } from "./tool/translator.ts";
@@ -14,9 +14,9 @@ const { standardTools, toolToExtendInfo } = await openapiToAIToolSchema(
 );
 
 export function setUpMcpServer(
-  ...args: ConstructorParameters<typeof AgentMCPServer>
-): InstanceType<typeof AgentMCPServer> {
-  const server = new AgentMCPServer(...args);
+  ...args: ConstructorParameters<typeof ComposableMCPServer>
+): InstanceType<typeof ComposableMCPServer> {
+  const server = new ComposableMCPServer(...args);
 
   standardTools.map((tool) => {
     console.log(tool.name);

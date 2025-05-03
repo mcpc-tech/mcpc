@@ -6,7 +6,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import process from "node:process";
 
-import { experimental_createMCPClient, Schema } from "ai";
+import { experimental_createMCPClient, Schema, zodSchema } from "ai";
 import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
 import { McpSettingsSchema, StdioConfigSchema } from "../../service/tools.ts";
 import {
@@ -16,6 +16,8 @@ import {
 import z from "zod";
 
 import { load } from "cheerio";
+import { ZodDiscriminatedUnionOption } from "zod";
+import { jsonSchemaToZod } from "json-schema-to-zod";
 
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
@@ -52,7 +54,7 @@ interface NativePromptOptions {
   missingVariableHandling?: "error" | "warn" | "ignore" | "empty";
 }
 
-export class AgentMCPServer extends Server {
+export class ComposableMCPServer extends Server {
   private tools: Tool[] = [];
   private nameToCb: Map<string, (args: any, extra?: any) => any> = new Map();
 
@@ -88,6 +90,88 @@ export class AgentMCPServer extends Server {
       // TODO: args type checking
       const { name: n, arguments: args } = request.params;
       return this.nameToCb.get(n)?.(args);
+    });
+  }
+
+  async compose(
+    name: string,
+    description: string,
+    depsConfig: z.infer<typeof McpSettingsSchema>
+  ) {
+    const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
+
+    const tools = await composeMcpDepTools(
+      depsConfig,
+      ({ mcpName, toolName }) => {
+        return tagToResults.tool.find((tool) => {
+          description = description.replace(
+            $(tool).prop("outerHTML")!,
+            `toolName=${tool.attribs.name}`
+          );
+          return tool.attribs.name === `${mcpName}.${toolName}`;
+        });
+      }
+    );
+
+    const argsDef = zodSchema(
+      z.discriminatedUnion(
+        "toolName",
+        tagToResults.tool.map((v, _index) => {
+          const tool = tools[v.attribs.name];
+
+          return eval(jsonSchemaToZod(tool.parameters.jsonSchema))
+            .describe(tool.description)
+            .merge(
+              z
+                .object({
+                  toolName: z
+                    .literal(v.attribs.name)
+                    .describe("The name of the current tool to call"),
+                  nextToolName: z
+                    .enum(
+                      tagToResults.tool.map(
+                        (v) => v.attribs.name as string
+                      ) as [string, ...string[]]
+                    )
+                    .optional()
+                    .describe(
+                      "The name of the next tool to call. Specify this if the user request needs additional actions to be fulfilled"
+                    ),
+                })
+                .describe(tool.description)
+            );
+        }) as unknown as readonly [
+          ZodDiscriminatedUnionOption<"toolName">,
+          ...ZodDiscriminatedUnionOption<"toolName">[]
+        ]
+      )
+    ).jsonSchema as Schema;
+
+    this.tool(name, description, argsDef, async (args: any) => {
+      const currentToolElement = tagToResults.tool.find(
+        (t) => t.attribs.name === args.toolName
+      );
+      const currentTool = tools[currentToolElement.attribs.name];
+      const currentResult = await currentTool.execute({
+        ...args,
+        toolName: undefined,
+      });
+
+      if (args.nextToolName) {
+        currentResult?.content?.unshift({
+          type: "text",
+          text: `# **You MUST call this mcp tool(${name}) AGAIN with toolName=${args.nextToolName} argument**
+  # Previous tool: ${args.toolName}
+  # Previous tool result`,
+        });
+      }
+
+      currentResult?.content?.unshift({
+        type: "text",
+        text: `# You MUST plan next action if the user request needs additional actions to be fulfilled`,
+      });
+
+      return currentResult;
     });
   }
 }
@@ -236,9 +320,9 @@ export async function composeMcpDepTools(
  * Registers all tools from the composed MCP dependencies with a server.
  */
 export function registerDepTools(
-  server: AgentMCPServer,
+  server: ComposableMCPServer,
   tools: Record<string, any>
-): AgentMCPServer {
+): ComposableMCPServer {
   Object.entries(tools).forEach(([name, tool]) => {
     // Register the tool with the server
     server.tool(
@@ -249,5 +333,5 @@ export function registerDepTools(
     );
   });
 
-  return server as AgentMCPServer;
+  return server as ComposableMCPServer;
 }
