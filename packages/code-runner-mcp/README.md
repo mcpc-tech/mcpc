@@ -1,6 +1,10 @@
 # Code Runner MCP
 
-Run JavaScript/Python code in a secure sandbox with support for any package import.
+[![smithery badge](https://smithery.ai/badge/@mcpc-tech/mcpc)](https://smithery.ai/server/@mcpc-tech/mcpc)
+
+[![JSR](https://jsr.io/badges/@mcpc/code-runner-mcp)](https://jsr.io/@mcpc/code-runner-mcp)
+
+Run JavaScript/Python code in a secure sandbox with support for `any package import`.
 
 <img src="./logo.png" width="300" height="300" alt="code-runner-logo">
 
@@ -10,6 +14,8 @@ Run JavaScript/Python code in a secure sandbox with support for any package impo
 - Use AI to run code for logic verification, reducing hallucinations!
 - Have AI write and execute testable functions for you!
 - ...and so much more!
+
+> Try it out online using [smithery.ai](https://smithery.ai/server/@mcpc-tech/mcpc/tools)
 
 **Core Capabilities:**
 
