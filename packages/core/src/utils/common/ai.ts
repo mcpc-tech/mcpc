@@ -4,21 +4,28 @@ import {
   Tool,
   Implementation,
 } from "@modelcontextprotocol/sdk/types.js";
-import process from "node:process";
-
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { experimental_createMCPClient, Schema, zodSchema } from "ai";
 import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
-import { McpSettingsSchema, StdioConfigSchema } from "../../service/tools.ts";
+import {
+  McpSettingsSchema,
+  ServerConfigSchema,
+  StdioConfigSchema,
+} from "../../service/tools.ts";
 import {
   Server,
   type ServerOptions,
 } from "@modelcontextprotocol/sdk/server/index.js";
 import z from "zod";
 
-import { load } from "cheerio";
+import { CheerioAPI, load } from "cheerio";
 import { ZodDiscriminatedUnionOption } from "zod";
 import { jsonSchemaToZod } from "json-schema-to-zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { smitheryToolNameCompatibale } from "./registory.ts";
 
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
@@ -107,7 +114,7 @@ export class ComposableMCPServer extends Server {
         return tagToResults.tool.find((tool) => {
           description = description.replace(
             $(tool).prop("outerHTML")!,
-            `toolName=${tool.attribs.name}`
+            `tool ${name} with toolName=${tool.attribs.name} argument`
           );
           return tool.attribs.name === `${mcpName}.${toolName}`;
         });
@@ -157,7 +164,7 @@ export class ComposableMCPServer extends Server {
         const toolName = v.attribs.name;
         const tool = tools[toolName];
 
-        const baseSchema = tool.parameters?.jsonSchema || {
+        const baseSchema = tool.inputSchema || {
           type: "object",
           properties: {},
           required: [],
@@ -186,7 +193,7 @@ export class ComposableMCPServer extends Server {
               type: "string",
               enum: allToolNames,
               description:
-                "The name of the next tool to call. Specify this if the user request needs additional actions to be fulfilled",
+                "The name of the next internal tool to call. Specify this if the user request needs additional actions to be fulfilled",
             },
           },
 
@@ -199,8 +206,6 @@ export class ComposableMCPServer extends Server {
       },
     } as unknown as Schema;
 
-    // console.log(name, "argsDef", JSON.stringify(argsDef, null, 2));
-
     this.tool(name, description, argsDef, async (args: any) => {
       const currentToolElement = tagToResults.tool.find(
         (t) => t.attribs.name === args.toolName
@@ -208,9 +213,9 @@ export class ComposableMCPServer extends Server {
 
       if (!currentToolElement) {
         throw new Error(
-          `Tool ${
+          `Internal tool ${
             args.toolName
-          } not found, available tools: ${tagToResults.tool.map(
+          } not found, available internal tools: ${tagToResults.tool.map(
             (t) => t.attribs.name
           )}`
         );
@@ -226,14 +231,14 @@ export class ComposableMCPServer extends Server {
         currentResult?.content?.unshift({
           type: "text",
           text: `# **You MUST call this mcp tool(${name}) AGAIN with toolName=${args.nextToolName} argument**
-  # Previous tool: ${args.toolName}
-  # Previous tool result`,
+  # Previous internal tool: ${args.toolName}
+  # Previous internal tool result`,
         });
       } else {
         currentResult?.content?.unshift({
           type: "text",
           text: `# You MUST plan next action if the user request needs additional actions to be fulfilled
-# Previous result`,
+# Previous internal tool result`,
         });
       }
 
@@ -316,7 +321,10 @@ export const p = <T extends string>(
     return result;
   };
 };
-export function parseTags(htmlString: string, tags: Array<string>) {
+export function parseTags(
+  htmlString: string,
+  tags: Array<string>
+): { tagToResults: Record<string, any[]>; $: CheerioAPI } {
   const $ = load(htmlString, { xml: true });
 
   const tagToResults: Record<string, any[]> = {};
@@ -342,37 +350,58 @@ export async function composeMcpDepTools(
 
   // Process each MCP definition sequentially
   for (const [name, defination] of Object.entries(mcpConfig.mcpServers)) {
-    const def = defination as z.infer<typeof StdioConfigSchema>;
+    const def = defination as z.infer<typeof ServerConfigSchema>;
 
     if (def.disabled) {
       continue;
     }
 
+    let transport:
+      | StdioClientTransport
+      | StreamableHTTPClientTransport
+      | SSEClientTransport;
+    if (def.transportType === "sse") {
+      transport = new SSEClientTransport(new URL(def.url));
+    } else if ("url" in def) {
+      // @ts-expect-error - Support new streamable http transport when url only
+      transport = new StreamableHTTPClientTransport(new URL(def.url));
+    } else if (def.transportType === "stdio" || "command" in def) {
+      transport = new StdioClientTransport({
+        command: def.command,
+        args: def.args,
+        env: {
+          ...(process.env as any),
+          ...def.env,
+        },
+        cwd: Deno.cwd(),
+      });
+    } else {
+      throw new Error(`Unsupported transport type: ${JSON.stringify(def)}`);
+    }
+
+    const client = new Client({ name, version: "1.0.0" });
+
     try {
       // Create the MCP client
-      const client = await experimental_createMCPClient({
-        name: name,
-        transport: new Experimental_StdioMCPTransport({
-          command: def.command,
-          args: def.args,
-          env: {
-            ...(process.env as any),
-            ...def.env,
-          },
-          cwd: Deno.cwd(),
-        }),
-      });
+      await client.connect(transport);
 
       // Get the tools from the client
-      const tools = await client.tools();
+      const { tools } = await client.listTools();
 
       // Add the tools to the allTools object
-      Object.entries(tools).forEach(([toolName, tool]) => {
+      tools.forEach((tool) => {
+        const { toolNameWithScope, toolName } = smitheryToolNameCompatibale(
+          tool.name,
+          name
+        );
+
         if (filterIn && !filterIn({ toolName, tool, mcpName: name })) {
           return;
         }
-        const fullToolName = `${name}.${toolName}`;
-        allTools[fullToolName] = tool;
+        const execute = (args: any) =>
+          client.callTool({ name: toolName, arguments: args });
+        tool.execute = execute;
+        allTools[toolNameWithScope] = tool;
       });
     } catch (error) {
       console.error(`Error creating MCP client for ${name}:`, error);

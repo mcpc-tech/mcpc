@@ -1,6 +1,6 @@
 {
     "name": "@mcpc/core",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "tasks": {
         "server:compile": "echo \"no need to compile\""
     },
@@ -19,9 +19,14 @@
         "htmlparser2": "npm:htmlparser2@^10.0.0",
         "json-schema-to-zod": "npm:json-schema-to-zod@^2.6.1",
         "jsonrepair": "npm:jsonrepair@^3.12.0",
+        "minimist": "npm:minimist@^1.2.8",
         "remeda": "npm:remeda@^2.21.2",
         "zod": "npm:zod@^3.24.2",
         "zod-to-json-schema": "npm:zod-to-json-schema@^3.24.5"
     },
-    "exports": "./mod.ts"
+    "exports": {
+        ".": "./mod.ts",
+        "./server": "./src/server.ts",
+        "./bin": "./src/stdio.server.ts"
+    }
 }
