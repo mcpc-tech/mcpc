@@ -18,11 +18,7 @@ Run JavaScript/Python code in a secure sandbox with support for any package impo
 - **Import Any Package:** Dynamically import and use external libraries in your code (specific support depends on the chosen runtime).
 
 > Please note: First-time package imports require installation time, so please be patient! Subsequent runs will use cached packages, skipping the installation step.
-
-**Tico Running Example:**
-
 > Inspired by https://ai.pydantic.dev/mcp/run-python/ project, we've reimplemented it with simplified package installation and added JavaScript support! 🚀✨
-
 > Project repository: https://github.com/mcpc-tech/mcpc/tree/main/packages/code-runner-mcp - Issues and PRs welcome!
 
 # How to Use
@@ -74,7 +70,7 @@ Notes:
 - **Execution Environment**
 
   ```bash
-  # To get current environment's language versions, you can ask AI about
+  # To get current environment's language versions, you can ask AI about it:
   Get current typescript, deno version and python version by running code.
   ```
 
