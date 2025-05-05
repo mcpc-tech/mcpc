@@ -1,6 +1,6 @@
 {
     "name": "@mcpc/code-runner-mcp",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "description": "Run Javascript/Python code in a secure sandbox, with support for importing **any package**! 🚀",
     "tasks": {
         "server:watch": "deno -A --watch ./src/server.ts",
