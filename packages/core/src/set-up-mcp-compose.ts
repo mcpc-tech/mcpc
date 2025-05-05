@@ -70,6 +70,7 @@ function parseMcpcConfigs() {
   const mcpcConfigRaw =
     minimist(process.argv.slice(2))?.["mcpc-config"] ??
     JSON.stringify(examples["mcpc"]);
+  console.log(mcpcConfigRaw);
   const mcpcConfigs = mcpcConfigRaw ? JSON.parse(mcpcConfigRaw) : null;
   const newMcpcConfigs = [];
 
@@ -92,13 +93,17 @@ function parseMcpcConfigs() {
 
 const mcpcConfigs = parseMcpcConfigs();
 
-export function setUpMcpServer(
+export async function setUpMcpServer(
   ...args: ConstructorParameters<typeof ComposableMCPServer>
-): InstanceType<typeof ComposableMCPServer> {
+): Promise<InstanceType<typeof ComposableMCPServer>> {
   const server = new ComposableMCPServer(...args);
 
   for (const mcpcConfig of mcpcConfigs) {
-    server.compose(mcpcConfig.name, mcpcConfig.description, mcpcConfig.deps);
+    await server.compose(
+      mcpcConfig.name,
+      mcpcConfig.description,
+      mcpcConfig.deps
+    );
   }
 
   return server;

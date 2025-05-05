@@ -1,3 +1,5 @@
 # @mcpc/core
 
-TODO: catch up with https://modelcontextprotocol.io/specification/2025-03-26
+Create Your Agentic MCP Server with a Single Prompt.
+
+> Powered by the composition of thousands of MCPs.
