@@ -2,7 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { setUpMcpServer } from "./set-up-mcp-compose.ts";
 import { registerAgent } from "./controllers/register.ts";
 
-export const server = setUpMcpServer(
+export const server = await setUpMcpServer(
   {
     name: "capi-mcp",
     version: "0.1.0",
