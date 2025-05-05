@@ -18,11 +18,17 @@ const BaseConfigSchema = z.object({
   timeout: z.number().optional(),
 });
 
-const SseConfigSchema = BaseConfigSchema.extend({
+export const SseConfigSchema = BaseConfigSchema.extend({
   url: z.string().url(),
 }).transform((config) => ({
   ...config,
   transportType: "sse" as const,
+}));
+
+export const StreamableHTTPSchema = BaseConfigSchema.extend({
+  url: z.string().url(),
+}).transform((config) => ({
+  ...config,
 }));
 
 export const StdioConfigSchema = BaseConfigSchema.extend({
@@ -86,4 +92,3 @@ export async function getMcpClient(
   });
   return client;
 }
-

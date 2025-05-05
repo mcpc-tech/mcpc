@@ -1,4 +1,4 @@
-import { build, emptyDir } from "@deno/dnt";
+import { build, emptyDir } from "jsr:@deno/dnt";
 Deno.chdir(new URL("../packages/oapi-invoker-mcp", import.meta.url).pathname);
 
 await emptyDir("./npm");
