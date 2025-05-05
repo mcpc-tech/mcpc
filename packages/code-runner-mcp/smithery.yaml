@@ -1,0 +1,17 @@
+# Smithery configuration file: https://smithery.ai/docs/deployments
+
+build:
+  dockerBuildPath: ./
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    properties:
+      deno_permission_args:
+        type: string
+        description: Declare additional permissions for JS/TS execution. By default, no execution permissions are granted. For example, --allow-env --allow-net adds environment variable and network permissions. Check out Security and permissions deno.com for more details!
+  commandFunction:
+    # A function that produces the CLI command to start the MCP on stdio.
+    |-
+    config=>({command:'deno',args:['run', '--allow-all', 'jsr:@mcpc/code-runner-mcp/bin'],env:{DENO_PERMISSION_ARGS:config.deno_permission_args}})
