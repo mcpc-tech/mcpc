@@ -21,6 +21,14 @@ const patches = {
     "npm:@modelcontextprotocol/sdk@^1.8.0/server/stdio.js",
   "@modelcontextprotocol/sdk/server/index.js":
     "npm:@modelcontextprotocol/sdk@^1.8.0/server/index.js",
+  "@modelcontextprotocol/sdk/client/streamableHttp.js":
+    "npm:@modelcontextprotocol/sdk@^1.8.0/client/streamableHttp.js",
+  "@modelcontextprotocol/sdk/client/stdio.js":
+    "npm:@modelcontextprotocol/sdk@^1.8.0/client/stdio.js",
+  "@modelcontextprotocol/sdk/client/sse.js":
+    "npm:@modelcontextprotocol/sdk@^1.8.0/client/sse.js",
+  "@modelcontextprotocol/sdk/client/index.js":
+    "npm:@modelcontextprotocol/sdk@^1.8.0/client/index.js",
 };
 
 for (const w of workspace) {

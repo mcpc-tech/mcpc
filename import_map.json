@@ -23,6 +23,8 @@
     "fetch-event-stream": "npm:fetch-event-stream@^0.1.5",
     "htmlparser2": "npm:htmlparser2@^10.0.0",
     "jsonrepair": "npm:jsonrepair@^3.12.0",
+    "minimist": "npm:minimist@^1.2.8",
+    "zod-to-json-schema": "npm:zod-to-json-schema@^3.24.5",
     "@mcpc/core": "./packages/core/mod.ts",
     "pyodide": "npm:pyodide@^0.27.5",
     "@mcpc/code-runner-mcp": "./packages/code-runner-mcp/mod.ts",
@@ -32,6 +34,10 @@
     "dayjs/plugin/utc.js": "npm:dayjs@^1.11.13/plugin/utc.js",
     "@modelcontextprotocol/sdk/server/mcp.js": "npm:@modelcontextprotocol/sdk@^1.8.0/server/mcp.js",
     "@modelcontextprotocol/sdk/server/stdio.js": "npm:@modelcontextprotocol/sdk@^1.8.0/server/stdio.js",
-    "@modelcontextprotocol/sdk/server/index.js": "npm:@modelcontextprotocol/sdk@^1.8.0/server/index.js"
+    "@modelcontextprotocol/sdk/server/index.js": "npm:@modelcontextprotocol/sdk@^1.8.0/server/index.js",
+    "@modelcontextprotocol/sdk/client/streamableHttp.js": "npm:@modelcontextprotocol/sdk@^1.8.0/client/streamableHttp.js",
+    "@modelcontextprotocol/sdk/client/stdio.js": "npm:@modelcontextprotocol/sdk@^1.8.0/client/stdio.js",
+    "@modelcontextprotocol/sdk/client/sse.js": "npm:@modelcontextprotocol/sdk@^1.8.0/client/sse.js",
+    "@modelcontextprotocol/sdk/client/index.js": "npm:@modelcontextprotocol/sdk@^1.8.0/client/index.js"
   }
 }
