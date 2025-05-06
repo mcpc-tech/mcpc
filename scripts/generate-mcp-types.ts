@@ -184,7 +184,7 @@ export function serverSupportsTool(serverName: MCPServerName, toolName: MCPToolN
 `;
 
     // Write the types to a file
-    const outputPath = path.join(process.cwd(), "src", "mcp-types.ts");
+    const outputPath = path.join(process.cwd(), ".direnv", "mcp-types.ts");
     fs.writeFileSync(outputPath, typesContent);
     console.log(`MCP types generated successfully at ${outputPath}`);
   } catch (error) {

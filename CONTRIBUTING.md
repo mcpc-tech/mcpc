@@ -14,4 +14,4 @@ nix build --impure .
 
 # Debug
 
-HTTP_PROXY="http://127.0.0.1:8899" deno run -A packages/agent/src/server.ts
+deno run -A packages/core/src/server.ts
