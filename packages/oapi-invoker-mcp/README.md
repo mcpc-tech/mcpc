@@ -13,39 +13,42 @@
 
 # Quick Start
 
-For local running, please [install Deno](https://docs.deno.com/runtime/#install-deno)
+## 1. Configure MCP Server in your application:
 
-Then clone this repo with:
-
-```
-git clone https://github.com/mcpc-tech/mcpc.git && cd mcpc/packages/oapi-invoker-mcp
-```
-
-Configure MCP Server in your application:
+If you have Node.js installed locally, you can configure:
 
 ```json
 {
   "mcpServers": {
-    "code-runner": {
-      "url": "http://localhost:9000/oapi/sse",
-      "transportType": "sse"
-    }
-  }
-}
-```
-
-```json
-{
-  "mcpServers": {
-    "code-runner": {
-      "command": "deno",
+    "capi-invoker": {
+      "command": "npx",
       "args": [
+        "-y",
+        "deno",
         "run",
         "--allow-all",
-        "path_to_mcpc/packages/oapi-invoker-mcp/src/stdio.server.ts"
+        "jsr:@mcpc/oapi-invoker-mcp/bin"
       ],
+      "env": {},
       "transportType": "stdio"
     }
   }
 }
 ```
+
+If you have Deno installed locally, you can configure:
+
+```json
+{
+  "mcpServers": {
+    "capi-invoker": {
+      "command": "deno",
+      "args": ["run", "--allow-all", "jsr:@mcpc/oapi-invoker-mcp/bin"],
+      "env": {},
+      "transportType": "stdio"
+    }
+  }
+}
+```
+
+The above two methods need to supplement the env field as environment variables for running the MCP Server.

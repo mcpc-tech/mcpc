@@ -10,6 +10,7 @@
     "./packages/code-runner-mcp"
   ],
   "imports": {
+    "@es-toolkit/es-toolkit": "jsr:@es-toolkit/es-toolkit@^1.37.2",
     "json-schema-faker": "npm:json-schema-faker@^0.5.9"
   }
 }

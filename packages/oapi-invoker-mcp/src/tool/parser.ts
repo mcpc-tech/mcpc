@@ -7,7 +7,6 @@ import { openapi } from "@scalar/openapi-parser";
 import { mergeDeep } from "remeda";
 import { p } from "@mcpc/core";
 
-
 const SPEC_ENV = {
   method: undefined,
   path: undefined,
@@ -128,18 +127,30 @@ const OperationExtensionSchema = z
       .array(z.string().describe("Header key to remap to"))
       .optional(),
     "x-custom-base-url": z.string().optional(),
+    "x-sensitive-params": z
+      .record(z.string(), z.string())
+      .describe("Mark data as sensitive (will be redacted from LLM)"),
+    "x-sensitive-response-fields": z
+      .array(z.string())
+      .optional()
+      .describe("Mark response fields as sensitive"),
+    "x-include-response-keys": z
+      .array(z.string())
+      .optional()
+      .describe("Include response keys in the tool output"),
+    "x-exclude-response-keys": z
+      .array(z.string())
+      .optional()
+      .describe("Exclude response keys from the tool output"),
   })
   .merge(ToolOptionsSchema);
+
 // Parameter extensions schema
 const ParameterExtensionSchema = z.object({
   "x-examples": z
     .array(z.string())
     .optional()
     .describe("Example value for this parameter"),
-  "x-sensitive": z
-    .boolean()
-    .optional()
-    .describe("Mark data as sensitive (will be redacted from LLM)"),
 });
 
 // Response extensions schema
@@ -152,6 +163,10 @@ const ResponseExtensionSchema = z.object({
     .boolean()
     .optional()
     .describe("Mark response fields as sensitive"),
+  "x-tree-shaking-func": z
+    .string()
+    .optional()
+    .describe("Tree shaking response data"),
 });
 
 // Combined root schema for OpenAPI extensions
