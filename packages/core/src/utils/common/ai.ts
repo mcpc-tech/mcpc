@@ -110,18 +110,18 @@ export class ComposableMCPServer extends Server {
 
     const tools = await composeMcpDepTools(
       depsConfig,
-      ({ mcpName, toolName }) => {
+      ({ mcpName, internalToolName }) => {
         return tagToResults.tool.find((tool) => {
           description = description.replace(
             $(tool).prop("outerHTML")!,
-            `tool ${name} with toolName=${tool.attribs.name} argument`
+            `internal tool ${name} with internalToolName=${tool.attribs.name} argument, NEVER directly call this tool, treat it as a argument`
           );
-          return tool.attribs.name === `${mcpName}.${toolName}`;
+          return tool.attribs.name === `${mcpName}.${internalToolName}`;
         });
       }
     );
 
-    console.log(`[${name}] [composed tools] ${Object.keys(tools)}`);
+    console.log(`[${name}][composed tools] ${Object.keys(tools)}`);
 
     const allToolNames = tagToResults.tool.map((v) => v.attribs.name);
 
@@ -166,7 +166,7 @@ export class ComposableMCPServer extends Server {
 
         if (!tool) {
           throw new Error(
-            `Tool ${toolName} not found, available tools: ${Object.keys(
+            `Tool ${toolName} not found, available toolName list: ${Object.keys(
               tools
             ).join(", ")}`
           );
@@ -192,54 +192,58 @@ export class ComposableMCPServer extends Server {
           description: tool.description,
           properties: {
             ...baseProperties,
-            toolName: {
-              type: "string",
-              const: toolName,
-              description: "The name of the current tool to call",
-            },
-            nextToolName: {
+            internalToolName: {
               type: "string",
               enum: allToolNames,
               description:
-                "The name of the next internal tool to call. Specify this if the user request needs additional actions to be fulfilled",
+                "The name of the current internal tool to call, NEVER directly call it",
+            },
+            nextInternalToolName: {
+              type: "string",
+              enum: allToolNames,
+              description:
+                "The name of the next internal tool to call. Specify this if the user request needs additional actions to be fulfilled, NEVER directly call this",
             },
           },
 
-          required: [...baseRequired, "toolName"],
+          required: [...baseRequired, "internalToolName"],
         };
       }),
 
       discriminator: {
-        propertyName: "toolName",
+        propertyName: "internalToolName",
       },
     } as unknown as Schema;
 
     this.tool(name, description, argsDef, async (args: any) => {
       const currentToolElement = tagToResults.tool.find(
-        (t) => t.attribs.name === args.toolName
+        (t) => t.attribs.name === args.internalToolName
       );
 
       if (!currentToolElement) {
-        throw new Error(
-          `Internal tool ${
-            args.toolName
-          } not found, available internal tools: ${tagToResults.tool.map(
-            (t) => t.attribs.name
-          )}`
-        );
+        const error = `[ERROR]Internal tool ${
+          args.internalToolName
+        } not found, available internalToolName list: ${tagToResults.tool.map(
+          (t) => t.attribs.name
+        )}`;
+        console.log(error);
+        return {
+          content: [{ type: "text", text: error }],
+          isError: true,
+        };
       }
 
       const currentTool = tools[currentToolElement.attribs.name];
       const currentResult = await currentTool.execute({
         ...args,
-        toolName: undefined,
+        internalToolName: undefined,
       });
 
       if (args.nextToolName) {
         currentResult?.content?.unshift({
           type: "text",
-          text: `# **You MUST call this mcp tool(${name}) AGAIN with toolName=${args.nextToolName} argument**
-  # Previous internal tool: ${args.toolName}
+          text: `# You MUST call this mcp tool **AGAIN** with **internalToolName=${args.nextInternalToolName}** argument
+  # Previous internal tool: ${args.internalToolName}
   # Previous internal tool result`,
         });
       } else {
@@ -349,7 +353,7 @@ export function parseTags(
 export async function composeMcpDepTools(
   mcpConfig: z.infer<typeof McpSettingsSchema>,
   filterIn?: (params: {
-    toolName: string;
+    internalToolName: string;
     tool: any;
     mcpName: string;
   }) => boolean
@@ -398,16 +402,14 @@ export async function composeMcpDepTools(
 
       // Add the tools to the allTools object
       tools.forEach((tool) => {
-        const { toolNameWithScope, toolName } = smitheryToolNameCompatibale(
-          tool.name,
-          name
-        );
+        const { toolNameWithScope, toolName: internalToolName } =
+          smitheryToolNameCompatibale(tool.name, name);
 
-        if (filterIn && !filterIn({ toolName, tool, mcpName: name })) {
+        if (filterIn && !filterIn({ internalToolName, tool, mcpName: name })) {
           return;
         }
         const execute = (args: any) =>
-          client.callTool({ name: toolName, arguments: args });
+          client.callTool({ name: internalToolName, arguments: args });
         tool.execute = execute;
         allTools[toolNameWithScope] = tool;
       });
