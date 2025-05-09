@@ -1,11 +1,21 @@
 import { ComposableMCPServer } from "../mod.ts";
 import minimist from "minimist";
 import { connectToSmitheryServer } from "./utils/common/registory.ts";
+import { MCPSetting } from "./service/tools.ts";
 
 export const INCOMING_MSG_ROUTE_PATH = "/core/messages";
 
-// Examples: when command line args --mcpc-config are not provided, these serve as default examples
-const examples = {
+export interface ComposeDefination {
+  name: string;
+  description: string;
+  deps: MCPSetting;
+}
+
+export interface ComposibleMCPConfig {
+  [key: string]: ComposeDefination[];
+}
+
+const examples: ComposibleMCPConfig = {
   mcpc: [
     {
       name: "search-mcp-servers",
@@ -65,7 +75,6 @@ const examples = {
     },
   ],
 };
-
 export function parseMcpcConfigs(): any[] {
   const mcpcConfigRaw =
     minimist(process.argv.slice(2))?.["mcpc-config"] ??

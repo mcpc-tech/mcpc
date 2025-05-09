@@ -50,6 +50,7 @@ export const McpSettingsSchema: z.ZodObject<{
 }> = z.object({
   mcpServers: z.record(ServerConfigSchema),
 });
+
 const configStr = readFileSync(
   new URL(
     `../../../../${isProdEnv() ? "mcp.json" : "mcp.local.json"}`,
@@ -59,6 +60,7 @@ const configStr = readFileSync(
 );
 
 export type McpServerConfig = z.infer<typeof ServerConfigSchema>;
+export type MCPSetting = z.infer<typeof McpSettingsSchema>;
 
 const mcpSettings = McpSettingsSchema.parse(JSON.parse(configStr));
 const mcpEnabledConfigs = Object.entries(mcpSettings.mcpServers).filter(
