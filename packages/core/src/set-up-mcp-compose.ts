@@ -18,7 +18,7 @@ export interface ComposibleMCPConfig {
 const examples: ComposibleMCPConfig = {
   mcpc: [
     {
-      name: "search-mcp-servers",
+      name: "search-mcp-servers-tool",
       description:
         'search mcp servers using <tool name="@smithery/toolbox.search_servers"/>',
       deps: {
@@ -75,12 +75,14 @@ const examples: ComposibleMCPConfig = {
     },
   ],
 };
-export function parseMcpcConfigs(): any[] {
+
+export function parseMcpcConfigs(
+  conf?: ComposeDefination[]
+): ComposeDefination[] {
   const mcpcConfigRaw =
     minimist(process.argv.slice(2))?.["mcpc-config"] ??
     JSON.stringify(examples["mcpc"]);
-  console.log(mcpcConfigRaw);
-  const mcpcConfigs = mcpcConfigRaw ? JSON.parse(mcpcConfigRaw) : null;
+  const mcpcConfigs = JSON.parse(conf ?? mcpcConfigRaw);
   const newMcpcConfigs = [];
 
   for (const mcpcConfig of mcpcConfigs) {
@@ -100,14 +102,14 @@ export function parseMcpcConfigs(): any[] {
   return newMcpcConfigs;
 }
 
-const mcpcConfigs = parseMcpcConfigs();
-
-export async function setUpMcpServer(
-  ...args: ConstructorParameters<typeof ComposableMCPServer>
+export async function mcpc(
+  serverConf: ConstructorParameters<typeof ComposableMCPServer>,
+  composeConf?: ComposeDefination[]
 ): Promise<InstanceType<typeof ComposableMCPServer>> {
-  const server = new ComposableMCPServer(...args);
+  const server = new ComposableMCPServer(...serverConf);
+  const parsed = parseMcpcConfigs(composeConf);
 
-  for (const mcpcConfig of mcpcConfigs) {
+  for (const mcpcConfig of parsed) {
     await server.compose(
       mcpcConfig.name,
       mcpcConfig.description,
