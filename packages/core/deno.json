@@ -1,6 +1,6 @@
 {
     "name": "@mcpc/core",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "tasks": {
         "server:compile": "echo \"no need to compile\""
     },
