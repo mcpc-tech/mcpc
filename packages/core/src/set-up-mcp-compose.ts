@@ -17,26 +17,26 @@ export interface ComposibleMCPConfig {
 
 const examples: ComposibleMCPConfig = {
   mcpc: [
-    {
-      name: "search-mcp-servers-tool",
-      description:
-        'search mcp servers using <tool name="@smithery/toolbox.search_servers"/>',
-      deps: {
-        mcpServers: {
-          "@smithery/toolbox": {
-            smitheryConfig: {
-              type: "http",
-              deploymentUrl: "https://server.smithery.ai/@smithery/toolbox/mcp",
-              config: {
-                dynamic: false,
-                profile: "gentle-beaver-73GCYS",
-                smitheryApiKey: process.env.SMITHERY_API_TOKEN,
-              },
-            },
-          },
-        },
-      },
-    },
+    // {
+    //   name: "search-mcp-servers-tool",
+    //   description:
+    //     'search mcp servers using <tool name="@smithery/toolbox.search_servers"/>',
+    //   deps: {
+    //     mcpServers: {
+    //       "@smithery/toolbox": {
+    //         smitheryConfig: {
+    //           type: "http",
+    //           deploymentUrl: "https://server.smithery.ai/@smithery/toolbox/mcp",
+    //           config: {
+    //             dynamic: false,
+    //             profile: "gentle-beaver-73GCYS",
+    //             smitheryApiKey: process.env.SMITHERY_API_TOKEN,
+    //           },
+    //         },
+    //       },
+    //     },
+    //   },
+    // },
     {
       name: "co-calculator",
       description: `When mathematical statistics or logical calculations are needed, complete the calculation by following these steps:

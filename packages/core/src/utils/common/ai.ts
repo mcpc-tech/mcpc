@@ -164,6 +164,14 @@ export class ComposableMCPServer extends Server {
         const toolName = v.attribs.name;
         const tool = tools[toolName];
 
+        if (!tool) {
+          throw new Error(
+            `Tool ${toolName} not found, available tools: ${Object.keys(
+              tools
+            ).join(", ")}`
+          );
+        }
+
         const baseSchema = tool.inputSchema || {
           type: "object",
           properties: {},
