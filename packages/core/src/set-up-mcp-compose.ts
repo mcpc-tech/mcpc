@@ -82,7 +82,7 @@ export function parseMcpcConfigs(
   const mcpcConfigRaw =
     minimist(process.argv.slice(2))?.["mcpc-config"] ??
     JSON.stringify(examples["mcpc"]);
-  const mcpcConfigs = JSON.parse(conf ?? mcpcConfigRaw);
+  const mcpcConfigs = conf ?? JSON.parse(mcpcConfigRaw);
   const newMcpcConfigs = [];
 
   for (const mcpcConfig of mcpcConfigs) {
