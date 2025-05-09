@@ -121,7 +121,7 @@ export class ComposableMCPServer extends Server {
       }
     );
 
-    console.log(`[composed tools] ${Object.keys(tools)}`);
+    console.log(`[${name}] [composed tools] ${Object.keys(tools)}`);
 
     const allToolNames = tagToResults.tool.map((v) => v.attribs.name);
 
