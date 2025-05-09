@@ -10,7 +10,11 @@
  */
 import type { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { z } from "zod";
-import type { OAPIOperation, OAPISpecDocument } from "./parser.ts";
+import type {
+  OAPIOperation,
+  OAPISpecDocument,
+  ParameterExtension,
+} from "./parser.ts";
 import type { OpenAPI } from "@scalar/openapi-types";
 import { p } from "@mcpc/core";
 
@@ -186,9 +190,15 @@ function processOperationParameters(
   operation: OpenAPI.Operation
 ): void {
   if (!operation.parameters) return;
+  const sensitiveKV = operation["x-sensitive-params"] ?? {};
 
   for (const param of operation.parameters) {
-    const typedParam = param as OpenAPI.Parameter;
+    const typedParam = param as OpenAPI.Parameter & ParameterExtension;
+
+    // Exclude sensitive parameters from tool input schema
+    if (sensitiveKV[param.name]) {
+      continue;
+    }
 
     // Handle different parameter schema structures based on OpenAPI version
     let paramType = "string";
@@ -211,7 +221,6 @@ function processOperationParameters(
     }
   }
 }
-
 
 /**
  * Processes an input parameter (query, body, formData)

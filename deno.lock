@@ -1,6 +1,7 @@
 {
   "version": "4",
   "specifiers": {
+    "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.37.2",
     "jsr:@mcpc/code-runner-mcp@*": "0.0.6",
     "jsr:@mcpc/core@^0.0.2": "0.0.2",
     "jsr:@pintora/target-wintercg@~0.1.4": "0.1.4",
@@ -48,6 +49,9 @@
     "npm:zod@^3.24.2": "3.24.3"
   },
   "jsr": {
+    "@es-toolkit/es-toolkit@1.37.2": {
+      "integrity": "c628554e7c77587666c8bff2ca8dab30d4cd8c4166002e756b01ea1662e9bb1e"
+    },
     "@mcpc/code-runner-mcp@0.0.6": {
       "integrity": "f52634fbdc13002d3554f36ab4b9978e13ae1f4a272dc562d6705591941892ff",
       "dependencies": [
@@ -1217,6 +1221,7 @@
   },
   "workspace": {
     "dependencies": [
+      "jsr:@es-toolkit/es-toolkit@^1.37.2",
       "npm:json-schema-faker@~0.5.9"
     ],
     "members": {
