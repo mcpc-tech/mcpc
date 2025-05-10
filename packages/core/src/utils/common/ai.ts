@@ -108,13 +108,24 @@ export class ComposableMCPServer extends Server {
   ) {
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
 
+    description = `Context: You are the operational interface for an MCP tool composed of a set of internal tools.
+# User Instructions: ${description}
+# Task Execution Flow: Your role is to fulfill user instructions by orchestrating a sequence of operations. For each step in this sequence:
+- Determine the single most appropriate internal tool required for the current action *now*.
+- Anticipate and plan the likely *next* step or possible subsequent actions needed to complete the overall task.
+- Your output for the current step MUST clearly specify:
+    - The chosen tool for the current step.
+- Additionally, *if* subsequent actions are required after the current step, your output MUST also clearly specify:
+    - The anticipated tool for the next step. (If no further steps are needed, this item should be omitted).
+- Base your decisions for the *current* tool selection and your anticipation for the *next* tool on user instructions, the overall task goal, and the results from any previous steps.
+**Crucial Directive: Any internal tool name you identify in your output must be treated strictly as an argument/parameter; NEVER attempt to directly call or execute the internal tool it names.**`;
     const tools = await composeMcpDepTools(
       depsConfig,
       ({ mcpName, internalToolName }) => {
         return tagToResults.tool.find((tool) => {
           description = description.replace(
             $(tool).prop("outerHTML")!,
-            `internal tool ${name} with internalToolName=${tool.attribs.name} argument, NEVER directly call this tool, treat it as a argument`
+            `<tool name="${name}" internalToolName="${tool.attribs.name}"/>`
           );
           return tool.attribs.name === `${mcpName}.${internalToolName}`;
         });
@@ -195,14 +206,13 @@ export class ComposableMCPServer extends Server {
             internalToolName: {
               type: "string",
               enum: allToolNames,
-              description:
-                "The name of the current internal tool to call, NEVER directly call it",
+              description: "The name of the current internal tool to call",
             },
             nextInternalToolName: {
               type: "string",
               enum: allToolNames,
               description:
-                "The name of the next internal tool to call. Specify this if the user request needs additional actions to be fulfilled, NEVER directly call this",
+                "The name of the next internal tool to call. Specify this if the user request needs additional actions to be fulfilled",
             },
           },
 
@@ -239,7 +249,7 @@ export class ComposableMCPServer extends Server {
         internalToolName: undefined,
       });
 
-      if (args.nextToolName) {
+      if (args.nextInternalToolName) {
         currentResult?.content?.unshift({
           type: "text",
           text: `# You MUST call this mcp tool **AGAIN** with **internalToolName=${args.nextInternalToolName}** argument
@@ -337,7 +347,7 @@ export function parseTags(
   htmlString: string,
   tags: Array<string>
 ): { tagToResults: Record<string, any[]>; $: CheerioAPI } {
-  const $ = load(htmlString, { xml: true });
+  const $ = load(htmlString, { xml: { decodeEntities: false } });
 
   const tagToResults: Record<string, any[]> = {};
   for (const tag of tags) {
