@@ -16,6 +16,10 @@ For the fastest and most straightforward path, simply visit mcpc.tech. Our user-
 
 ![mcpc-tech-example](./images/mcpc-tech-example.png)
 
+After defining your agentic workflow, simply click the **"Generate" button** to effortlessly create your custom Agentic MCP Server. You can then seamlessly copy and paste the generated configuration into your preferred MCP client (e.g., Claude Desktop) for rapid integration.
+
+What's more, this powerful workflow configuration can be easily **shared with your colleagues or anyone interested**. This not only fosters team collaboration and knowledge sharing but also allows more people to experience the automation solutions you've built.
+
 ## 2. Integrate Deeply Using Code
 
 For developers who prefer a programmatic approach, or for seamless integration into existing pipelines, MCP Compose offers robust code-based options. Leverage our comprehensive SDK, API, or CLI tools to declaratively define your workflows, compose MCPs. This method provides ultimate control and flexibility for advanced automation scenarios.
