@@ -72,4 +72,4 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 ```
 
-See more example code snippets at: https://github.com/mcpc-tech/mcpc/packages/core/examples
+See more example code snippets at: https://github.com/mcpc-tech/mcpc/tree/main/packages/core/examples
