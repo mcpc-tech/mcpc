@@ -2,7 +2,7 @@
 
 MCPC: One prompt instantly builds your scalable agentic MCP server from thousands of dependent MCPs.
 
-> Read more on [Introducing MCPC: One Prompt for Your Agentic MCP Server, Powered by Thousands](https://x.com/yaoandyan/article/1921532787905237398)
+> Read more at [Introducing MCPC: One Prompt for Your Agentic MCP Server, Powered by Thousands](https://x.com/yaoandyan/article/1921532787905237398)
 
 1. One-Prompt General Automation Workflow Declaration;
 2. Save token by internally calling dependent MCP servers;
@@ -10,13 +10,13 @@ MCPC: One prompt instantly builds your scalable agentic MCP server from thousand
 
 # Getting Started
 
-1. Get Started Instantly via Our Website
+## 1. Get Started Instantly via Our Website
 
 For the fastest and most straightforward path, simply visit mcpc.tech. Our user-friendly online platform provides an intuitive interface where you can declare your agentic workflows and provision your MCP servers with ease – all just with a few clicks. It's the ideal way to grasp the power of one-prompt automation firsthand.
 
 ![mcpc-tech-example](./images/mcpc-tech-example.png)
 
-2. Integrate Deeply Using Code
+## 2. Integrate Deeply Using Code
 
 For developers who prefer a programmatic approach, or for seamless integration into existing pipelines, MCP Compose offers robust code-based options. Leverage our comprehensive SDK, API, or CLI tools to declaratively define your workflows, compose MCPs. This method provides ultimate control and flexibility for advanced automation scenarios.
 To get started, first install @mcpc/core SDK:
