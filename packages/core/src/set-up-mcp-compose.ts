@@ -16,27 +16,7 @@ export interface ComposibleMCPConfig {
 }
 
 const examples: ComposibleMCPConfig = {
-  mcpc: [
-    // {
-    //   name: "search-mcp-servers-tool",
-    //   description:
-    //     'search mcp servers using <tool name="@smithery/toolbox.search_servers"/>',
-    //   deps: {
-    //     mcpServers: {
-    //       "@smithery/toolbox": {
-    //         smitheryConfig: {
-    //           type: "http",
-    //           deploymentUrl: "https://server.smithery.ai/@smithery/toolbox/mcp",
-    //           config: {
-    //             dynamic: false,
-    //             profile: "gentle-beaver-73GCYS",
-    //             smitheryApiKey: process.env.SMITHERY_API_TOKEN,
-    //           },
-    //         },
-    //       },
-    //     },
-    //   },
-    // },
+  example_one: [
     {
       name: "co-calculator",
       description: `When mathematical statistics or logical calculations are needed, complete the calculation by following these steps:
@@ -53,26 +33,44 @@ const examples: ComposibleMCPConfig = {
         },
       },
     },
-//     {
-//       name: "if-takeout-has-physical-store",
-//       description: `Before ordering takeout, check if the restaurant has a physical store using Amap data:
-// 0. Use <tool name="amap-maps.maps_geo"/> tool to get user location coordinates;
-// 1. Use <tool name="amap-maps.maps_text_search"/> tool to search with user provided keywords, find the most matching restaurant by default;
-// 2. Use <tool name="amap-maps.maps_geo"/> tool to get restaurant coordinates;
-// 3. Use <tool name="amap-maps.maps_distance"/> to calculate driving distance from restaurant to user location;
-// 4. If distance is less than or equal to 20000, return "Has physical store"; otherwise, return "No physical store"; append distance and driving time (convert to readable format, like "10km 20min")`,
-//       deps: {
-//         mcpServers: {
-//           "amap-maps": {
-//             command: "npx",
-//             args: ["-y", "@amap/amap-maps-mcp-server"],
-//             env: {
-//               AMAP_MAPS_API_KEY: process.env.AMAP_MAPS_API_KEY,
-//             },
-//           },
-//         },
-//       },
-//     },
+  ],
+  example_two: [
+    {
+      name: "if-takeout-has-physical-store",
+      description: `Before ordering takeout, check if the restaurant has a physical store using Amap data:
+    0. Use <tool name="amap-maps.maps_geo"/> tool to get user location coordinates;
+    1. Use <tool name="amap-maps.maps_text_search"/> tool to search with user provided keywords, find the most matching restaurant by default;
+    2. Use <tool name="amap-maps.maps_geo"/> tool to get restaurant coordinates;
+    3. Use <tool name="amap-maps.maps_distance"/> to calculate driving distance from restaurant to user location;
+    4. If distance is less than or equal to 20000, return "Has physical store"; otherwise, return "No physical store"; append distance and driving time (convert to readable format, like "10km 20min")`,
+      deps: {
+        mcpServers: {
+          "amap-maps": {
+            command: "npx",
+            args: ["-y", "@amap/amap-maps-mcp-server"],
+            env: {
+              AMAP_MAPS_API_KEY: process.env.AMAP_MAPS_API_KEY,
+            },
+          },
+        },
+      },
+    },
+  ],
+  example_three: [
+    {
+      name: "tidy-folder",
+      description: `Goal: Automatically keep the users folder tidy, organized, and free from clutter by intelligently classifying(with folders) and managing files(moving to corresponding folder).
+Tools: <tool name="@wonderwhy-er/desktop-commander.list_directory"/> , <tool name="@wonderwhy-er/desktop-commander.create_directory"/> , <tool name="@wonderwhy-er/desktop-commander.move_file"/> 
+`,
+      deps: {
+        mcpServers: {
+          "@wonderwhy-er/desktop-commander": {
+            command: "npx",
+            args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+          },
+        },
+      },
+    },
   ],
 };
 
