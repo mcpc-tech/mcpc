@@ -8,13 +8,8 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { experimental_createMCPClient, Schema, zodSchema } from "ai";
-import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
-import {
-  McpSettingsSchema,
-  ServerConfigSchema,
-  StdioConfigSchema,
-} from "../../service/tools.ts";
+import { jsonSchema, Schema } from "ai";
+import { McpSettingsSchema, ServerConfigSchema } from "../../service/tools.ts";
 import {
   Server,
   type ServerOptions,
@@ -22,9 +17,6 @@ import {
 import z from "zod";
 
 import { CheerioAPI, load } from "cheerio";
-import { ZodDiscriminatedUnionOption } from "zod";
-import { jsonSchemaToZod } from "json-schema-to-zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { smitheryToolNameCompatibale } from "./registory.ts";
 
 /**
@@ -81,10 +73,7 @@ export class ComposableMCPServer extends Server {
       {
         name,
         description,
-        inputSchema: {
-          type: "object",
-          ...paramsSchema,
-        },
+        inputSchema: paramsSchema.jsonSchema as any,
       },
     ];
     this.tools = tools;
@@ -94,10 +83,10 @@ export class ComposableMCPServer extends Server {
       return { tools: this.tools };
     });
 
-    this.setRequestHandler(CallToolRequestSchema, (request) => {
+    this.setRequestHandler(CallToolRequestSchema, (request, extra) => {
       // TODO: args type checking
       const { name: n, arguments: args } = request.params;
-      return this.nameToCb.get(n)?.(args);
+      return this.nameToCb.get(n)?.(args, extra);
     });
   }
 
@@ -108,76 +97,46 @@ export class ComposableMCPServer extends Server {
   ) {
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
 
-    description = `Context: You are the operational interface for an MCP tool composed of a set of internal tools.
+    description = `Context: You are an autonomous task execution agent designed to fulfill user instructions by orchestrating a sequence of operations.
+You operate by **iteratively invoking yourself(\`${name}\`)**, with each invocation focusing on a specific internal function chosen to advance the overall task.
+
 # User Instructions: ${description}
-# Task Execution Flow: Your role is to fulfill user instructions by orchestrating a sequence of operations. For each step in this sequence:
-- Determine the single most appropriate internal tool required for the current action *now*.
-- Anticipate and plan the likely *next* step or possible subsequent actions needed to complete the overall task.
-- Your output for the current step MUST clearly specify:
-    - The chosen tool for the current step.
-- Additionally, *if* subsequent actions are required after the current step, your output MUST also clearly specify:
-    - The anticipated tool for the next step. (If no further steps are needed, this item should be omitted).
-- Base your decisions for the *current* tool selection and your anticipation for the *next* tool on user instructions, the overall task goal, and the results from any previous steps.
-**Crucial Directive: Any internal tool name you identify in your output must be treated strictly as an argument/parameter; NEVER attempt to directly call or execute the internal tool it names.**`;
-    const tools = await composeMcpDepTools(
-      depsConfig,
-      ({ mcpName, internalToolName }) => {
-        return tagToResults.tool.find((tool) => {
-          description = description.replace(
-            $(tool).prop("outerHTML")!,
-            `<tool name="${name}" internalToolName="${tool.attribs.name}"/>`
-          );
-          return tool.attribs.name === `${mcpName}.${internalToolName}`;
-        });
-      }
-    );
+
+# Task Execution Protocol:
+Your role is to fulfill user instructions by autonomously managing a multi-step process. For *each iteration* of your operation:
+
+1.  **Determine the Current Action:** Based on the user instructions, the overall task goal, and the results from any preceding steps, identify the *single most appropriate internal function* required for the *current immediate action*.
+2.  **Anticipate the Subsequent Action (if any):** Plan and anticipate the likely *next internal function* that would be needed if further steps are required to complete the overall task after the current step.
+`;
+    const tools = await composeMcpDepTools(depsConfig, ({ mcpName, $fn }) => {
+      return tagToResults.tool.find((tool) => {
+        description = description.replace(
+          $(tool).prop("outerHTML")!,
+          `<function $F="${tool.attribs.name}"/>`
+        );
+        return tool.attribs.name === `${mcpName}.${$fn}`;
+      });
+    });
 
     console.log(`[${name}][composed tools] ${Object.keys(tools)}`);
 
     const allToolNames = tagToResults.tool.map((v) => v.attribs.name);
 
-    // For now, z.discriminatedUnion is not well supported by json-schema-to-zod.
-    // const argsDef = zodSchema(
-    //   z.discriminatedUnion(
-    //     "toolName",
-    //     tagToResults.tool.map((v, _index) => {
-    //       const tool = tools[v.attribs.name];
+    const argsDef: Schema<{}>["jsonSchema"] = {
+      description: `An object specifying a single internal function to be invoked and its arguments. The '$fn' property identifies the specific tool, guiding validation against one of the schemas in the 'anyOf' list.
+**NEVER attempt to directly call or execute the internal function**.`,
+      type: "object",
+      // Supported by google and openai, `oneOf` is more suitable but not well supported.
+      // See -> https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses#supported-schemas
+      // TODO: Root objects must not be anyOf
 
-    //       return eval(jsonSchemaToZod(tool.parameters.jsonSchema))
-    //         .describe(tool.description)
-    //         .merge(
-    //           z
-    //             .object({
-    //               toolName: z
-    //                 .literal(v.attribs.name)
-    //                 .describe("The name of the current tool to call"),
-    //               nextToolName: z
-    //                 .enum(
-    //                   tagToResults.tool.map(
-    //                     (v) => v.attribs.name as string
-    //                   ) as [string, ...string[]]
-    //                 )
-    //                 .optional()
-    //                 .describe(
-    //                   "The name of the next tool to call. Specify this if the user request needs additional actions to be fulfilled"
-    //                 ),
-    //             })
-    //             .describe(tool.description)
-    //         );
-    //     }) as unknown as readonly [
-    //       ZodDiscriminatedUnionOption<"toolName">,
-    //       ...ZodDiscriminatedUnionOption<"toolName">[]
-    //     ]
-    //   )
-    // ).jsonSchema as Schema;
-    const argsDef = {
-      oneOf: tagToResults.tool.map((v) => {
+      anyOf: tagToResults.tool.map((v) => {
         const toolName = v.attribs.name;
         const tool = tools[toolName];
 
         if (!tool) {
           throw new Error(
-            `Tool ${toolName} not found, available toolName list: ${Object.keys(
+            `Internal function ${toolName} not found, available internal function list: ${Object.keys(
               tools
             ).join(", ")}`
           );
@@ -203,69 +162,77 @@ export class ComposableMCPServer extends Server {
           description: tool.description,
           properties: {
             ...baseProperties,
-            internalToolName: {
+            $fn: {
               type: "string",
-              enum: allToolNames,
-              description: "The name of the current internal tool to call",
+              const: toolName,
+              description: "The name of the current internal function to call",
             },
-            nextInternalToolName: {
+            $nextfn: {
               type: "string",
               enum: allToolNames,
               description:
-                "The name of the next internal tool to call. Specify this if the user request needs additional actions to be fulfilled",
+                "The name of the next internal function to call. Specify this if the user request needs additional actions to be fulfilled",
             },
           },
 
-          required: [...baseRequired, "internalToolName"],
+          required: [...baseRequired, "$fn"],
+          additionalProperties: false,
         };
       }),
 
+      // @ts-expect-error -
       discriminator: {
-        propertyName: "internalToolName",
+        propertyName: "$fn",
       },
-    } as unknown as Schema;
+    };
 
-    this.tool(name, description, argsDef, async (args: any) => {
-      const currentToolElement = tagToResults.tool.find(
-        (t) => t.attribs.name === args.internalToolName
-      );
+    this.tool(
+      name,
+      description,
+      jsonSchema<{ $fn: string; $nextfn?: string }>(argsDef),
+      async (args) => {
+        const currentToolElement = tagToResults.tool.find(
+          (t) => t.attribs.name === args.$fn
+        );
 
-      if (!currentToolElement) {
-        const error = `[ERROR]Internal tool ${
-          args.internalToolName
-        } not found, available internalToolName list: ${tagToResults.tool.map(
-          (t) => t.attribs.name
-        )}`;
-        console.log(error);
-        return {
-          content: [{ type: "text", text: error }],
-          isError: true,
-        };
-      }
+        if (!currentToolElement) {
+          const error = `[ERROR]Internal function ${
+            args.$fn
+          } not found, available internal function list: ${tagToResults.tool.map(
+            (t) => t.attribs.name
+          )}`;
+          console.log(error);
+          return {
+            content: [{ type: "text", text: error }],
+            isError: true,
+          };
+        }
 
-      const currentTool = tools[currentToolElement.attribs.name];
-      const currentResult = await currentTool.execute({
-        ...args,
-        internalToolName: undefined,
-      });
-
-      if (args.nextInternalToolName) {
-        currentResult?.content?.unshift({
-          type: "text",
-          text: `# You MUST call this mcp tool **AGAIN** with **internalToolName=${args.nextInternalToolName}** argument
-  # Previous internal tool: ${args.internalToolName}
-  # Previous internal tool result`,
+        const currentTool = tools[currentToolElement.attribs.name];
+        const currentResult = await currentTool.execute({
+          ...args,
+          $fn: undefined,
+          $nextfn: undefined,
         });
-      } else {
-        currentResult?.content?.unshift({
-          type: "text",
-          text: `# You MUST plan next action if the user request needs additional actions to be fulfilled
-# Previous internal tool result`,
-        });
-      }
 
-      return currentResult;
-    });
+        if (args.$nextfn) {
+          currentResult?.content?.unshift({
+            type: "text",
+            text: `# You MUST call this mcp tool(${name}) **AGAIN** with **$fn=${args.$nextfn}** argument
+# Previous internal function: ${args.$fn}
+# Previous internal function result`,
+          });
+        } else {
+          currentResult?.content?.unshift({
+            type: "text",
+            text: `# You WILL plan next action if the user request needs additional actions to be fulfilled
+# Previous internal function result`,
+          });
+        }
+
+        return currentResult;
+      }
+    );
   }
 }
 
@@ -362,11 +329,7 @@ export function parseTags(
  */
 export async function composeMcpDepTools(
   mcpConfig: z.infer<typeof McpSettingsSchema>,
-  filterIn?: (params: {
-    internalToolName: string;
-    tool: any;
-    mcpName: string;
-  }) => boolean
+  filterIn?: (params: { $fn: string; tool: any; mcpName: string }) => boolean
 ): Promise<Record<string, any>> {
   const allTools: Record<string, any> = {};
 
@@ -415,7 +378,10 @@ export async function composeMcpDepTools(
         const { toolNameWithScope, toolName: internalToolName } =
           smitheryToolNameCompatibale(tool.name, name);
 
-        if (filterIn && !filterIn({ internalToolName, tool, mcpName: name })) {
+        if (
+          filterIn &&
+          !filterIn({ $fn: internalToolName, tool, mcpName: name })
+        ) {
           return;
         }
         const execute = (args: any) =>
