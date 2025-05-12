@@ -18,6 +18,7 @@ import z from "zod";
 
 import { CheerioAPI, load } from "cheerio";
 import { smitheryToolNameCompatibale } from "./registory.ts";
+import { object } from "zod";
 
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
@@ -123,81 +124,83 @@ Your role is to fulfill user instructions by autonomously managing a multi-step 
     const allToolNames = tagToResults.tool.map((v) => v.attribs.name);
 
     const argsDef: Schema<{}>["jsonSchema"] = {
-      description: `An object specifying a single internal function to be invoked and its arguments. The '$fn' property identifies the specific tool, guiding validation against one of the schemas in the 'anyOf' list.
-**NEVER attempt to directly call or execute the internal function**.`,
       type: "object",
-      // Supported by google and openai, `oneOf` is more suitable but not well supported.
-      // See -> https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses#supported-schemas
-      // TODO: Root objects must not be anyOf
+      properties: {
+        // Root objects must not be anyOf, see -> https://platform.openai.com/docs/guides/structured-outputs#root-objects-must-not-be-anyof
+        dep_arguments: {
+          description: `An object specifying a single internal function to be invoked and its arguments. The '$fn' property identifies the specific tool, guiding validation against one of the schemas in the 'anyOf' list.
+**NEVER attempt to directly call or execute the internal function**.`,
+          // Supported by google and openai, `oneOf` is more suitable but not well supported.
+          // See -> https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses#supported-schemas
+          anyOf: tagToResults.tool.map((v) => {
+            const toolName = v.attribs.name;
+            const tool = tools[toolName];
 
-      anyOf: tagToResults.tool.map((v) => {
-        const toolName = v.attribs.name;
-        const tool = tools[toolName];
+            if (!tool) {
+              throw new Error(
+                `Internal function ${toolName} not found, available internal function list: ${Object.keys(
+                  tools
+                ).join(", ")}`
+              );
+            }
 
-        if (!tool) {
-          throw new Error(
-            `Internal function ${toolName} not found, available internal function list: ${Object.keys(
-              tools
-            ).join(", ")}`
-          );
-        }
+            const baseSchema = tool.inputSchema || {
+              type: "object",
+              properties: {},
+              required: [],
+            };
 
-        const baseSchema = tool.inputSchema || {
-          type: "object",
-          properties: {},
-          required: [],
-        };
+            const baseProperties =
+              baseSchema.type === "object" && baseSchema.properties
+                ? baseSchema.properties
+                : {};
+            const baseRequired =
+              baseSchema.type === "object" && baseSchema.required
+                ? baseSchema.required
+                : [];
 
-        const baseProperties =
-          baseSchema.type === "object" && baseSchema.properties
-            ? baseSchema.properties
-            : {};
-        const baseRequired =
-          baseSchema.type === "object" && baseSchema.required
-            ? baseSchema.required
-            : [];
+            return {
+              type: "object",
+              description: tool.description,
+              properties: {
+                ...baseProperties,
+                $fn: {
+                  type: "string",
+                  const: toolName,
+                  description:
+                    "The name of the current internal function to call",
+                },
+                $nextfn: {
+                  type: "string",
+                  enum: allToolNames,
+                  description:
+                    "The name of the next internal function to call. Specify this if the user request needs additional actions to be fulfilled",
+                },
+              },
 
-        return {
-          type: "object",
-          description: tool.description,
-          properties: {
-            ...baseProperties,
-            $fn: {
-              type: "string",
-              const: toolName,
-              description: "The name of the current internal function to call",
-            },
-            $nextfn: {
-              type: "string",
-              enum: allToolNames,
-              description:
-                "The name of the next internal function to call. Specify this if the user request needs additional actions to be fulfilled",
-            },
-          },
-
-          required: [...baseRequired, "$fn"],
-          additionalProperties: false,
-        };
-      }),
-
-      // @ts-expect-error -
-      discriminator: {
-        propertyName: "$fn",
+              required: [...baseRequired, "$fn"],
+              additionalProperties: false,
+            };
+          }),
+        },
       },
+      required: ["dep_arguments"],
     };
 
     this.tool(
       name,
       description,
-      jsonSchema<{ $fn: string; $nextfn?: string }>(argsDef),
+      jsonSchema<{ dep_arguments: { $fn: string; $nextfn?: string } }>(
+        argsDef
+      ),
       async (args) => {
         const currentToolElement = tagToResults.tool.find(
-          (t) => t.attribs.name === args.$fn
+          (t) => t.attribs.name === args.dep_arguments.$fn
         );
 
         if (!currentToolElement) {
           const error = `[ERROR]Internal function ${
-            args.$fn
+            args.dep_arguments.$fn
           } not found, available internal function list: ${tagToResults.tool.map(
             (t) => t.attribs.name
           )}`;
@@ -210,16 +213,16 @@ Your role is to fulfill user instructions by autonomously managing a multi-step 
 
         const currentTool = tools[currentToolElement.attribs.name];
         const currentResult = await currentTool.execute({
-          ...args,
+          ...args.dep_arguments,
           $fn: undefined,
           $nextfn: undefined,
         });
 
-        if (args.$nextfn) {
+        if (args.dep_arguments.$nextfn) {
           currentResult?.content?.unshift({
             type: "text",
-            text: `# You MUST call this mcp tool(${name}) **AGAIN** with **$fn=${args.$nextfn}** argument
-# Previous internal function: ${args.$fn}
+            text: `# You MUST call this mcp tool(${name}) **AGAIN** with **$fn=${args.dep_arguments.$nextfn}** argument
+# Previous internal function: ${args.dep_arguments.$fn}
 # Previous internal function result`,
           });
         } else {
