@@ -219,12 +219,12 @@ Your role is to fulfill user instructions by autonomously managing a multi-step 
         if (args.args.$nextfn) {
           currentResult?.content?.unshift({
             type: "text",
-            text: `# You MUST call this mcp tool(${name}) AGAIN with $fn=${args.args.$nextfn} argument, previous internal function ${args.args.$fn} result:`,
+            text: `# You MUST call this mcp tool(${name}) AGAIN using the ${args.args.$nextfn} internal function, with the result from previous internal function(${args.args.$fn}):`,
           });
         } else {
           currentResult?.content?.unshift({
             type: "text",
-            text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, previous internal function result:`,
+            text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, with the result from previous internal function(${args.args.$fn}):`,
           });
         }
 
