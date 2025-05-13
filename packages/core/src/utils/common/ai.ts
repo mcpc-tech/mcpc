@@ -113,7 +113,7 @@ Your role is to fulfill user instructions by autonomously managing a multi-step 
       return tagToResults.tool.find((tool) => {
         description = description.replace(
           $(tool).prop("outerHTML")!,
-          `<function $F="${tool.attribs.name}"/>`
+          `<function $fn="${tool.attribs.name}"/>`
         );
         return tool.attribs.name === `${mcpName}.${$fn}`;
       });
@@ -127,7 +127,7 @@ Your role is to fulfill user instructions by autonomously managing a multi-step 
       type: "object",
       properties: {
         // Root objects must not be anyOf, see -> https://platform.openai.com/docs/guides/structured-outputs#root-objects-must-not-be-anyof
-        dep_arguments: {
+        args: {
           description: `An object specifying a single internal function to be invoked and its arguments. The '$fn' property identifies the specific tool, guiding validation against one of the schemas in the 'anyOf' list.
 **NEVER attempt to directly call or execute the internal function**.`,
           // Supported by google and openai, `oneOf` is more suitable but not well supported.
@@ -184,23 +184,21 @@ Your role is to fulfill user instructions by autonomously managing a multi-step 
           }),
         },
       },
-      required: ["dep_arguments"],
+      required: ["args"],
     };
 
     this.tool(
       name,
       description,
-      jsonSchema<{ dep_arguments: { $fn: string; $nextfn?: string } }>(
-        argsDef
-      ),
+      jsonSchema<{ args: { $fn: string; $nextfn?: string } }>(argsDef),
       async (args) => {
         const currentToolElement = tagToResults.tool.find(
-          (t) => t.attribs.name === args.dep_arguments.$fn
+          (t) => t.attribs.name === args.args.$fn
         );
 
         if (!currentToolElement) {
           const error = `[ERROR]Internal function ${
-            args.dep_arguments.$fn
+            args.args.$fn
           } not found, available internal function list: ${tagToResults.tool.map(
             (t) => t.attribs.name
           )}`;
@@ -213,23 +211,20 @@ Your role is to fulfill user instructions by autonomously managing a multi-step 
 
         const currentTool = tools[currentToolElement.attribs.name];
         const currentResult = await currentTool.execute({
-          ...args.dep_arguments,
+          ...args.args,
           $fn: undefined,
           $nextfn: undefined,
         });
 
-        if (args.dep_arguments.$nextfn) {
+        if (args.args.$nextfn) {
           currentResult?.content?.unshift({
             type: "text",
-            text: `# You MUST call this mcp tool(${name}) **AGAIN** with **$fn=${args.dep_arguments.$nextfn}** argument
-# Previous internal function: ${args.dep_arguments.$fn}
-# Previous internal function result`,
+            text: `# You MUST call this mcp tool(${name}) AGAIN with $fn=${args.args.$nextfn} argument, previous internal function ${args.args.$fn} result:`,
           });
         } else {
           currentResult?.content?.unshift({
             type: "text",
-            text: `# You WILL plan next action if the user request needs additional actions to be fulfilled
-# Previous internal function result`,
+            text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, previous internal function result:`,
           });
         }
 
