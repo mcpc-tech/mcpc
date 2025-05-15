@@ -125,7 +125,7 @@ export class ComposableMCPServer extends Server {
     const allToolNames = toolNameToDetailList.map(([name]) => name);
     console.log(`[${name}][composed tools] ${Object.keys(tools)}`);
 
-    description = `Context: This is the autonomous MCP tool \`mcpc\`. It fulfills user instructions by orchestrating actions via **iterative self-invocation(\`${name}\`)**.
+    description = `Context: This is the autonomous MCP tool \`${name}\`. It fulfills user instructions by orchestrating actions via **iterative self-invocation(\`${name}\`)**.
 
 # User Instructions: ${description}
 
