@@ -18,7 +18,10 @@ import z from "zod";
 
 import { CheerioAPI, load } from "cheerio";
 import { smitheryToolNameCompatibale } from "./registory.ts";
-import { object } from "zod";
+
+const TOOLS_PLACEHOLDER = "__ALL__";
+const NEXT_ACTION_KEY = "x-mcpc-next-action";
+const ACTION_KEY = "x-mcpc-action";
 
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
@@ -96,51 +99,58 @@ export class ComposableMCPServer extends Server {
     description: string,
     depsConfig: z.infer<typeof McpSettingsSchema>
   ) {
+    let exposeTools = process.env.MCPC_EXPOSE_DEPS || false;
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
 
     description = `Context: You are an autonomous task execution agent designed to fulfill user instructions by orchestrating a sequence of operations.
-You operate by **iteratively invoking yourself(\`${name}\`)**, with each invocation focusing on a specific internal function chosen to advance the overall task.
+You operate by **iteratively invoking yourself(\`${name}\`)**, with each invocation focusing on a specific action chosen to advance the overall task.
 
 # User Instructions: ${description}
 
 # Task Execution Protocol:
 Your role is to fulfill user instructions by autonomously managing a multi-step process. For *each iteration* of your operation:
 
-1.  **Determine the Current Action:** Based on the user instructions, the overall task goal, and the results from any preceding steps, identify the *single most appropriate internal function* required for the *current immediate action*.
-2.  **Anticipate the Subsequent Action (if any):** Plan and anticipate the likely *next internal function* that would be needed if further steps are required to complete the overall task after the current step.
+1.  **Determine the Current Action:** Based on the user instructions, the overall task goal, and the results from any preceding steps, identify the *single most appropriate action* required for the *current immediate action*.
+2.  **Anticipate the Subsequent Action (if any):** Plan and anticipate the likely *next action* that would be needed if further steps are required to complete the overall task after the current step.
 `;
-    const tools = await composeMcpDepTools(depsConfig, ({ mcpName, $fn }) => {
-      return tagToResults.tool.find((tool) => {
-        description = description.replace(
-          $(tool).prop("outerHTML")!,
-          `<function $fn="${tool.attribs.name}"/>`
-        );
-        return tool.attribs.name === `${mcpName}.${$fn}`;
-      });
-    });
+    const tools = await composeMcpDepTools(
+      depsConfig,
+      ({ mcpName, action, toolNameWithScope }) => {
+        return tagToResults.tool.find((tool) => {
+          const selectAll =
+            tool.attribs.name === `${mcpName}.${TOOLS_PLACEHOLDER}`;
 
+          description = description.replace(
+            $(tool).prop("outerHTML")!,
+            `<action action="${tool.attribs.name}"/>`
+          );
+          if (selectAll) {
+            return true;
+          }
+          return tool.attribs.name === toolNameWithScope;
+        });
+      }
+    );
+
+    const toolNameToDetailList = Object.entries(tools);
+    const allToolNames = toolNameToDetailList.map(([name]) => name);
     console.log(`[${name}][composed tools] ${Object.keys(tools)}`);
-
-    const allToolNames = tagToResults.tool.map((v) => v.attribs.name);
 
     const argsDef: Schema<{}>["jsonSchema"] = {
       type: "object",
       properties: {
         // Root objects must not be anyOf, see -> https://platform.openai.com/docs/guides/structured-outputs#root-objects-must-not-be-anyof
         args: {
-          description: `An object specifying a single internal function to be invoked and its arguments. The '$fn' property identifies the specific tool, guiding validation against one of the schemas in the 'anyOf' list.
-**NEVER attempt to directly call or execute the internal function**.`,
+          description: `An object specifying a single action to be invoked and its args. The 'action' property identifies the specific tool, guiding validation against one of the schemas in the 'anyOf' list.
+**NEVER attempt to directly call or execute the action**.`,
           // Supported by google and openai, `oneOf` is more suitable but not well supported.
           // See -> https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses#supported-schemas
-          anyOf: tagToResults.tool.map((v) => {
-            const toolName = v.attribs.name;
-            const tool = tools[toolName];
-
+          anyOf: toolNameToDetailList.flatMap(([toolName, tool]) => {
             if (!tool) {
               throw new Error(
-                `Internal function ${toolName} not found, available internal function list: ${Object.keys(
-                  tools
-                ).join(", ")}`
+                `Action ${toolName} not found, available action list: ${allToolNames.join(
+                  ", "
+                )}`
               );
             }
 
@@ -159,28 +169,29 @@ Your role is to fulfill user instructions by autonomously managing a multi-step 
                 ? baseSchema.required
                 : [];
 
-            return {
-              type: "object",
-              description: tool.description,
-              properties: {
-                ...baseProperties,
-                $fn: {
-                  type: "string",
-                  const: toolName,
-                  description:
-                    "The name of the current internal function to call",
+            return [
+              {
+                type: "object",
+                description: tool.description,
+                properties: {
+                  ...baseProperties,
+                  [ACTION_KEY]: {
+                    type: "string",
+                    const: toolName,
+                    description: "The name of the current action to call",
+                  },
+                  [NEXT_ACTION_KEY]: {
+                    type: "string",
+                    enum: allToolNames,
+                    description:
+                      "The name of the next action to call. Specify this ONLY if the user request needs additional actions to be fulfilled.",
+                  },
                 },
-                $nextfn: {
-                  type: "string",
-                  enum: allToolNames,
-                  description:
-                    "The name of the next internal function to call. Specify this if the user request needs additional actions to be fulfilled",
-                },
-              },
 
-              required: [...baseRequired, "$fn"],
-              additionalProperties: false,
-            };
+                required: [...baseRequired, ACTION_KEY],
+                additionalProperties: false,
+              },
+            ];
           }),
         },
       },
@@ -190,18 +201,18 @@ Your role is to fulfill user instructions by autonomously managing a multi-step 
     this.tool(
       name,
       description,
-      jsonSchema<{ args: { $fn: string; $nextfn?: string } }>(argsDef),
+      jsonSchema<{
+        args: { [ACTION_KEY]: string; [NEXT_ACTION_KEY]?: string };
+      }>(argsDef),
       async (args) => {
-        const currentToolElement = tagToResults.tool.find(
-          (t) => t.attribs.name === args.args.$fn
-        );
+        const currentTool = toolNameToDetailList.find(
+          ([name]) => name === args.args[ACTION_KEY]
+        )?.[1];
 
-        if (!currentToolElement) {
-          const error = `[ERROR]Internal function ${
-            args.args.$fn
-          } not found, available internal function list: ${tagToResults.tool.map(
-            (t) => t.attribs.name
-          )}`;
+        if (!currentTool) {
+          const error = `[ERROR]Action ${
+            args.args[ACTION_KEY]
+          } not found, available action list: ${allToolNames.join(", ")}`;
           console.log(error);
           return {
             content: [{ type: "text", text: error }],
@@ -209,28 +220,34 @@ Your role is to fulfill user instructions by autonomously managing a multi-step 
           };
         }
 
-        const currentTool = tools[currentToolElement.attribs.name];
         const currentResult = await currentTool.execute({
           ...args.args,
-          $fn: undefined,
-          $nextfn: undefined,
+          [ACTION_KEY]: undefined,
+          [NEXT_ACTION_KEY]: undefined,
         });
 
-        if (args.args.$nextfn) {
+        if (args.args[NEXT_ACTION_KEY]) {
           currentResult?.content?.unshift({
             type: "text",
-            text: `# You MUST call this mcp tool(${name}) AGAIN using the ${args.args.$nextfn} internal function, with the result from previous internal function(${args.args.$fn}):`,
+            text: `# You WILL call this tool(\`${name}\`) AGAIN using the \`${args.args[NEXT_ACTION_KEY]}\` action, after evaluating the result from previous action(${args.args[ACTION_KEY]}):`,
           });
         } else {
           currentResult?.content?.unshift({
             type: "text",
-            text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, with the result from previous internal function(${args.args.$fn}):`,
+            text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action(${args.args[ACTION_KEY]}):`,
           });
         }
 
         return currentResult;
       }
     );
+
+    if (exposeTools) {
+      console.log(`[debug] exposing tools: ${Object.keys(tools)}`);
+      toolNameToDetailList.forEach(([toolName, t]) =>
+        this.tool(toolName, t.description, jsonSchema(t.inputSchema), t.execute)
+      );
+    }
   }
 }
 
@@ -327,7 +344,12 @@ export function parseTags(
  */
 export async function composeMcpDepTools(
   mcpConfig: z.infer<typeof McpSettingsSchema>,
-  filterIn?: (params: { $fn: string; tool: any; mcpName: string }) => boolean
+  filterIn?: (params: {
+    action: string;
+    tool: any;
+    mcpName: string;
+    toolNameWithScope: string;
+  }) => boolean
 ): Promise<Record<string, any>> {
   const allTools: Record<string, any> = {};
 
@@ -378,7 +400,12 @@ export async function composeMcpDepTools(
 
         if (
           filterIn &&
-          !filterIn({ $fn: internalToolName, tool, mcpName: name })
+          !filterIn({
+            action: internalToolName,
+            tool,
+            mcpName: name,
+            toolNameWithScope,
+          })
         ) {
           return;
         }
