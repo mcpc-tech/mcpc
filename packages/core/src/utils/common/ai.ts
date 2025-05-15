@@ -20,8 +20,9 @@ import { CheerioAPI, load } from "cheerio";
 import { smitheryToolNameCompatibale } from "./registory.ts";
 
 const TOOLS_PLACEHOLDER = "__ALL__";
-const NEXT_ACTION_KEY = "x-mcpc-next-action";
-const ACTION_KEY = "x-mcpc-action";
+
+const NEXT_ACTION_KEY = "mcpcNextAction";
+const ACTION_KEY = "mcpcAction";
 
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
@@ -102,7 +103,8 @@ export class ComposableMCPServer extends Server {
     let exposeTools = process.env.MCPC_EXPOSE_DEPS || false;
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
 
-    description = `Context: You are an autonomous task execution agent designed to fulfill user instructions by orchestrating a sequence of operations.
+    description = `Context: You are the autonomous agent \`mcpc\`.
+Your role is to execute user instructions by orchestrating actions.
 You operate by **iteratively invoking yourself(\`${name}\`)**, with each invocation focusing on a specific action chosen to advance the overall task.
 
 # User Instructions: ${description}
@@ -115,14 +117,14 @@ Your role is to fulfill user instructions by autonomously managing a multi-step 
 `;
     const tools = await composeMcpDepTools(
       depsConfig,
-      ({ mcpName, action, toolNameWithScope }) => {
+      ({ mcpName, toolNameWithScope }) => {
         return tagToResults.tool.find((tool) => {
           const selectAll =
             tool.attribs.name === `${mcpName}.${TOOLS_PLACEHOLDER}`;
 
           description = description.replace(
             $(tool).prop("outerHTML")!,
-            `<action action="${tool.attribs.name}"/>`
+            `<action ${ACTION_KEY}="${tool.attribs.name}"/>`
           );
           if (selectAll) {
             return true;
