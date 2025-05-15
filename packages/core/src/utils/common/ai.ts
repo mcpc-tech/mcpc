@@ -102,19 +102,6 @@ export class ComposableMCPServer extends Server {
   ) {
     let exposeTools = process.env.MCPC_EXPOSE_DEPS || false;
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
-
-    description = `Context: You are the autonomous agent \`mcpc\`.
-Your role is to execute user instructions by orchestrating actions.
-You operate by **iteratively invoking yourself(\`${name}\`)**, with each invocation focusing on a specific action chosen to advance the overall task.
-
-# User Instructions: ${description}
-
-# Task Execution Protocol:
-Your role is to fulfill user instructions by autonomously managing a multi-step process. For *each iteration* of your operation:
-
-1.  **Determine the Current Action:** Based on the user instructions, the overall task goal, and the results from any preceding steps, identify the *single most appropriate action* required for the *current immediate action*.
-2.  **Anticipate the Subsequent Action (if any):** Plan and anticipate the likely *next action* that would be needed if further steps are required to complete the overall task after the current step.
-`;
     const tools = await composeMcpDepTools(
       depsConfig,
       ({ mcpName, toolNameWithScope }) => {
@@ -138,13 +125,32 @@ Your role is to fulfill user instructions by autonomously managing a multi-step 
     const allToolNames = toolNameToDetailList.map(([name]) => name);
     console.log(`[${name}][composed tools] ${Object.keys(tools)}`);
 
+    description = `Context: This is the autonomous MCP tool \`mcpc\`. It fulfills user instructions by orchestrating actions via **iterative self-invocation(\`${name}\`)**.
+
+# User Instructions: ${description}
+
+# Action Execution Protocol
+
+The MCP tool executes actions in a multi-step process. Follow these steps for each iteration:
+
+* Do not treat actions merely as simple tool calls.
+* Always execute actions via this protocol. Do NOT attempt direct, unstructured calls.
+
+1.  **Determine Current Action:** Based on user instructions, overall task goal, and prior results, identify the *single most appropriate action* for this step.
+2.  **Anticipate Next Action (if any):** Plan and anticipate the likely *next action* needed to complete the task after the current step.
+
+# Available Actions
+
+**WARNING:** ONLY call or execute actions from this list. DO NOT attempt to call or execute actions not explicitly listed here.
+${allToolNames.join(", ")}
+`;
+
     const argsDef: Schema<{}>["jsonSchema"] = {
       type: "object",
       properties: {
         // Root objects must not be anyOf, see -> https://platform.openai.com/docs/guides/structured-outputs#root-objects-must-not-be-anyof
         args: {
-          description: `An object specifying a single action to be invoked and its args. The 'action' property identifies the specific tool, guiding validation against one of the schemas in the 'anyOf' list.
-**NEVER attempt to directly call or execute the action**.`,
+          description: `An object specifying a single action to be invoked and its args. The ${ACTION_KEY} property identifies the specific action, guiding validation against one of the schemas in the 'anyOf' list.`,
           // Supported by google and openai, `oneOf` is more suitable but not well supported.
           // See -> https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses#supported-schemas
           anyOf: toolNameToDetailList.flatMap(([toolName, tool]) => {
