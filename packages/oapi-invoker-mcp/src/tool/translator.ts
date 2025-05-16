@@ -17,6 +17,7 @@ import type {
 } from "./parser.ts";
 import type { OpenAPI } from "@scalar/openapi-types";
 import { p } from "@mcpc/core";
+import { SENSITIVE_MARK } from "./invoker.ts";
 
 /**
  * Tool schema from model context protocol
@@ -195,11 +196,6 @@ function processOperationParameters(
   for (const param of operation.parameters) {
     const typedParam = param as OpenAPI.Parameter & ParameterExtension;
 
-    // Exclude sensitive parameters from tool input schema
-    if (sensitiveKV[param.name]) {
-      continue;
-    }
-
     // Handle different parameter schema structures based on OpenAPI version
     let paramType = "string";
     let paramDescription = typedParam.description || "";
@@ -212,6 +208,11 @@ function processOperationParameters(
     } else if ("type" in typedParam) {
       // OpenAPI v2 style
       paramType = (typedParam as any).type || "string";
+    }
+
+    // Exclude sensitive parameters from tool input schema
+    if (sensitiveKV[param.name]) {
+      paramType = SENSITIVE_MARK;
     }
 
     if (typedParam.in === "path") {
@@ -248,10 +249,17 @@ function processInputParameter(
   const inputParamRequired = tool.inputSchema.properties.inputParams
     .required as string[];
 
-  inputParamProperties[param.name] = {
-    type: paramType,
-    description: paramDescription,
-  };
+  if (paramType === SENSITIVE_MARK) {
+    inputParamProperties[param.name] = {
+      const: SENSITIVE_MARK,
+      description: paramDescription,
+    };
+  } else {
+    inputParamProperties[param.name] = {
+      type: paramType,
+      description: paramDescription,
+    };
+  }
 
   // Add to required list if parameter is required
   if (param.required) {
