@@ -10,6 +10,9 @@ const importMap = {
 };
 
 const patches = {
+  "@std/http/server-sent-event-stream": "jsr:@std/http@^1.0.14/server-sent-event-stream",
+  "@es-toolkit/es-toolkit/compat": "jsr:@es-toolkit/es-toolkit@^1.37.2/compat",
+  "json-schema-faker": "npm:json-schema-faker@~0.5.9",
   "ai/mcp-stdio": "npm:ai@^4.3.1/mcp-stdio",
   "@modelcontextprotocol/sdk/types.js":
     "npm:@modelcontextprotocol/sdk@^1.8.0/types.js",

@@ -3,7 +3,7 @@ import { ComposableMCPServer } from "@mcpc/core";
 import { parseOAPISpecWithExtensions } from "./tool/parser.ts";
 import { openapiToAIToolSchema } from "./tool/translator.ts";
 import { invoke } from "./tool/invoker.ts";
-import { Schema } from "ai";
+import { jsonSchema, Schema } from "ai";
 
 export const INCOMING_MSG_ROUTE_PATH = "/oapi/messages";
 
@@ -23,7 +23,7 @@ export function setUpMcpServer(
     server.tool(
       tool.name,
       tool.description ?? "",
-      tool.inputSchema as unknown as Schema,
+      jsonSchema(tool.inputSchema as any),
       async (inputParams, extra) => {
         const res = await invoke(
           specification,

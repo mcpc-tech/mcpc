@@ -19,7 +19,8 @@ import {
 import type { OAPISpecDocument, OperationExtension } from "./parser.ts";
 import type { ExtendedAIToolSchema } from "./translator.ts";
 import { p } from "@mcpc/core";
-import { OpenAPI } from "@scalar/openapi-types";
+
+export const SENSITIVE_MARK = "*SENSITIVE*";
 
 interface InvokerResponse {
   status: number;
@@ -300,7 +301,7 @@ function transformItem(
         const pathArray = pathString.split(".");
         if (has(acc, pathArray)) {
           // Check if path exists using _.has
-          set(acc, pathArray, "***SENSITIVE***"); // _.set mutates acc
+          set(acc, pathArray, SENSITIVE_MARK); // _.set mutates acc
         }
         return acc;
       },
