@@ -19,6 +19,7 @@ import {
 import type { OAPISpecDocument, OperationExtension } from "./parser.ts";
 import type { ExtendedAIToolSchema } from "./translator.ts";
 import { p } from "@mcpc/core";
+import { writeFileSync } from "node:fs";
 
 export const SENSITIVE_MARK = "*SENSITIVE*";
 
@@ -142,6 +143,7 @@ export async function invoke(
   console.log(`Request Options: ${JSON.stringify(requestOptions)}`);
 
   for (let attempt = 0; attempt <= retries; attempt++) {
+    writeFileSync("debug.json", JSON.stringify({ requestOptions, url }));
     try {
       response = await fetch(url.toString(), requestOptions);
       break;

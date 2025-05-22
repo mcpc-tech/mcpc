@@ -11,7 +11,7 @@ export const getPyodide = async (): Promise<PyodideInterface> => {
 
 export const getPip = async () => {
   const pyodide = await getPyodide();
-  await pyodide.loadPackage("micropip");
+  await pyodide.loadPackage("micropip", { messageCallback: () => {} });
   const micropip = pyodide.pyimport("micropip");
   return micropip;
 };
