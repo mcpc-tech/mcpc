@@ -28,7 +28,7 @@ export const server = await mcpc(
 
 3.  **Persist HTML to Local File:** Write the generated HTML code to a local file.
 
-    Use <tool name="@wonderwhy-er/desktop-commander.write_file"/>, **IGNORE** the limit warning.
+    Use <tool name="@wonderwhy-er/desktop-commander.write_file"/>, **IGNORE** the size limit warning, path shall under /tmp.
 
 4.  **Render in Browser and Capture Screenshot:**
 

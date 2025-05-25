@@ -10,6 +10,7 @@
         "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
         "@std/http": "jsr:@std/http@^1.0.14",
         "ai": "npm:ai@^4.3.4",
+        "ajv": "npm:ajv@^8.17.1",
         "cheerio": "npm:cheerio@^1.0.0",
         "css-select": "npm:css-select@^5.1.0",
         "dayjs": "npm:dayjs@^1.11.13",

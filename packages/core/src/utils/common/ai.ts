@@ -14,6 +14,7 @@ import {
   Server,
   type ServerOptions,
 } from "@modelcontextprotocol/sdk/server/index.js";
+import { Ajv } from "ajv";
 import z from "zod";
 
 import { CheerioAPI, load } from "cheerio";
@@ -24,6 +25,8 @@ const TOOLS_PLACEHOLDER = "__ALL__";
 const NEXT_ACTION_KEY = "nextAction";
 const ACTION_KEY = "action";
 const MCPC_ARGS_KEY = "mcpcArgs";
+
+const ajv = new Ajv({ useDefaults: "empty" });
 
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
@@ -145,110 +148,127 @@ The MCP tool executes actions in a multi-step process. Follow these steps for ea
 ${allToolNames.join(", ")}
 `;
 
+    const depGroups: any = toolNameToDetailList
+      .flatMap(([toolName, tool]) => {
+        if (!tool) {
+          throw new Error(
+            `Action ${toolName} not found, available action list: ${allToolNames.join(
+              ", "
+            )}`
+          );
+        }
+
+        const baseSchema = tool.inputSchema || {
+          type: "object",
+          properties: {},
+          required: [],
+        };
+
+        const baseProperties =
+          baseSchema.type === "object" && baseSchema.properties
+            ? baseSchema.properties
+            : {};
+        const baseRequired =
+          baseSchema.type === "object" && baseSchema.required
+            ? baseSchema.required
+            : [];
+
+        return {
+          [toolName]: {
+            type: "object",
+            description: tool.description,
+            properties: {
+              ...baseProperties,
+            },
+
+            required: [...baseRequired],
+            additionalProperties: false,
+          },
+        } as any;
+      })
+      .reduce((acc: any, cur: any) => ({ ...acc, ...cur }), {});
+
+    const allOf = toolNameToDetailList.map(([toolName]) => {
+      return {
+        if: {
+          properties: { [ACTION_KEY]: { const: toolName } },
+          required: [ACTION_KEY],
+        },
+        then: {
+          required: [toolName],
+        },
+      };
+    });
+
     const argsDef: Schema<{}>["jsonSchema"] = {
+      additionalProperties: false,
       type: "object",
       properties: {
-        // Root objects must not be anyOf, see -> https://platform.openai.com/docs/guides/structured-outputs#root-objects-must-not-be-anyof
-        [MCPC_ARGS_KEY]: {
-          description: `An object specifying a single action to be invoked and its ${MCPC_ARGS_KEY}. The ${ACTION_KEY} property identifies the specific action, guiding validation against one of the schemas in the 'anyOf' list.`,
-          // Supported by google and openai, `oneOf` is more suitable but not well supported.
-          // See -> https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses#supported-schemas
-          anyOf: toolNameToDetailList.flatMap(([toolName, tool]) => {
-            if (!tool) {
-              throw new Error(
-                `Action ${toolName} not found, available action list: ${allToolNames.join(
-                  ", "
-                )}`
-              );
-            }
-
-            const baseSchema = tool.inputSchema || {
-              type: "object",
-              properties: {},
-              required: [],
-            };
-
-            const baseProperties =
-              baseSchema.type === "object" && baseSchema.properties
-                ? baseSchema.properties
-                : {};
-            const baseRequired =
-              baseSchema.type === "object" && baseSchema.required
-                ? baseSchema.required
-                : [];
-
-            return [
-              {
-                type: "object",
-                description: tool.description,
-                properties: {
-                  ...baseProperties,
-                  [ACTION_KEY]: {
-                    type: "string",
-                    const: toolName,
-                    description: "The name of the current action to call",
-                  },
-                  [NEXT_ACTION_KEY]: {
-                    type: "string",
-                    enum: allToolNames,
-                    description:
-                      "The name of the next action to call. Specify this ONLY if the user request needs additional actions to be fulfilled.",
-                  },
-                },
-
-                required: [...baseRequired, ACTION_KEY],
-                additionalProperties: false,
-              },
-            ];
-          }),
+        [ACTION_KEY]: {
+          type: "string",
+          enum: allToolNames,
+          description: `Specifies the action to be performed, the corresponding action-specific parameter group **MUST** then be provided.`,
         },
+        [NEXT_ACTION_KEY]: {
+          type: "string",
+          enum: allToolNames,
+          description: `Specifies the next action to be performed, specify this ONLY if the user request needs additional actions to be fulfilled.",`,
+        },
+        ...depGroups,
       },
-      required: [MCPC_ARGS_KEY],
+      required: [ACTION_KEY],
     };
 
-    this.tool(
-      name,
-      description,
-      jsonSchema<{
-        [MCPC_ARGS_KEY]: { [ACTION_KEY]: string; [NEXT_ACTION_KEY]?: string };
-      }>(argsDef),
-      async (args) => {
-        const currentTool = toolNameToDetailList.find(
-          ([name]) => name === args[MCPC_ARGS_KEY][ACTION_KEY]
-        )?.[1];
+    const validate = ajv.compile(argsDef);
 
-        if (!currentTool) {
-          const error = `[ERROR]Action ${
-            args[MCPC_ARGS_KEY][ACTION_KEY]
-          } not found, available action list: ${allToolNames.join(", ")}`;
-          console.log(error);
-          return {
-            content: [{ type: "text", text: error }],
-            isError: true,
-          };
-        }
-
-        const currentResult = await currentTool.execute({
-          ...args[MCPC_ARGS_KEY],
-          [ACTION_KEY]: undefined,
-          [NEXT_ACTION_KEY]: undefined,
-        });
-
-        if (args[MCPC_ARGS_KEY][NEXT_ACTION_KEY]) {
-          currentResult?.content?.unshift({
-            type: "text",
-            text: `# You WILL call this tool(\`${name}\`) AGAIN using the \`${args[MCPC_ARGS_KEY][NEXT_ACTION_KEY]}\` action, after evaluating the result from previous action(${args[MCPC_ARGS_KEY][ACTION_KEY]}):`,
-          });
-        } else {
-          currentResult?.content?.unshift({
-            type: "text",
-            text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action(${args[MCPC_ARGS_KEY][ACTION_KEY]}):`,
-          });
-        }
-
-        return currentResult;
+    this.tool(name, description, jsonSchema<any>(argsDef), async (args) => {
+      if (!validate(args)) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(validate.errors) || "Unknown error",
+            },
+          ],
+          isError: true,
+        };
       }
-    );
+
+      const currentTool = toolNameToDetailList.find(
+        ([name]) => name === args[ACTION_KEY]
+      )?.[1];
+
+      if (!currentTool) {
+        const error = `[ERROR]Action ${
+          args[ACTION_KEY]
+        } not found, available action list: ${allToolNames.join(", ")}`;
+        console.log(error);
+        return {
+          content: [{ type: "text", text: error }],
+          isError: true,
+        };
+      }
+
+      const action = args[ACTION_KEY] as string;
+      const nextAction = args[NEXT_ACTION_KEY] as string;
+      const currentResult = await currentTool.execute({
+        ...args[action],
+      });
+
+      if (args[nextAction]) {
+        currentResult?.content?.unshift({
+          type: "text",
+          text: `# You WILL call this tool(\`${name}\`) AGAIN using the \`${nextAction}\` action, after evaluating the result from previous action(${action}):`,
+        });
+      } else {
+        currentResult?.content?.unshift({
+          type: "text",
+          text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action(${action}):`,
+        });
+      }
+
+      return currentResult;
+    });
   }
 }
 
