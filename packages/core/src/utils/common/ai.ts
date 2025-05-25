@@ -21,8 +21,9 @@ import { smitheryToolNameCompatibale } from "./registory.ts";
 
 const TOOLS_PLACEHOLDER = "__ALL__";
 
-const NEXT_ACTION_KEY = "mcpcNextAction";
-const ACTION_KEY = "mcpcAction";
+const NEXT_ACTION_KEY = "nextAction";
+const ACTION_KEY = "action";
+const MCPC_ARGS_KEY = "mcpcArgs";
 
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
@@ -100,7 +101,6 @@ export class ComposableMCPServer extends Server {
     description: string,
     depsConfig: z.infer<typeof McpSettingsSchema>
   ) {
-    let exposeTools = process.env.MCPC_EXPOSE_DEPS || false;
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
     const tools = await composeMcpDepTools(
       depsConfig,
@@ -149,8 +149,8 @@ ${allToolNames.join(", ")}
       type: "object",
       properties: {
         // Root objects must not be anyOf, see -> https://platform.openai.com/docs/guides/structured-outputs#root-objects-must-not-be-anyof
-        args: {
-          description: `An object specifying a single action to be invoked and its args. The ${ACTION_KEY} property identifies the specific action, guiding validation against one of the schemas in the 'anyOf' list.`,
+        [MCPC_ARGS_KEY]: {
+          description: `An object specifying a single action to be invoked and its ${MCPC_ARGS_KEY}. The ${ACTION_KEY} property identifies the specific action, guiding validation against one of the schemas in the 'anyOf' list.`,
           // Supported by google and openai, `oneOf` is more suitable but not well supported.
           // See -> https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses#supported-schemas
           anyOf: toolNameToDetailList.flatMap(([toolName, tool]) => {
@@ -203,23 +203,23 @@ ${allToolNames.join(", ")}
           }),
         },
       },
-      required: ["args"],
+      required: [MCPC_ARGS_KEY],
     };
 
     this.tool(
       name,
       description,
       jsonSchema<{
-        args: { [ACTION_KEY]: string; [NEXT_ACTION_KEY]?: string };
+        [MCPC_ARGS_KEY]: { [ACTION_KEY]: string; [NEXT_ACTION_KEY]?: string };
       }>(argsDef),
       async (args) => {
         const currentTool = toolNameToDetailList.find(
-          ([name]) => name === args.args[ACTION_KEY]
+          ([name]) => name === args[MCPC_ARGS_KEY][ACTION_KEY]
         )?.[1];
 
         if (!currentTool) {
           const error = `[ERROR]Action ${
-            args.args[ACTION_KEY]
+            args[MCPC_ARGS_KEY][ACTION_KEY]
           } not found, available action list: ${allToolNames.join(", ")}`;
           console.log(error);
           return {
@@ -229,33 +229,26 @@ ${allToolNames.join(", ")}
         }
 
         const currentResult = await currentTool.execute({
-          ...args.args,
+          ...args[MCPC_ARGS_KEY],
           [ACTION_KEY]: undefined,
           [NEXT_ACTION_KEY]: undefined,
         });
 
-        if (args.args[NEXT_ACTION_KEY]) {
+        if (args[MCPC_ARGS_KEY][NEXT_ACTION_KEY]) {
           currentResult?.content?.unshift({
             type: "text",
-            text: `# You WILL call this tool(\`${name}\`) AGAIN using the \`${args.args[NEXT_ACTION_KEY]}\` action, after evaluating the result from previous action(${args.args[ACTION_KEY]}):`,
+            text: `# You WILL call this tool(\`${name}\`) AGAIN using the \`${args[MCPC_ARGS_KEY][NEXT_ACTION_KEY]}\` action, after evaluating the result from previous action(${args[MCPC_ARGS_KEY][ACTION_KEY]}):`,
           });
         } else {
           currentResult?.content?.unshift({
             type: "text",
-            text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action(${args.args[ACTION_KEY]}):`,
+            text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action(${args[MCPC_ARGS_KEY][ACTION_KEY]}):`,
           });
         }
 
         return currentResult;
       }
     );
-
-    if (exposeTools) {
-      console.log(`[debug] exposing tools: ${Object.keys(tools)}`);
-      toolNameToDetailList.forEach(([toolName, t]) =>
-        this.tool(toolName, t.description, jsonSchema(t.inputSchema), t.execute)
-      );
-    }
   }
 }
 
