@@ -1,6 +1,6 @@
 {
     "name": "@mcpc/core",
-    "version": "0.0.17-beta-discriminator",
+    "version": "0.0.17-beta-discriminator-may",
     "tasks": {
         "server:compile": "echo \"no need to compile\""
     },
@@ -11,6 +11,7 @@
         "@std/http": "jsr:@std/http@^1.0.14",
         "ai": "npm:ai@^4.3.4",
         "ajv": "npm:ajv@^8.17.1",
+        "ajv-formats": "npm:ajv-formats@^3.0.1",
         "cheerio": "npm:cheerio@^1.0.0",
         "css-select": "npm:css-select@^5.1.0",
         "dayjs": "npm:dayjs@^1.11.13",

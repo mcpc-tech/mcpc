@@ -15,6 +15,7 @@ import {
   type ServerOptions,
 } from "@modelcontextprotocol/sdk/server/index.js";
 import { Ajv } from "ajv";
+import addFormats from "ajv-formats";
 import z from "zod";
 
 import { CheerioAPI, load } from "cheerio";
@@ -26,7 +27,9 @@ const NEXT_ACTION_KEY = "nextAction";
 const ACTION_KEY = "action";
 const MCPC_ARGS_KEY = "mcpcArgs";
 
-const ajv = new Ajv({ useDefaults: "empty" });
+const ajv = new Ajv();
+// @ts-ignore -
+addFormats(ajv);
 
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
