@@ -1,6 +1,6 @@
 {
     "name": "@mcpc/core",
-    "version": "0.0.17-beta-discriminator-01",
+    "version": "0.0.17-beta-discriminator-02",
     "tasks": {
         "server:compile": "echo \"no need to compile\""
     },
