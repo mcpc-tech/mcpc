@@ -226,7 +226,8 @@ ${allToolNames.join(", ")}
         ...depGroups,
       },
       required: [ACTION_KEY],
-      allOf,
+      // Ingore for now: tools.0.custom.input_schema: input_schema does not support oneOf, allOf, or anyOf at the top level"
+      // allOf,
     };
 
     const validate = ajv.compile(argsDef);
