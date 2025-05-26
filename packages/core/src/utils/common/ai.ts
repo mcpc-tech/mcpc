@@ -189,7 +189,7 @@ ${allToolNames.join(", ")}
             },
 
             required: [...baseRequired],
-            additionalProperties: false,
+            // additionalProperties: false,
           },
         } as any;
       })
@@ -208,7 +208,9 @@ ${allToolNames.join(", ")}
     });
 
     const argsDef: Schema<{}>["jsonSchema"] = {
-      additionalProperties: false,
+      // Provider restriction: did not support additionalProperties
+      // see -> https://ai.google.dev/api/caching#Schema
+      // additionalProperties: false,
       type: "object",
       properties: {
         [ACTION_KEY]: {
@@ -227,6 +229,7 @@ ${allToolNames.join(", ")}
       },
       required: [ACTION_KEY],
       // Provider restriction: tools.0.custom.input_schema: input_schema does not support oneOf, allOf, or anyOf at the top level"
+      //
       // allOf,
     };
 
