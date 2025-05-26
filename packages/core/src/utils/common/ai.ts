@@ -8,7 +8,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { jsonSchema, Schema } from "ai";
+import { generateId, jsonSchema, Schema } from "ai";
 import { McpSettingsSchema, ServerConfigSchema } from "../../service/tools.ts";
 import {
   Server,
@@ -114,14 +114,14 @@ export class ComposableMCPServer extends Server {
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
     const tools = await composeMcpDepTools(
       depsConfig,
-      ({ mcpName, toolNameWithScope }) => {
+      ({ mcpName, toolNameWithScope, internalToolName, toolId }) => {
         return tagToResults.tool.find((tool) => {
           const selectAll =
             tool.attribs.name === `${mcpName}.${TOOLS_PLACEHOLDER}`;
 
           description = description.replace(
             $(tool).prop("outerHTML")!,
-            `<action ${ACTION_KEY}="${tool.attribs.name}"/>`
+            `<action ${ACTION_KEY}="${toolId}"/>`
           );
           if (selectAll) {
             return true;
@@ -229,7 +229,6 @@ ${allToolNames.join(", ")}
       allOf,
     };
 
-    console.log(argsDef);
     const validate = ajv.compile(argsDef);
 
     this.tool(name, description, jsonSchema<any>(argsDef), async (args) => {
@@ -239,7 +238,7 @@ ${allToolNames.join(", ")}
           content: [
             {
               type: "text",
-              text: errors.message || "Unknown error",
+              text: `Tool/Function argument validation failed: ${errors.message}`,
             },
           ],
           isError: true,
@@ -371,6 +370,8 @@ export async function composeMcpDepTools(
     tool: any;
     mcpName: string;
     toolNameWithScope: string;
+    internalToolName: string;
+    toolId: string;
   }) => boolean
 ): Promise<Record<string, any>> {
   const allTools: Record<string, any> = {};
@@ -407,6 +408,7 @@ export async function composeMcpDepTools(
     }
 
     const client = new Client({ name, version: "1.0.0" });
+    const serverId = generateId(7);
 
     try {
       // Create the MCP client
@@ -419,7 +421,7 @@ export async function composeMcpDepTools(
       tools.forEach((tool) => {
         const { toolNameWithScope, toolName: internalToolName } =
           smitheryToolNameCompatibale(tool.name, name);
-
+        const toolId = `${serverId}_${internalToolName}`;
         if (
           filterIn &&
           !filterIn({
@@ -427,6 +429,8 @@ export async function composeMcpDepTools(
             tool,
             mcpName: name,
             toolNameWithScope,
+            internalToolName,
+            toolId,
           })
         ) {
           return;
@@ -434,7 +438,7 @@ export async function composeMcpDepTools(
         const execute = (args: any) =>
           client.callTool({ name: internalToolName, arguments: args });
         tool.execute = execute;
-        allTools[toolNameWithScope] = tool;
+        allTools[toolId] = tool;
       });
     } catch (error) {
       console.error(`Error creating MCP client for ${name}:`, error);
