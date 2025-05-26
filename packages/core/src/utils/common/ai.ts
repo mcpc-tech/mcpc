@@ -215,7 +215,7 @@ ${allToolNames.join(", ")}
         [NEXT_ACTION_KEY]: {
           type: "string",
           enum: allToolNames,
-          description: `Specifies the next action to be performed, specify this ONLY if the user request needs additional actions to be fulfilled.",`,
+          description: `Specify the next action to execute only when the user’s request requires additional steps. Otherwise, set it to undefined.`,
         },
         ...depGroups,
       },
