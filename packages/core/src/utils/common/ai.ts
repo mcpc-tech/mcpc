@@ -15,6 +15,7 @@ import {
   type ServerOptions,
 } from "@modelcontextprotocol/sdk/server/index.js";
 import { Ajv } from "ajv";
+import { AggregateAjvError } from "@segment/ajv-human-errors";
 import addFormats from "ajv-formats";
 import z from "zod";
 
@@ -27,7 +28,10 @@ const NEXT_ACTION_KEY = "nextAction";
 const ACTION_KEY = "action";
 const MCPC_ARGS_KEY = "mcpcArgs";
 
-const ajv = new Ajv();
+const ajv = new Ajv({
+  allErrors: true,
+  verbose: true,
+});
 // @ts-ignore -
 addFormats(ajv);
 
@@ -210,27 +214,32 @@ ${allToolNames.join(", ")}
         [ACTION_KEY]: {
           type: "string",
           enum: allToolNames,
-          description: `Specifies the action to be performed, the corresponding action-specific parameter group **MUST** then be provided.`,
+          description:
+            "Specifies the action to be performed from the enum. Based on the value chosen for 'action', the corresponding sibling property (which shares the same name as the action value and contains its specific parameters) **MUST** also be provided in this object. For example, if 'action' is 'get_weather', then the 'get_weather' parameter object is mandatory.",
         },
         [NEXT_ACTION_KEY]: {
           type: "string",
           enum: allToolNames,
-          description: `Specify the next action to execute only when the user’s request requires additional steps. Otherwise, set it to undefined.`,
+          description:
+            "Specify the next action to execute only when the user’s request requires additional steps. If no next action is needed, this property **MUST BE OMITTED** from the object.",
         },
         ...depGroups,
       },
       required: [ACTION_KEY],
+      allOf,
     };
 
+    console.log(argsDef);
     const validate = ajv.compile(argsDef);
 
     this.tool(name, description, jsonSchema<any>(argsDef), async (args) => {
       if (!validate(args)) {
+        const errors = new AggregateAjvError(validate.errors!);
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(validate.errors) || "Unknown error",
+              text: errors.message || "Unknown error",
             },
           ],
           isError: true,
@@ -240,17 +249,6 @@ ${allToolNames.join(", ")}
       const currentTool = toolNameToDetailList.find(
         ([name]) => name === args[ACTION_KEY]
       )?.[1];
-
-      if (!currentTool) {
-        const error = `[ERROR]Action ${
-          args[ACTION_KEY]
-        } not found, available action list: ${allToolNames.join(", ")}`;
-        console.log(error);
-        return {
-          content: [{ type: "text", text: error }],
-          isError: true,
-        };
-      }
 
       const action = args[ACTION_KEY] as string;
       const nextAction = args[NEXT_ACTION_KEY] as string;
