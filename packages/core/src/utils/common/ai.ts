@@ -226,7 +226,7 @@ ${allToolNames.join(", ")}
         ...depGroups,
       },
       required: [ACTION_KEY],
-      // Ingore for now: tools.0.custom.input_schema: input_schema does not support oneOf, allOf, or anyOf at the top level"
+      // Provider restriction: tools.0.custom.input_schema: input_schema does not support oneOf, allOf, or anyOf at the top level"
       // allOf,
     };
 
@@ -422,6 +422,8 @@ export async function composeMcpDepTools(
       tools.forEach((tool) => {
         const { toolNameWithScope, toolName: internalToolName } =
           smitheryToolNameCompatibale(tool.name, name);
+        // Provider restriction: tools.0.custom.input_schema.properties: Property keys should match pattern '^[a-zA-Z0-9_-]{1,64}$
+        // While server name with scope may not match this pattern, we can use it as a unique ID to solve tool name collision
         const toolId = `${serverId}_${internalToolName}`;
         if (
           filterIn &&
