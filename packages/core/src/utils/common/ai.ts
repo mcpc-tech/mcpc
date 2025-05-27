@@ -21,12 +21,16 @@ import z from "zod";
 
 import { CheerioAPI, load } from "cheerio";
 import { smitheryToolNameCompatibale } from "./registory.ts";
+import { optionalObject } from "./json.ts";
 
 const TOOLS_PLACEHOLDER = "__ALL__";
 
 const NEXT_ACTION_KEY = "nextAction";
 const ACTION_KEY = "action";
 const MCPC_ARGS_KEY = "mcpcArgs";
+
+const GEMINI_PREFERRED_FORMAT =
+  process.env.GEMINI_PREFERRED_FORMAT === "0" ? false : true;
 
 const ajv = new Ajv({
   allErrors: true,
@@ -155,6 +159,27 @@ The MCP tool executes actions in a multi-step process. Follow these steps for ea
 ${allToolNames.join(", ")}
 `;
 
+    const allOf = toolNameToDetailList.map(([toolName]) => {
+      return {
+        if: {
+          properties: { [ACTION_KEY]: { const: toolName } },
+          required: [ACTION_KEY],
+        },
+        then: {
+          required: [toolName],
+        },
+      };
+    });
+
+    // Provider restriction: did not support additionalProperties
+    // see -> https://ai.google.dev/api/caching#Schema
+    const optionalAdditionalProperties = optionalObject(
+      { additionalProperties: false },
+      !GEMINI_PREFERRED_FORMAT
+    );
+    // Provider restriction: tools.0.custom.input_schema: input_schema does not support oneOf, allOf, or anyOf at the top level"
+    const optionalAllOf = optionalObject({ allOf }, !GEMINI_PREFERRED_FORMAT);
+
     const depGroups: any = toolNameToDetailList
       .flatMap(([toolName, tool]) => {
         if (!tool) {
@@ -189,28 +214,14 @@ ${allToolNames.join(", ")}
             },
 
             required: [...baseRequired],
-            // additionalProperties: false,
+            ...optionalAdditionalProperties,
           },
         } as any;
       })
       .reduce((acc: any, cur: any) => ({ ...acc, ...cur }), {});
-
-    const allOf = toolNameToDetailList.map(([toolName]) => {
-      return {
-        if: {
-          properties: { [ACTION_KEY]: { const: toolName } },
-          required: [ACTION_KEY],
-        },
-        then: {
-          required: [toolName],
-        },
-      };
-    });
-
     const argsDef: Schema<{}>["jsonSchema"] = {
-      // Provider restriction: did not support additionalProperties
-      // see -> https://ai.google.dev/api/caching#Schema
-      // additionalProperties: false,
+      ...optionalAdditionalProperties,
+      ...optionalAllOf,
       type: "object",
       properties: {
         [ACTION_KEY]: {
@@ -228,9 +239,6 @@ ${allToolNames.join(", ")}
         ...depGroups,
       },
       required: [ACTION_KEY],
-      // Provider restriction: tools.0.custom.input_schema: input_schema does not support oneOf, allOf, or anyOf at the top level"
-      //
-      // allOf,
     };
 
     const validate = ajv.compile(argsDef);
