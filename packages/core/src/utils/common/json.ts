@@ -28,9 +28,9 @@ export function truncateJSON(obj: unknown): string {
   });
 }
 
-export function optionalObject(obj: any, condition: boolean) {
+export function optionalObject<T>(obj: T, condition: boolean): T {
   if (condition) {
     return obj;
   }
-  return {};
+  return {} as T;
 }
