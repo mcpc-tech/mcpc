@@ -27,3 +27,10 @@ export function truncateJSON(obj: unknown): string {
     maxStringLength: 120,
   });
 }
+
+export function optionalObject<T>(obj: T, condition: boolean): T {
+  if (condition) {
+    return obj;
+  }
+  return {} as T;
+}

@@ -8,22 +8,36 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { jsonSchema, Schema } from "ai";
+import { generateId, jsonSchema, Schema } from "ai";
 import { McpSettingsSchema, ServerConfigSchema } from "../../service/tools.ts";
 import {
   Server,
   type ServerOptions,
 } from "@modelcontextprotocol/sdk/server/index.js";
+import { Ajv } from "ajv";
+import { AggregateAjvError } from "@segment/ajv-human-errors";
+import addFormats from "ajv-formats";
 import z from "zod";
 
 import { CheerioAPI, load } from "cheerio";
 import { smitheryToolNameCompatibale } from "./registory.ts";
+import { optionalObject } from "./json.ts";
 
 const TOOLS_PLACEHOLDER = "__ALL__";
 
 const NEXT_ACTION_KEY = "nextAction";
 const ACTION_KEY = "action";
 const MCPC_ARGS_KEY = "mcpcArgs";
+
+const GEMINI_PREFERRED_FORMAT =
+  process.env.GEMINI_PREFERRED_FORMAT === "0" ? false : true;
+
+const ajv = new Ajv({
+  allErrors: true,
+  verbose: true,
+});
+// @ts-ignore -
+addFormats(ajv);
 
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
@@ -104,14 +118,14 @@ export class ComposableMCPServer extends Server {
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
     const tools = await composeMcpDepTools(
       depsConfig,
-      ({ mcpName, toolNameWithScope }) => {
+      ({ mcpName, toolNameWithScope, internalToolName, toolId }) => {
         return tagToResults.tool.find((tool) => {
           const selectAll =
             tool.attribs.name === `${mcpName}.${TOOLS_PLACEHOLDER}`;
 
           description = description.replace(
             $(tool).prop("outerHTML")!,
-            `<action ${ACTION_KEY}="${tool.attribs.name}"/>`
+            `<action ${ACTION_KEY}="${toolId}"/>`
           );
           if (selectAll) {
             return true;
@@ -145,110 +159,128 @@ The MCP tool executes actions in a multi-step process. Follow these steps for ea
 ${allToolNames.join(", ")}
 `;
 
+    const allOf = toolNameToDetailList.map(([toolName]) => {
+      return {
+        if: {
+          properties: { [ACTION_KEY]: { const: toolName } },
+          required: [ACTION_KEY],
+        },
+        then: {
+          required: [toolName],
+        },
+      };
+    });
+
+    // Provider restriction: did not support additionalProperties
+    // see -> https://ai.google.dev/api/caching#Schema
+    const optionalAdditionalProperties = optionalObject(
+      { additionalProperties: false },
+      !GEMINI_PREFERRED_FORMAT
+    );
+    // Provider restriction: tools.0.custom.input_schema: input_schema does not support oneOf, allOf, or anyOf at the top level"
+    const optionalAllOf = optionalObject({ allOf }, !GEMINI_PREFERRED_FORMAT);
+
+    const depGroups: any = toolNameToDetailList
+      .flatMap(([toolName, tool]) => {
+        if (!tool) {
+          throw new Error(
+            `Action ${toolName} not found, available action list: ${allToolNames.join(
+              ", "
+            )}`
+          );
+        }
+
+        const baseSchema = tool.inputSchema || {
+          type: "object",
+          properties: {},
+          required: [],
+        };
+
+        const baseProperties =
+          baseSchema.type === "object" && baseSchema.properties
+            ? baseSchema.properties
+            : {};
+        const baseRequired =
+          baseSchema.type === "object" && baseSchema.required
+            ? baseSchema.required
+            : [];
+
+        return {
+          [toolName]: {
+            type: "object",
+            description: tool.description,
+            properties: {
+              ...baseProperties,
+            },
+
+            required: [...baseRequired],
+            ...optionalAdditionalProperties,
+          },
+        } as any;
+      })
+      .reduce((acc: any, cur: any) => ({ ...acc, ...cur }), {});
     const argsDef: Schema<{}>["jsonSchema"] = {
+      ...optionalAdditionalProperties,
+      ...optionalAllOf,
       type: "object",
       properties: {
-        // Root objects must not be anyOf, see -> https://platform.openai.com/docs/guides/structured-outputs#root-objects-must-not-be-anyof
-        [MCPC_ARGS_KEY]: {
-          description: `An object specifying a single action to be invoked and its ${MCPC_ARGS_KEY}. The ${ACTION_KEY} property identifies the specific action, guiding validation against one of the schemas in the 'anyOf' list.`,
-          // Supported by google and openai, `oneOf` is more suitable but not well supported.
-          // See -> https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses#supported-schemas
-          anyOf: toolNameToDetailList.flatMap(([toolName, tool]) => {
-            if (!tool) {
-              throw new Error(
-                `Action ${toolName} not found, available action list: ${allToolNames.join(
-                  ", "
-                )}`
-              );
-            }
-
-            const baseSchema = tool.inputSchema || {
-              type: "object",
-              properties: {},
-              required: [],
-            };
-
-            const baseProperties =
-              baseSchema.type === "object" && baseSchema.properties
-                ? baseSchema.properties
-                : {};
-            const baseRequired =
-              baseSchema.type === "object" && baseSchema.required
-                ? baseSchema.required
-                : [];
-
-            return [
-              {
-                type: "object",
-                description: tool.description,
-                properties: {
-                  ...baseProperties,
-                  [ACTION_KEY]: {
-                    type: "string",
-                    const: toolName,
-                    description: "The name of the current action to call",
-                  },
-                  [NEXT_ACTION_KEY]: {
-                    type: "string",
-                    enum: allToolNames,
-                    description:
-                      "The name of the next action to call. Specify this ONLY if the user request needs additional actions to be fulfilled.",
-                  },
-                },
-
-                required: [...baseRequired, ACTION_KEY],
-                additionalProperties: false,
-              },
-            ];
-          }),
+        [ACTION_KEY]: {
+          type: "string",
+          enum: allToolNames,
+          description:
+            "Specifies the action to be performed from the enum. Based on the value chosen for 'action', the corresponding sibling property (which shares the same name as the action value and contains its specific parameters) **MUST** also be provided in this object. For example, if 'action' is 'get_weather', then the 'get_weather' parameter object is mandatory.",
         },
+        [NEXT_ACTION_KEY]: {
+          type: "string",
+          enum: allToolNames,
+          description:
+            "Specify the next action to execute only when the user’s request requires additional steps. If no next action is needed, this property **MUST BE OMITTED** from the object.",
+        },
+        ...depGroups,
       },
-      required: [MCPC_ARGS_KEY],
+      required: [ACTION_KEY],
     };
 
-    this.tool(
-      name,
-      description,
-      jsonSchema<{
-        [MCPC_ARGS_KEY]: { [ACTION_KEY]: string; [NEXT_ACTION_KEY]?: string };
-      }>(argsDef),
-      async (args) => {
-        const currentTool = toolNameToDetailList.find(
-          ([name]) => name === args[MCPC_ARGS_KEY][ACTION_KEY]
-        )?.[1];
+    const validate = ajv.compile(argsDef);
 
-        if (!currentTool) {
-          const error = `[ERROR]Action ${
-            args[MCPC_ARGS_KEY][ACTION_KEY]
-          } not found, available action list: ${allToolNames.join(", ")}`;
-          console.log(error);
-          return {
-            content: [{ type: "text", text: error }],
-            isError: true,
-          };
-        }
-
-        const currentResult = await currentTool.execute({
-          ...args[MCPC_ARGS_KEY],
-          [ACTION_KEY]: undefined,
-          [NEXT_ACTION_KEY]: undefined,
-        });
-
-        if (args[MCPC_ARGS_KEY][NEXT_ACTION_KEY]) {
-          currentResult?.content?.unshift({
-            type: "text",
-            text: `# You WILL call this tool(\`${name}\`) AGAIN using the \`${args[MCPC_ARGS_KEY][NEXT_ACTION_KEY]}\` action, after evaluating the result from previous action(${args[MCPC_ARGS_KEY][ACTION_KEY]}):`,
-          });
-        } else {
-          currentResult?.content?.unshift({
-            type: "text",
-            text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action(${args[MCPC_ARGS_KEY][ACTION_KEY]}):`,
-          });
-        }
-
-        return currentResult;
+    this.tool(name, description, jsonSchema<any>(argsDef), async (args) => {
+      if (!validate(args)) {
+        const errors = new AggregateAjvError(validate.errors!);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Tool/Function argument validation failed: ${errors.message}`,
+            },
+          ],
+          isError: true,
+        };
       }
-    );
+
+      const currentTool = toolNameToDetailList.find(
+        ([name]) => name === args[ACTION_KEY]
+      )?.[1];
+
+      const action = args[ACTION_KEY] as string;
+      const nextAction = args[NEXT_ACTION_KEY] as string;
+      const currentResult = await currentTool.execute({
+        ...args[action],
+      });
+
+      if (args[nextAction]) {
+        currentResult?.content?.unshift({
+          type: "text",
+          text: `# You WILL call this tool(\`${name}\`) AGAIN using the \`${nextAction}\` action, after evaluating the result from previous action(${action}):`,
+        });
+      } else {
+        currentResult?.content?.unshift({
+          type: "text",
+          text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action(${action}):`,
+        });
+      }
+
+      return currentResult;
+    });
   }
 }
 
@@ -350,6 +382,8 @@ export async function composeMcpDepTools(
     tool: any;
     mcpName: string;
     toolNameWithScope: string;
+    internalToolName: string;
+    toolId: string;
   }) => boolean
 ): Promise<Record<string, any>> {
   const allTools: Record<string, any> = {};
@@ -386,6 +420,7 @@ export async function composeMcpDepTools(
     }
 
     const client = new Client({ name, version: "1.0.0" });
+    const serverId = generateId(7);
 
     try {
       // Create the MCP client
@@ -398,7 +433,9 @@ export async function composeMcpDepTools(
       tools.forEach((tool) => {
         const { toolNameWithScope, toolName: internalToolName } =
           smitheryToolNameCompatibale(tool.name, name);
-
+        // Provider restriction: tools.0.custom.input_schema.properties: Property keys should match pattern '^[a-zA-Z0-9_-]{1,64}$
+        // While server name with scope may not match this pattern, we can use it as a unique ID to solve tool name collision
+        const toolId = `${serverId}_${internalToolName}`;
         if (
           filterIn &&
           !filterIn({
@@ -406,6 +443,8 @@ export async function composeMcpDepTools(
             tool,
             mcpName: name,
             toolNameWithScope,
+            internalToolName,
+            toolId,
           })
         ) {
           return;
@@ -413,7 +452,7 @@ export async function composeMcpDepTools(
         const execute = (args: any) =>
           client.callTool({ name: internalToolName, arguments: args });
         tool.execute = execute;
-        allTools[toolNameWithScope] = tool;
+        allTools[toolId] = tool;
       });
     } catch (error) {
       console.error(`Error creating MCP client for ${name}:`, error);

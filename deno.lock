@@ -21,9 +21,12 @@
     "npm:@modelcontextprotocol/sdk@^1.8.0": "1.10.2_express@5.1.0_zod@3.24.3",
     "npm:@scalar/openapi-parser@~0.10.14": "0.10.16_ajv@8.17.1",
     "npm:@scalar/openapi-types@0.2": "0.2.1",
+    "npm:@segment/ajv-human-errors@^2.15.0": "2.15.0_ajv@8.17.1",
     "npm:@types/node@*": "22.12.0",
     "npm:ai@^4.3.1": "4.3.9_zod@3.24.3",
     "npm:ai@^4.3.4": "4.3.9_zod@3.24.3",
+    "npm:ajv-formats@^3.0.1": "3.0.1_ajv@8.17.1",
+    "npm:ajv@^8.17.1": "8.17.1",
     "npm:axios@*": "1.8.4",
     "npm:cheerio@*": "1.0.0",
     "npm:cheerio@1": "1.0.0",
@@ -239,6 +242,12 @@
       "integrity": "sha512-UMxX54taQXnEWYEuesbH+pkjlXRVV1u/Wx6YbVeU3QoJdFGqT3Z7si9zsokoG6MXDcdi1LGny7A0KwownmPvUQ==",
       "dependencies": [
         "zod"
+      ]
+    },
+    "@segment/ajv-human-errors@2.15.0_ajv@8.17.1": {
+      "integrity": "sha512-tgeMMuYYJt3Aar5IIk3kyfL9zMvGsv5d7KsVT/2auri+hEH/L2M1i8X67ne4JjMWZqENYIGY1WuI4oPEL1H/xA==",
+      "dependencies": [
+        "ajv"
       ]
     },
     "@types/diff-match-patch@1.0.36": {
@@ -1240,7 +1249,10 @@
           "npm:@ai-sdk/openai@^1.3.7",
           "npm:@hono/zod-openapi@~0.19.2",
           "npm:@modelcontextprotocol/sdk@^1.8.0",
+          "npm:@segment/ajv-human-errors@^2.15.0",
           "npm:ai@^4.3.4",
+          "npm:ajv-formats@^3.0.1",
+          "npm:ajv@^8.17.1",
           "npm:cheerio@1",
           "npm:css-select@^5.1.0",
           "npm:dayjs@^1.11.13",
