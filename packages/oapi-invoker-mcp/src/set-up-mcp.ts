@@ -19,7 +19,6 @@ export function setUpMcpServer(
   const server = new ComposableMCPServer(...args);
 
   standardTools.map((tool) => {
-    console.log(tool.name);
     server.tool(
       tool.name,
       tool.description ?? "",

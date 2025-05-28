@@ -143,7 +143,6 @@ export async function invoke(
   console.log(`Request Options: ${JSON.stringify(requestOptions)}`);
 
   for (let attempt = 0; attempt <= retries; attempt++) {
-    writeFileSync("debug.json", JSON.stringify({ requestOptions, url }));
     try {
       response = await fetch(url.toString(), requestOptions);
       break;
@@ -325,44 +324,67 @@ export function postProcess(
   extendTool: ExtendedAIToolSchema,
   data: unknown
 ): unknown {
+  const responseConfigGlobal = _spec["x-response-config"] || {};
   const op = extendTool._rawOperation;
-  if (!op) {
-    // console.warn("postProcess: _rawOperation is missing. Returning data as is.");
+  const processData = () => {
+    if (!op) {
+      return data;
+    }
+
+    const includeResponseKeys: string[] =
+      op["x-include-response-keys"] ||
+      responseConfigGlobal["includeResponseKeys"] ||
+      [];
+    const excludeResponseKeys: string[] =
+      op["x-exclude-response-keys"] ||
+      responseConfigGlobal["excludeResponseKeys"] ||
+      [];
+    const sensitiveResponseFields: string[] =
+      op["x-sensitive-response-fields"] ||
+      responseConfigGlobal["sensitiveResponseFields"] ||
+      [];
+
+    // If no transformation rules are defined, return the data unmodified.
+    if (
+      includeResponseKeys.length === 0 &&
+      excludeResponseKeys.length === 0 &&
+      sensitiveResponseFields.length === 0
+    ) {
+      return data;
+    }
+
+    const wasArray = isArray(data); // Use _.isArray
+    const itemsToProcess = wasArray ? (data as any[]) : [data];
+
+    // Use _.map for transformation
+    const processedItems = map(itemsToProcess, (currentItem: any) => {
+      return transformItem(
+        currentItem,
+        includeResponseKeys,
+        excludeResponseKeys,
+        sensitiveResponseFields
+      );
+    });
+
+    return wasArray ? processedItems : processedItems[0];
+  };
+
+  const processedData = processData();
+  return truncateData(processedData, responseConfigGlobal.maxLength);
+}
+
+function truncateData(data: unknown, maxLength?: number): unknown {
+  if (!maxLength) {
     return data;
   }
 
-  const includeResponseKeys: string[] = op["x-include-response-keys"] || [];
-  const excludeResponseKeys: string[] = op["x-exclude-response-keys"] || [];
-  const sensitiveResponseFields: string[] =
-    op["x-sensitive-response-fields"] || [];
-
-  console.log({
-    includeResponseKeys,
-    excludeResponseKeys,
-    sensitiveResponseFields,
-  });
-
-  // If no transformation rules are defined, return the data unmodified.
-  if (
-    includeResponseKeys.length === 0 &&
-    excludeResponseKeys.length === 0 &&
-    sensitiveResponseFields.length === 0
-  ) {
+  const stringified = JSON.stringify(data);
+  if (stringified.length <= maxLength) {
     return data;
   }
 
-  const wasArray = isArray(data); // Use _.isArray
-  const itemsToProcess = wasArray ? (data as any[]) : [data];
-
-  // Use _.map for transformation
-  const processedItems = map(itemsToProcess, (currentItem: any) => {
-    return transformItem(
-      currentItem,
-      includeResponseKeys,
-      excludeResponseKeys,
-      sensitiveResponseFields
-    );
-  });
-
-  return wasArray ? processedItems : processedItems[0];
+  return {
+    message: `Response was truncated (length: ${stringified.length}, max: ${maxLength})`,
+    data: JSON.parse(stringified.slice(0, maxLength)),
+  };
 }

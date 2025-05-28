@@ -107,6 +107,33 @@ const RequestConfigSchema = z.object({
     .describe("HTTP request configuration"),
 });
 
+// Response configuration extension schema
+const ResponseConfigSchema = z.object({
+  "x-response-config": z
+    .object({
+      maxLength: z
+        .number()
+        .optional()
+        .describe("Maximum length of response content"),
+      "includeResponseKeys": z
+        .array(z.string())
+        .optional()
+        .describe("Include response keys in the tool output"),
+
+      "excludeResponseKeys": z
+        .array(z.string())
+        .optional()
+        .describe("Exclude response keys from the tool output"),
+
+      "sensitiveResponseFields": z
+        .array(z.string())
+        .optional()
+        .describe("Mark response fields as sensitive"),
+    })
+    .optional()
+    .describe("Response handling configuration"),
+});
+
 // Cache configuration extension schema
 const CacheConfigSchema = z.object({
   "x-cache-key": z
@@ -178,6 +205,7 @@ const OpenAPIExtensionsSchema = z.object({
   ...OperationExtensionSchema.shape,
   ...ParameterExtensionSchema.shape,
   ...ResponseExtensionSchema.shape,
+  ...ResponseConfigSchema.shape,
 });
 
 // Export types derived from schemas
