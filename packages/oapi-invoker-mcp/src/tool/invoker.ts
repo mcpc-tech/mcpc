@@ -378,13 +378,13 @@ function truncateData(data: unknown, maxLength?: number): unknown {
     return data;
   }
 
-  const stringified = JSON.stringify(data);
+  const stringified = JSON.stringify(data, null, 2);
   if (stringified.length <= maxLength) {
     return data;
   }
 
   return {
     message: `Response was truncated (length: ${stringified.length}, max: ${maxLength})`,
-    data: JSON.parse(stringified.slice(0, maxLength)),
+    truncatedData: stringified.slice(0, maxLength) + "...",
   };
 }
