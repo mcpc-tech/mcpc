@@ -50,3 +50,8 @@ result
 vendor/
 
 .deno_runner_tmp
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
