@@ -324,16 +324,37 @@ export class ComposableMCPServer extends Server {
         type: "array",
         title: "Steps Definition",
         description: `
-An array of step objects that define a sequence of **COMPLETE** actions to be executed to fullfill user's request.
+An array of step objects that define a sequence of COMPLETE actions as part of a workflow to be executed to fulfill the user's request.
 
-CRITICAL: Actions within a single step execute concurrently. If actions have 
-dependencies or must run in sequence, they MUST be placed in separate steps.
+CRITICAL:
+-   Steps should be organized to reflect the workflow, where each step represents a distinct phase of the process.
+-   Actions within a single step execute concurrently. If actions have dependencies or must run in sequence, they MUST be placed in separate steps.
+-   Leave actions empty [] if this step is purely organizational/planning.
 
-Common dependency patterns requiring separate steps:
-- File operations: list → create → move → cleanup
-- Database operations: connect → create schema → insert data → query
-- API operations: authenticate → make calls → process responses
-- Network operations: establish connection → send request → handle response
+Common Workflow Patterns Requiring Separate Steps:
+-   File Operations:
+  - Step 1: List files
+  - Step 2: Create files
+  - Step 3: Move files
+  - Step 4: Cleanup
+
+-   Database Operations:
+  - Step 1: Connect to database
+  - Step 2: Create schema
+  - Step 3: Insert data
+  - Step 4: Query database
+
+-   API Operations:
+  - Step 1: Authenticate
+  - Step 2: Make API calls
+  - Step 3: Process responses
+
+-   Network Operations:
+  - Step 1: Establish connection
+  - Step 2: Send request
+  - Step 3: Handle response
+
+Focus on defining clear steps in the workflow to ensure efficient execution and management of dependencies.
 `,
         items: {
           type: "object",
@@ -366,8 +387,6 @@ If Action A must complete before Action B, put them in separate steps.
 
 IMPORTANT: Use DIFFERENT actions across steps - avoid repeating the same action.
 Each step should serve a distinct purpose requiring different tools.
-
-Leave it empty if this step is purely organizational/planning.
 `,
               items: {
                 type: "string",
@@ -525,20 +544,12 @@ ${state.getNextStep()?.description}
 
     const workflowState = new WorkflowState();
 
-    const toolDescription = `# Autonomous MCP Tool: \`${name}\`
+    const toolDescription = `An autonomous MCP tool named \`${name}\` that fulfills user instructions through **iterative self-invocation(\`${name}\`)**. Each call represents one step in a multi-step workflow.
+**User Instructions**: ${description}
 
-## Context
-An autonomous MCP tool that fulfills user instructions through **iterative self-invocation(\`${name}\`)**. Each call represents one step in a multi-step workflow.
-
-## User Instructions
-${description}
-
-## Workflow Requirements
+**Workflow Requirements**: 
 - Generate a **COMPLETE** multi-step workflow based on user instructions
-- **Use DIFFERENT actions for different steps** - avoid repeating the same action
-- Break tasks by function: research → plan → create → validate
-- Execute through structured, iterative self-invocation only
-- You MUST IGNORE \`steps\` key when calling next step
+- You MUST NOT generate \`steps\` key when calling next step
 `;
 
     this.tool(
