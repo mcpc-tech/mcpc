@@ -1,18 +1,9 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { mcpc } from "../mod.ts";
+import { ComposeDefination, mcpc } from "../mod.ts";
 
-export const server = await mcpc(
-  [
-    {
-      name: "mcpc",
-      version: "0.1.0",
-    },
-    { capabilities: { tools: { listChanged: true } } },
-  ],
-  [
-    {
-      name: "ins",
-      description: `**Objective:** Generate an image by rendering HTML crafted from user input, using specified automation tools.
+export const insImageGen: ComposeDefination = {
+  name: "ins",
+  description: `**Objective:** Generate an image by rendering HTML crafted from user input, using specified automation tools.
 
 **Workflow:**
 
@@ -28,7 +19,7 @@ export const server = await mcpc(
 
 3.  **Persist HTML to Local File:** Write the generated HTML code to a local file.
 
-    Use <tool name="@wonderwhy-er/desktop-commander.write_file"/>, **IGNORE** the size limit warning, path shall under /tmp.
+    Use <tool name="@wonderwhy-er/desktop-commander.write_file"/>, you MUST **IGNORE** the size limit warning, no need to apend, path shall under /tmp.
 
 4.  **Render in Browser and Capture Screenshot:**
 
@@ -41,20 +32,29 @@ export const server = await mcpc(
 
     Use <tool name="@microsoft/playwright-mcp.browser_close"/>
  `,
-      deps: {
-        mcpServers: {
-          "@wonderwhy-er/desktop-commander": {
-            command: "npx",
-            args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
-          },
-          "@microsoft/playwright-mcp": {
-            command: "npx",
-            args: ["-y", "@playwright/mcp@latest", "--image-responses", "emit"],
-          },
-        },
+  deps: {
+    mcpServers: {
+      "@wonderwhy-er/desktop-commander": {
+        command: "npx",
+        args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+      },
+      "@microsoft/playwright-mcp": {
+        command: "npx",
+        args: ["-y", "@playwright/mcp@latest", "--image-responses", "emit"],
       },
     },
-  ]
+  },
+};
+
+export const server = await mcpc(
+  [
+    {
+      name: "mcpc",
+      version: "0.1.0",
+    },
+    { capabilities: { tools: { listChanged: true } } },
+  ],
+  [insImageGen]
 );
 
 const transport = new StdioServerTransport();

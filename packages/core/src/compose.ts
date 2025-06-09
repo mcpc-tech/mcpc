@@ -18,6 +18,7 @@ import { optionalObject } from "././utils/common/json.ts";
 import { composeMcpDepTools, parseTags } from "../mod.ts";
 import { ComposeDefination } from "./set-up-mcp-compose.ts";
 import { pick } from "@es-toolkit/es-toolkit";
+import { join } from "node:path";
 
 const TOOLS_PLACEHOLDER = "__ALL__";
 
@@ -100,7 +101,7 @@ export class ComposableMCPServer extends Server {
     name: string,
     description: string,
     depsConfig: z.infer<typeof McpSettingsSchema>,
-    options: ComposeDefination["options"] = { mode: "workflow" }
+    options: ComposeDefination["options"] = { mode: "agentic_workflow" }
   ) {
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
     const tools = await composeMcpDepTools(
@@ -199,8 +200,8 @@ export class ComposableMCPServer extends Server {
           toolNameToDetailList,
         });
         return;
-      case "workflow":
-        await this.registerWorkflowTool({
+      case "agentic_workflow":
+        await this.registerAgenticWorkflowTool({
           description,
           name,
           allToolNames,
@@ -213,7 +214,7 @@ export class ComposableMCPServer extends Server {
     }
   }
 
-  async registerWorkflowTool({
+  async registerAgenticWorkflowTool({
     description,
     name,
     allToolNames,
@@ -307,7 +308,7 @@ export class ComposableMCPServer extends Server {
                   type: "boolean",
                   title: "Continue to Next Step",
                   description:
-                    "If the current step is completed and needs to proceed to the next step, set to true; otherwise set to false to stop execution",
+                    "Controls step execution flow. Set to true to proceed to the next step, set to false to repeat the current step",
                 },
               }
             : {}),
@@ -323,16 +324,17 @@ export class ComposableMCPServer extends Server {
         type: "array",
         title: "Steps Definition",
         description: `
-        An array of step objects that define a sequence of actions to be executed.
-        
-        CRITICAL: Actions within a single step execute concurrently. If actions have 
-        dependencies or must run in sequence, they MUST be placed in separate steps.
-        
-        Common dependency patterns requiring separate steps:
-        - File operations: list → create → move
-        - Database operations: connect → create → insert
-        - API operations: authenticate → make calls
-      `,
+An array of step objects that define a sequence of **COMPLETE** actions to be executed to fullfill user's request.
+
+CRITICAL: Actions within a single step execute concurrently. If actions have 
+dependencies or must run in sequence, they MUST be placed in separate steps.
+
+Common dependency patterns requiring separate steps:
+- File operations: list → create → move → cleanup
+- Database operations: connect → create schema → insert data → query
+- API operations: authenticate → make calls → process responses
+- Network operations: establish connection → send request → handle response
+`,
         items: {
           type: "object",
           title: "Step Object",
@@ -346,8 +348,6 @@ export class ComposableMCPServer extends Server {
               title: "Step Description",
               description:
                 "A human-readable description of what this step accomplishes",
-              minLength: 1,
-              maxLength: 500,
               examples: [
                 "List files in the source directory",
                 "Create necessary target directories",
@@ -359,23 +359,26 @@ export class ComposableMCPServer extends Server {
               type: "array",
               title: "Concurrent Actions",
               description: `
-              Array of action names that execute concurrently in this step.
-              
-              WARNING: These actions MUST be independent with no dependencies.
-              If Action A must complete before Action B, put them in separate steps.
-            `,
+Array of action names that execute concurrently in this step.
+
+WARNING: These actions MUST be independent with no dependencies.
+If Action A must complete before Action B, put them in separate steps.
+
+IMPORTANT: Use DIFFERENT actions across steps - avoid repeating the same action.
+Each step should serve a distinct purpose requiring different tools.
+
+Leave it empty if this step is purely organizational/planning.
+`,
               items: {
                 type: "string",
                 enum: allToolNames,
                 description: "Individual action name from available actions",
               },
-              minItems: 1,
-              maxItems: 10,
               uniqueItems: true,
               examples: [
                 ["list_directory"],
                 ["create_folder_a", "create_folder_b"],
-                ["validate_input", "init_logger"],
+                ["validate_input"],
               ],
             },
           },
@@ -424,10 +427,12 @@ export class ComposableMCPServer extends Server {
               type: "text",
               text: `Workflow initialized with ${steps.length} steps.
 
-## Next Step Tool Arguments Schema
+## Next Step's Tool Arguments JSON Schema Definition
 ${JSON.stringify(firstStepArgsDef, null, 2)}
 
-You MUST IGNORE \`steps\` key when calling next step`,
+## Next Step's Purpose
+${state.getNextStep()?.description}
+`,
             },
           ],
           isError: false,
@@ -492,6 +497,8 @@ You MUST IGNORE \`steps\` key when calling next step`,
 
 # Next Step's Tool Arguments JSON Schema Definition
 ${JSON.stringify(nextStepArgsDef, null, 2)}
+# Next Step's Purpose
+${state.getNextStep()?.description}
 
 **Instructions:**
 - Analyze the previous action's result carefully
@@ -521,17 +528,17 @@ ${JSON.stringify(nextStepArgsDef, null, 2)}
     const toolDescription = `# Autonomous MCP Tool: \`${name}\`
 
 ## Context
-You are an autonomous Model Control Protocol (MCP) tool that fulfills user instructions through **iterative self-invocation(\`${name}\`)**. Each call represents one step in a multi-step workflow.
+An autonomous MCP tool that fulfills user instructions through **iterative self-invocation(\`${name}\`)**. Each call represents one step in a multi-step workflow.
 
 ## User Instructions
 ${description}
 
-## Execution Protocol
-
-### Workflow Requirements
-- **Generate a multi-step workflow** based on the user instructions above
-- Execute actions through structured, iterative self-invocation only
-- Do NOT make direct, unstructured tool calls
+## Workflow Requirements
+- Generate a **COMPLETE** multi-step workflow based on user instructions
+- **Use DIFFERENT actions for different steps** - avoid repeating the same action
+- Break tasks by function: research → plan → create → validate
+- Execute through structured, iterative self-invocation only
+- You MUST IGNORE \`steps\` key when calling next step
 `;
 
     this.tool(
@@ -541,7 +548,6 @@ ${description}
       async (args: any) => {
         try {
           const currentArgsDef = createArgsDef.forCurrentState(workflowState);
-
           const validate = ajv.compile(currentArgsDef);
           if (!validate(args)) {
             const errors = new AggregateAjvError(validate.errors!);
@@ -549,7 +555,7 @@ ${description}
               content: [
                 {
                   type: "text",
-                  text: `Tool/Function argument validation failed: ${errors.message}`,
+                  text: `Tool call arguments validation failed: ${errors.message}`,
                 },
               ],
               isError: true,
