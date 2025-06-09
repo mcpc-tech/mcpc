@@ -9,6 +9,13 @@ export interface ComposeDefination {
   name: string;
   description: string;
   deps: MCPSetting;
+
+  options?: {
+    /**
+     * @default workflow
+     */
+    mode?: "agentic" | "workflow" | "static_workflow";
+  };
 }
 
 export interface ComposibleMCPConfig {
@@ -74,7 +81,8 @@ export async function mcpc(
     await server.compose(
       mcpcConfig.name,
       mcpcConfig.description,
-      mcpcConfig.deps
+      mcpcConfig.deps,
+      mcpcConfig.options
     );
   }
 

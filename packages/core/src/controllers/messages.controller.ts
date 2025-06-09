@@ -29,7 +29,6 @@ export const messageHandler = (app: OpenAPIHono) =>
       },
     }),
     async (c) => {
-      console.log(`Received message: ${c.req.url}`);
       const response = await handleIncoming(c.req.raw);
       return response;
     },

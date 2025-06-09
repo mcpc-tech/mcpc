@@ -1,5 +1,5 @@
 /** MCPC Core - A library for building scalable agentic MCP servers.
- * 
+ *
  * MCPC allows you to create composable MCP servers with one-prompt automation
  * workflow declaration, supporting thousands of dependent MCPs from the community.
  *
@@ -36,11 +36,12 @@
  * const transport = new StdioServerTransport();
  * await server.connect(transport);
  * ```
- * 
+ *
  *
  * @module
  */
 
+export * from "./src/compose.ts";
 
 export * from "./src/utils/common/env.ts";
 export * from "./src/utils/common/ai.ts";

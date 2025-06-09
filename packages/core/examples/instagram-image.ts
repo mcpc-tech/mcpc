@@ -49,7 +49,7 @@ export const server = await mcpc(
           },
           "@microsoft/playwright-mcp": {
             command: "npx",
-            args: ["-y", "@playwright/mcp@latest"],
+            args: ["-y", "@playwright/mcp@latest", "--image-responses", "emit"],
           },
         },
       },
