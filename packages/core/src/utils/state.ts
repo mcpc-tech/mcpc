@@ -33,8 +33,25 @@ export class WorkflowState {
     return this.steps[nextIndex] || null;
   }
 
+  // Get the previous step in the workflow
+  getPreviousStep(): MCPCStep | null {
+    if (!this.isInitialized) return null;
+    const prevIndex = this.currentStepIndex - 1;
+    return this.steps[prevIndex] || null;
+  }
+
   hasNextStep(): boolean {
     return this.getNextStep() !== null;
+  }
+
+  // Check if there is a previous step available
+  hasPreviousStep(): boolean {
+    return this.getPreviousStep() !== null;
+  }
+
+  // Check if currently at the first step
+  isAtFirstStep(): boolean {
+    return this.isInitialized && this.currentStepIndex === 0;
   }
 
   isCompleted(): boolean {
@@ -55,6 +72,28 @@ export class WorkflowState {
     return true;
   }
 
+  // Move to the previous step in the workflow
+  moveToPreviousStep(): boolean {
+    if (!this.hasPreviousStep()) {
+      return false;
+    }
+    this.currentStepIndex--;
+    return true;
+  }
+
+  // Move to a specific step by index (optional feature)
+  moveToStep(stepIndex: number): boolean {
+    if (
+      !this.isInitialized ||
+      stepIndex < 0 ||
+      stepIndex >= this.steps.length
+    ) {
+      return false;
+    }
+    this.currentStepIndex = stepIndex;
+    return true;
+  }
+
   reset(): void {
     this.currentStepIndex = -1;
     this.steps = [];
@@ -68,6 +107,9 @@ export class WorkflowState {
       isInitialized: this.isInitialized,
       currentStep: this.getCurrentStep()?.description,
       nextStep: this.getNextStep()?.description,
+      previousStep: this.getPreviousStep()?.description,
+      isAtFirstStep: this.isAtFirstStep(),
+      hasPreviousStep: this.hasPreviousStep(),
     };
   }
 }

@@ -3,6 +3,7 @@ import {
   CallToolRequestSchema,
   Tool,
   Implementation,
+  CallToolResult,
 } from "@modelcontextprotocol/sdk/types.js";
 import { jsonSchema, Schema } from "ai";
 import { McpSettingsSchema } from "./service/tools.ts";
@@ -14,13 +15,12 @@ import { Ajv } from "ajv";
 import { AggregateAjvError } from "@segment/ajv-human-errors";
 import addFormats from "ajv-formats";
 import z from "zod";
-import { optionalObject } from "././utils/common/json.ts";
 import { composeMcpDepTools, parseTags } from "../mod.ts";
 import { ComposeDefination } from "./set-up-mcp-compose.ts";
 import { pick } from "@es-toolkit/es-toolkit";
-import { join } from "node:path";
 import { MCPCStep, WorkflowState } from "./utils/state.ts";
 import { createGoogleCompatibleJSONSchema } from "./utils/common/provider.ts";
+import { internalActions, toolNameToSchema } from "./utils/actions.ts";
 
 const TOOLS_PLACEHOLDER = "__ALL__";
 
@@ -201,7 +201,6 @@ export class ComposableMCPServer extends Server {
             ? {
                 repeat: {
                   type: "boolean",
-                  title: "Continue to Next Step",
                   description:
                     "**Controls step execution flow. Set to true to repeat the current step**",
                   default: false,
@@ -216,7 +215,6 @@ export class ComposableMCPServer extends Server {
 
       steps: (): Schema<{}>["jsonSchema"] => ({
         type: "array",
-        title: "Steps Definition",
         description: `
 An array of step objects that define a sequence of COMPLETE actions as part of a workflow to be executed to fulfill the user's request.
 
@@ -224,7 +222,6 @@ CRITICAL:
 -   **Workflow as a Sequence of States**: Steps MUST be organized to reflect the workflow's logical sequence. Each step represents a distinct phase.
 -   **Sequential Dependency Rule**: If Action B depends on the outcome of Action A, they MUST be in separate, sequential steps (A in Step N, B in Step N+1).
 -   **Concurrent Action Rule**: All actions within a single step are considered independent and MUST be executable concurrently.
--   **Empty Organizational Steps**: Leave the actions array empty (\`[]\`) ONLY IF a step is purely for organizational purposes or planning, and no action usage is mentioned.
 -   **Action Fidelity Rule**: The set of generated actions MUST be a complete and faithful one-to-one mapping of the operations requested in the user's description. Do not add unrequested actions or omit requested ones.
 
 BEST PRACTICES:
@@ -234,7 +231,6 @@ BEST PRACTICES:
 `,
         items: {
           type: "object",
-          title: "Step Object",
           description: `
           A single step containing actions that execute concurrently.
           All actions in this step run simultaneously with no guaranteed order.
@@ -242,7 +238,6 @@ BEST PRACTICES:
           properties: {
             description: {
               type: "string",
-              title: "Step Description",
               description:
                 "A human-readable description of what this step accomplishes",
               examples: [
@@ -254,14 +249,14 @@ BEST PRACTICES:
             },
             actions: {
               type: "array",
-              title: "Concurrent Actions",
               description: `Array of action names that execute concurrently in this step.`,
               items: {
                 type: "string",
-                enum: allToolNames,
+                enum: allToolNames?.concat(Object.keys(internalActions)),
                 description: "Individual action name from available actions",
               },
               uniqueItems: true,
+              minItems: 1,
               examples: [
                 ["list_directory"],
                 ["create_folder_a", "create_folder_b"],
@@ -283,10 +278,17 @@ BEST PRACTICES:
 
         const currentStep = state.getCurrentStep();
         if (!currentStep) {
-          throw new Error(`Invalid workflow state: no current step`);
+          throw new Error(
+            `Invalid workflow state: no current step,${JSON.stringify(
+              state.getDebugInfo()
+            )}`
+          );
         }
 
-        const stepDependencies = pick(depGroups, currentStep.actions);
+        const stepDependencies = {
+          ...pick(toolNameToSchema(internalActions), currentStep.actions),
+          ...pick(depGroups, currentStep.actions),
+        };
         const includeRepeat = state.hasNextStep();
 
         return createArgsDef.common(stepDependencies, includeRepeat);
@@ -299,7 +301,6 @@ BEST PRACTICES:
           );
         }
 
-        // Get next step without modifying current state
         const currentStepIndex = state.getCurrentStepIndex();
         const allSteps = state.getSteps();
         const nextStep = allSteps[currentStepIndex + 1];
@@ -308,7 +309,11 @@ BEST PRACTICES:
           throw new Error(`Next step not found`);
         }
 
-        const stepDependencies = pick(depGroups, nextStep.actions);
+        const stepDependencies = {
+          ...pick(toolNameToSchema(internalActions), nextStep.actions),
+          ...pick(depGroups, nextStep.actions),
+        };
+
         const includeRepeat = currentStepIndex + 2 < allSteps.length;
 
         return createArgsDef.common(stepDependencies, includeRepeat);
@@ -322,25 +327,12 @@ BEST PRACTICES:
           state.reset();
         }
 
-        // Determine which schema to use for validation based on user intent
-        let validationSchema;
-
-        if (!state.isWorkflowInitialized()) {
-          // First call - expecting steps
-          validationSchema = createArgsDef.forCurrentState(state);
-        } else {
-          // Subsequent calls - check user intent
-          const shouldContinue = args.repeat === false;
-
-          if (shouldContinue && state.hasNextStep()) {
-            // User wants to continue to next step - validate against NEXT step's schema
-            // Create a temporary state to get next step's schema
-            validationSchema = createArgsDef.forNextState(state);
-          } else {
-            // User wants to repeat current step - validate against CURRENT step's schema
-            validationSchema = createArgsDef.forCurrentState(state);
-          }
+        // Step back for repeat mode (normal forward flow continues in `executeStep`)
+        if (args.repeat) {
+          state.moveToPreviousStep();
         }
+
+        const validationSchema = createArgsDef.forCurrentState(state);
 
         // Parameter validation using the appropriate schema
         const validate = ajv.compile(validationSchema);
@@ -372,8 +364,7 @@ BEST PRACTICES:
           }
           return await this.initialize(args, state);
         } else {
-          // Pass shouldContinue to executeStep so it can decide when to move state
-          return await this.executeStep(args, state);
+          return await this.executeStep(args, state, true);
         }
       },
 
@@ -409,7 +400,11 @@ ${state.getNextStep()?.description}
         };
       },
 
-      async executeStep(args: any, state: WorkflowState): Promise<any> {
+      async executeStep(
+        args: any,
+        state: WorkflowState,
+        shouldContinue: boolean
+      ): Promise<any> {
         const currentStep = state.getCurrentStep();
         if (!currentStep) {
           return {
@@ -420,17 +415,18 @@ ${state.getNextStep()?.description}
           };
         }
 
-        const results = {
-          content: [] as Array<{ type: string; text: string }>,
+        const results: CallToolResult = {
+          content: [],
           isError: false,
         };
 
         // Execute all actions in the current step
         for (const action of currentStep.actions) {
           try {
-            const currentTool = toolNameToDetailList.find(
-              ([toolName]: [string]) => toolName === action
-            )?.[1];
+            const currentTool =
+              toolNameToDetailList.find(
+                ([toolName]: [string]) => toolName === action
+              )?.[1] ?? internalActions[action];
 
             if (!currentTool) {
               throw new Error(`Tool ${action} not found`);
@@ -460,14 +456,8 @@ ${state.getNextStep()?.description}
           }
         }
 
-        const shouldContinue = args.repeat === false;
-
         if (state.hasNextStep()) {
-          if (shouldContinue) {
-            state.moveToNextStep();
-          }
-          // Get schema for the newly moved-to step
-          const nextStepArgsDef = createArgsDef.forCurrentState(state);
+          const nextStepArgsDef = createArgsDef.forNextState(state);
           results.content.push({
             type: "text",
             text: `Based on the above action result, you **MUST** decide whether to proceed to the next step. 
@@ -485,6 +475,8 @@ ${state.getNextStep()?.description}
 - If proceeding, ensure all required parameters are properly filled
 - If not proceeding, set "repeat" to true and provide a clear reason`,
           });
+
+          state.moveToNextStep();
         } else {
           // Workflow completed
           state.reset();
@@ -512,8 +504,6 @@ ${state.getNextStep()?.description}
 - **On the first call**: Your response **MUST** include a JSON array named \`steps\`, which contains **all** the steps planned to fulfill the user's instructions.
 - **On subsequent self-invocations**: You are executing a pre-planned step. Your response **MUST NOT** contain the \`steps\` key; just execute the instructions for the current step.
 - **To restart or backtrack**: If you need to restart the entire workflow or begin execution again from an earlier stage of the workflow, you MUST re-declare the complete steps array in your response.
-
-**Available Actions**: ${allToolNames.join(", ")}
 `;
 
     this.tool(
@@ -526,26 +516,7 @@ ${state.getNextStep()?.description}
       ),
       async (args: any) => {
         try {
-          const currentArgsDef = createArgsDef.forCurrentState(workflowState);
-          const validate = ajv.compile(currentArgsDef);
-          if (!validate(args)) {
-            const errors = new AggregateAjvError(validate.errors!);
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `Tool call arguments validation failed: ${errors.message}`,
-                },
-              ],
-              isError: true,
-            };
-          }
-
-          if (!workflowState.isWorkflowInitialized()) {
-            return await executor.initialize(args, workflowState);
-          } else {
-            return await executor.executeStep(args, workflowState);
-          }
+          return await executor.execute(args, workflowState);
         } catch (error) {
           workflowState.reset();
           return {

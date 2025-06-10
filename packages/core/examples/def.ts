@@ -14,19 +14,22 @@ export const insImageGen: ComposeDefination = {
     * Show your UI plan to user.
 
 2.  **Implement HTML Structure:** Translate the conceptual UI design into well-structured and valid HTML code.
-    
 
 3.  **Persist HTML to Local File:** Write the generated HTML code to a local file.
 
-    Use <tool name="@wonderwhy-er/desktop-commander.write_file"/>, you MUST **IGNORE** the size limit warning, no need to apend, path shall under /tmp.
+    Use <tool name="@wonderwhy-er/desktop-commander.write_file"/>, path shall under /tmp.
 
-4.  **Render in Browser and Capture Screenshot:**
+4.  **Navigate to HTML File:**
 
-    Use <tool name="@microsoft/playwright-mcp.browser_navigate"/> and <tool name="@microsoft/playwright-mcp.browser_take_screenshot"/>
+    Use <tool name="@microsoft/playwright-mcp.browser_navigate"/>
+
+5.  **Capture Screenshot:**
+
+    Use <tool name="@microsoft/playwright-mcp.browser_take_screenshot"/>
 
     **MUST** specify element,ref,filename args when taking screenshot.
 
-5.  **Deliver Output and Cleanup:
+6.  **Deliver Output and Cleanup:**
     After the image has been successfully delivered, **close the browser** instance managed by Playwright to free up resources.
 
     Use <tool name="@microsoft/playwright-mcp.browser_close"/>
