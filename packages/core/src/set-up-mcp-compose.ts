@@ -2,7 +2,7 @@ import { ComposableMCPServer } from "../mod.ts";
 import minimist from "minimist";
 import { connectToSmitheryServer } from "./utils/common/registory.ts";
 import { MCPSetting } from "./service/tools.ts";
-import { insImageGen } from "../examples/instagram-image.ts";
+import { insImageGen } from "../examples/def.ts";
 
 export const INCOMING_MSG_ROUTE_PATH = "/core/messages";
 

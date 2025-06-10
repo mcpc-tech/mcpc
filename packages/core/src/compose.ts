@@ -19,14 +19,13 @@ import { composeMcpDepTools, parseTags } from "../mod.ts";
 import { ComposeDefination } from "./set-up-mcp-compose.ts";
 import { pick } from "@es-toolkit/es-toolkit";
 import { join } from "node:path";
+import { MCPCStep, WorkflowState } from "./utils/state.ts";
+import { createGoogleCompatibleJSONSchema } from "./utils/common/provider.ts";
 
 const TOOLS_PLACEHOLDER = "__ALL__";
 
 const NEXT_ACTION_KEY = "nextAction";
 const ACTION_KEY = "action";
-
-const GEMINI_PREFERRED_FORMAT =
-  process.env.GEMINI_PREFERRED_FORMAT === "0" ? false : true;
 
 const ajv = new Ajv({
   allErrors: true,
@@ -34,11 +33,6 @@ const ajv = new Ajv({
 });
 // @ts-ignore -
 addFormats(ajv);
-
-type MCPCStep = {
-  description: string;
-  actions: Array<string>;
-};
 
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
@@ -126,28 +120,6 @@ export class ComposableMCPServer extends Server {
     const toolNameToDetailList = Object.entries(tools);
     const allToolNames = toolNameToDetailList.map(([name]) => name);
     console.log(`[${name}][composed tools] ${Object.keys(tools)}`);
-    // Provider restriction: did not support additionalProperties
-    // see -> https://ai.google.dev/api/caching#Schema
-    const optionalAdditionalProperties = optionalObject(
-      { additionalProperties: false },
-      !GEMINI_PREFERRED_FORMAT
-    );
-
-    const allOf = toolNameToDetailList.map(([toolName]) => {
-      return {
-        if: {
-          properties: { [ACTION_KEY]: { const: toolName } },
-          required: [ACTION_KEY],
-        },
-        then: {
-          required: [toolName],
-        },
-      };
-    });
-
-    // Provider restriction: tools.0.custom.input_schema: input_schema does not support oneOf, allOf, or anyOf at the top level"
-    const optionalAllOf = optionalObject({ allOf }, !GEMINI_PREFERRED_FORMAT);
-
     const depGroups: any = toolNameToDetailList
       .flatMap(([toolName, tool]) => {
         if (!tool) {
@@ -182,7 +154,7 @@ export class ComposableMCPServer extends Server {
             },
 
             required: [...baseRequired],
-            ...optionalAdditionalProperties,
+            additionalProperties: false,
           },
         } as any;
       })
@@ -194,8 +166,6 @@ export class ComposableMCPServer extends Server {
           description,
           name,
           allToolNames,
-          optionalAdditionalProperties,
-          optionalAllOf,
           depGroups,
           toolNameToDetailList,
         });
@@ -205,8 +175,6 @@ export class ComposableMCPServer extends Server {
           description,
           name,
           allToolNames,
-          optionalAdditionalProperties,
-          optionalAllOf,
           depGroups,
           toolNameToDetailList,
         });
@@ -218,105 +186,31 @@ export class ComposableMCPServer extends Server {
     description,
     name,
     allToolNames,
-    optionalAdditionalProperties,
-    optionalAllOf,
     depGroups,
     toolNameToDetailList,
   }: any) {
-    class WorkflowState {
-      private currentStepIndex: number = -1;
-      private steps: Array<MCPCStep> = [];
-      private isInitialized: boolean = false;
-
-      getCurrentStepIndex(): number {
-        return this.currentStepIndex;
-      }
-
-      getSteps(): Array<MCPCStep> {
-        return this.steps;
-      }
-
-      isWorkflowInitialized(): boolean {
-        return this.isInitialized;
-      }
-
-      getCurrentStep(): MCPCStep | null {
-        if (!this.isInitialized || this.currentStepIndex < 0) {
-          return null;
-        }
-        return this.steps[this.currentStepIndex] || null;
-      }
-
-      getNextStep(): MCPCStep | null {
-        if (!this.isInitialized) return null;
-        const nextIndex = this.currentStepIndex + 1;
-        return this.steps[nextIndex] || null;
-      }
-
-      hasNextStep(): boolean {
-        return this.getNextStep() !== null;
-      }
-
-      isCompleted(): boolean {
-        return (
-          this.isInitialized && this.currentStepIndex >= this.steps.length - 1
-        );
-      }
-
-      initialize(steps: Array<MCPCStep>): void {
-        this.steps = steps;
-        this.currentStepIndex = 0;
-        this.isInitialized = true;
-      }
-
-      moveToNextStep(): boolean {
-        if (!this.hasNextStep()) {
-          return false;
-        }
-        this.currentStepIndex++;
-        return true;
-      }
-
-      reset(): void {
-        this.currentStepIndex = -1;
-        this.steps = [];
-        this.isInitialized = false;
-      }
-
-      getDebugInfo(): any {
-        return {
-          currentStepIndex: this.currentStepIndex,
-          totalSteps: this.steps.length,
-          isInitialized: this.isInitialized,
-          currentStep: this.getCurrentStep()?.description,
-          nextStep: this.getNextStep()?.description,
-        };
-      }
-    }
-
     const createArgsDef = {
       common: (
         extra: { [n: string]: Schema<{}>["jsonSchema"] },
-        includeGoon: boolean
+        includeRepeat: boolean
       ): Schema<{}>["jsonSchema"] => ({
         type: "object",
-        description: `Object structured according to the current or next tool's JSON Schema argument definition`,
+        description: `**Object structured according to the current or next tool's JSON Schema argument definition**`,
         properties: {
-          ...(includeGoon
+          ...(includeRepeat
             ? {
-                goon: {
+                repeat: {
                   type: "boolean",
                   title: "Continue to Next Step",
                   description:
-                    "Controls step execution flow. Set to true to proceed to the next step, set to false to repeat the current step",
+                    "**Controls step execution flow. Set to true to repeat the current step**",
+                  default: false,
                 },
               }
             : {}),
           ...extra,
         },
-        required: Object.keys(extra)
-          .filter((n) => n !== "steps")
-          .concat(includeGoon ? ["goon"] : []),
+        required: Object.keys(extra).filter((n) => n !== "steps"),
         additionalProperties: true,
       }),
 
@@ -327,34 +221,16 @@ export class ComposableMCPServer extends Server {
 An array of step objects that define a sequence of COMPLETE actions as part of a workflow to be executed to fulfill the user's request.
 
 CRITICAL:
--   Steps should be organized to reflect the workflow, where each step represents a distinct phase of the process.
--   Actions within a single step execute concurrently. If actions have dependencies or must run in sequence, they MUST be placed in separate steps.
--   Leave actions empty [] if this step is purely organizational/planning.
+-   **Workflow as a Sequence of States**: Steps MUST be organized to reflect the workflow's logical sequence. Each step represents a distinct phase.
+-   **Sequential Dependency Rule**: If Action B depends on the outcome of Action A, they MUST be in separate, sequential steps (A in Step N, B in Step N+1).
+-   **Concurrent Action Rule**: All actions within a single step are considered independent and MUST be executable concurrently.
+-   **Empty Organizational Steps**: Leave the actions array empty (\`[]\`) ONLY IF a step is purely for organizational purposes or planning, and no action usage is mentioned.
+-   **Action Fidelity Rule**: The set of generated actions MUST be a complete and faithful one-to-one mapping of the operations requested in the user's description. Do not add unrequested actions or omit requested ones.
 
-Common Workflow Patterns Requiring Separate Steps:
--   File Operations:
-  - Step 1: List files
-  - Step 2: Create files
-  - Step 3: Move files
-  - Step 4: Cleanup
-
--   Database Operations:
-  - Step 1: Connect to database
-  - Step 2: Create schema
-  - Step 3: Insert data
-  - Step 4: Query database
-
--   API Operations:
-  - Step 1: Authenticate
-  - Step 2: Make API calls
-  - Step 3: Process responses
-
--   Network Operations:
-  - Step 1: Establish connection
-  - Step 2: Send request
-  - Step 3: Handle response
-
-Focus on defining clear steps in the workflow to ensure efficient execution and management of dependencies.
+BEST PRACTICES:
+-   **Atomicity**: A step should be as atomic as possible.
+-   **Idempotency**: Actions should be designed to be idempotent for safe retries.
+-   **Clarity over Brevity**: Prefer more, smaller, focused steps over fewer, complex ones.
 `,
         items: {
           type: "object",
@@ -379,15 +255,7 @@ Focus on defining clear steps in the workflow to ensure efficient execution and 
             actions: {
               type: "array",
               title: "Concurrent Actions",
-              description: `
-Array of action names that execute concurrently in this step.
-
-WARNING: These actions MUST be independent with no dependencies.
-If Action A must complete before Action B, put them in separate steps.
-
-IMPORTANT: Use DIFFERENT actions across steps - avoid repeating the same action.
-Each step should serve a distinct purpose requiring different tools.
-`,
+              description: `Array of action names that execute concurrently in this step.`,
               items: {
                 type: "string",
                 enum: allToolNames,
@@ -419,13 +287,96 @@ Each step should serve a distinct purpose requiring different tools.
         }
 
         const stepDependencies = pick(depGroups, currentStep.actions);
-        const includeGoon = state.hasNextStep();
+        const includeRepeat = state.hasNextStep();
 
-        return createArgsDef.common(stepDependencies, includeGoon);
+        return createArgsDef.common(stepDependencies, includeRepeat);
+      },
+
+      forNextState: (state: WorkflowState): Schema<{}>["jsonSchema"] => {
+        if (!state.isWorkflowInitialized() || !state.hasNextStep()) {
+          throw new Error(
+            `Cannot get next state schema: no next step available`
+          );
+        }
+
+        // Get next step without modifying current state
+        const currentStepIndex = state.getCurrentStepIndex();
+        const allSteps = state.getSteps();
+        const nextStep = allSteps[currentStepIndex + 1];
+
+        if (!nextStep) {
+          throw new Error(`Next step not found`);
+        }
+
+        const stepDependencies = pick(depGroups, nextStep.actions);
+        const includeRepeat = currentStepIndex + 2 < allSteps.length;
+
+        return createArgsDef.common(stepDependencies, includeRepeat);
       },
     };
 
     const executor = {
+      async execute(args: any, state: WorkflowState): Promise<any> {
+        // User intent detection - if steps are provided and workflow is already initialized, reset state
+        if (args.steps && state.isWorkflowInitialized()) {
+          state.reset();
+        }
+
+        // Determine which schema to use for validation based on user intent
+        let validationSchema;
+
+        if (!state.isWorkflowInitialized()) {
+          // First call - expecting steps
+          validationSchema = createArgsDef.forCurrentState(state);
+        } else {
+          // Subsequent calls - check user intent
+          const shouldContinue = args.repeat === false;
+
+          if (shouldContinue && state.hasNextStep()) {
+            // User wants to continue to next step - validate against NEXT step's schema
+            // Create a temporary state to get next step's schema
+            validationSchema = createArgsDef.forNextState(state);
+          } else {
+            // User wants to repeat current step - validate against CURRENT step's schema
+            validationSchema = createArgsDef.forCurrentState(state);
+          }
+        }
+
+        // Parameter validation using the appropriate schema
+        const validate = ajv.compile(validationSchema);
+        if (!validate(args)) {
+          const errors = new AggregateAjvError(validate.errors!);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Tool call arguments validation failed: ${errors.message}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        // Route to specific method based on workflow state
+        if (!state.isWorkflowInitialized()) {
+          if (!args.steps) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: "Error: Workflow not initialized. Please provide 'steps' parameter to start a new workflow.",
+                },
+              ],
+              isError: true,
+            };
+          }
+          return await this.initialize(args, state);
+        } else {
+          // Pass shouldContinue to executeStep so it can decide when to move state
+          return await this.executeStep(args, state);
+        }
+      },
+
       async initialize(args: any, state: WorkflowState): Promise<any> {
         const steps = args.steps as Array<MCPCStep>;
 
@@ -474,6 +425,7 @@ ${state.getNextStep()?.description}
           isError: false,
         };
 
+        // Execute all actions in the current step
         for (const action of currentStep.actions) {
           try {
             const currentTool = toolNameToDetailList.find(
@@ -486,6 +438,10 @@ ${state.getNextStep()?.description}
 
             const actionArgs = args[action] || {};
             const actionResult = await currentTool.execute(actionArgs);
+
+            if (!results.isError) {
+              results.isError = actionResult.isError;
+            }
 
             results.content.push({
               type: "text",
@@ -504,15 +460,19 @@ ${state.getNextStep()?.description}
           }
         }
 
-        const shouldContinue = args.goon !== false;
+        const shouldContinue = args.repeat === false;
 
-        if (shouldContinue && state.hasNextStep()) {
-          state.moveToNextStep();
-
+        if (state.hasNextStep()) {
+          if (shouldContinue) {
+            state.moveToNextStep();
+          }
+          // Get schema for the newly moved-to step
           const nextStepArgsDef = createArgsDef.forCurrentState(state);
           results.content.push({
             type: "text",
-            text: `Based on the above action result, you **MUST** decide whether to proceed to the next step. If you choose to continue, set "goon" to true and provide the required arguments as follows:
+            text: `Based on the above action result, you **MUST** decide whether to proceed to the next step. 
+If you choose to repeat, set "repeat" to true and provide current step's arguments.
+If you choose to continue, provide the required arguments as follows:
 
 # Next Step's Tool Arguments JSON Schema Definition
 ${JSON.stringify(nextStepArgsDef, null, 2)}
@@ -523,18 +483,14 @@ ${state.getNextStep()?.description}
 - Analyze the previous action's result carefully
 - Determine if the next step is necessary and appropriate
 - If proceeding, ensure all required parameters are properly filled
-- If not proceeding, set "goon" to false and provide a clear reason`,
+- If not proceeding, set "repeat" to true and provide a clear reason`,
           });
-        } else if (state.isCompleted() || !state.hasNextStep()) {
+        } else {
+          // Workflow completed
           state.reset();
           results.content.push({
             type: "text",
             text: "**Workflow completed successfully**. All steps have been executed.",
-          });
-        } else {
-          results.content.push({
-            type: "text",
-            text: "Workflow paused. Set 'goon' to true to continue to the next step.",
           });
         }
 
@@ -544,18 +500,30 @@ ${state.getNextStep()?.description}
 
     const workflowState = new WorkflowState();
 
-    const toolDescription = `An autonomous MCP tool named \`${name}\` that fulfills user instructions through **iterative self-invocation(\`${name}\`)**. Each call represents one step in a multi-step workflow.
+    const toolDescription = `You are an autonomous agent tool named \`${name}\` that fulfills user instructions through **iterative self-invocation (\`${name}\`)**.
+
+**Core Operational Model**:
+1.  **First Call (Planning)**: Receive the user's instruction and formulate a complete, detailed multi-step workflow.
+2.  **Subsequent Calls (Execution)**: Each self-invocation executes only one specific step from the workflow.
+
 **User Instructions**: ${description}
 
-**Workflow Requirements**: 
-- Generate a **COMPLETE** multi-step workflow based on user instructions
-- You MUST NOT generate \`steps\` key when calling next step
+**Workflow Rules (MUST be followed)**:
+- **On the first call**: Your response **MUST** include a JSON array named \`steps\`, which contains **all** the steps planned to fulfill the user's instructions.
+- **On subsequent self-invocations**: You are executing a pre-planned step. Your response **MUST NOT** contain the \`steps\` key; just execute the instructions for the current step.
+- **To restart or backtrack**: If you need to restart the entire workflow or begin execution again from an earlier stage of the workflow, you MUST re-declare the complete steps array in your response.
+
+**Available Actions**: ${allToolNames.join(", ")}
 `;
 
     this.tool(
       name,
       toolDescription,
-      jsonSchema(createArgsDef.forCurrentState(workflowState) as any),
+      jsonSchema(
+        createGoogleCompatibleJSONSchema(
+          createArgsDef.forCurrentState(workflowState) as any
+        )
+      ),
       async (args: any) => {
         try {
           const currentArgsDef = createArgsDef.forCurrentState(workflowState);
@@ -598,8 +566,6 @@ ${state.getNextStep()?.description}
     description,
     name,
     allToolNames,
-    optionalAdditionalProperties,
-    optionalAllOf,
     depGroups,
     toolNameToDetailList,
   }: any) {
@@ -622,10 +588,21 @@ The MCP tool executes actions in a multi-step process. Follow these steps for ea
 **WARNING:** ONLY call or execute actions from this list. DO NOT attempt to call or execute actions not explicitly listed here.
 ${allToolNames.join(", ")}
 `;
+    const allOf = toolNameToDetailList.map(([toolName]: [string]) => {
+      return {
+        if: {
+          properties: { [ACTION_KEY]: { const: toolName } },
+          required: [ACTION_KEY],
+        },
+        then: {
+          required: [toolName],
+        },
+      };
+    });
 
     const argsDef: Schema<{}>["jsonSchema"] = {
-      ...optionalAdditionalProperties,
-      ...optionalAllOf,
+      additionalProperties: false,
+      allOf,
       type: "object",
       properties: {
         [ACTION_KEY]: {
@@ -647,44 +624,49 @@ ${allToolNames.join(", ")}
 
     const validate = ajv.compile(argsDef);
 
-    this.tool(name, description, jsonSchema<any>(argsDef), async (args) => {
-      if (!validate(args)) {
-        const errors = new AggregateAjvError(validate.errors!);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Tool/Function argument validation failed: ${errors.message}`,
-            },
-          ],
-          isError: true,
-        };
-      }
+    this.tool(
+      name,
+      description,
+      jsonSchema<any>(createGoogleCompatibleJSONSchema(argsDef as any)),
+      async (args) => {
+        if (!validate(args)) {
+          const errors = new AggregateAjvError(validate.errors!);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Tool/Function argument validation failed: ${errors.message}`,
+              },
+            ],
+            isError: true,
+          };
+        }
 
-      const currentTool = toolNameToDetailList.find(
-        ([name]: [string]) => name === args[ACTION_KEY]
-      )?.[1];
+        const currentTool = toolNameToDetailList.find(
+          ([name]: [string]) => name === args[ACTION_KEY]
+        )?.[1];
 
-      const action = args[ACTION_KEY] as string;
-      const nextAction = args[NEXT_ACTION_KEY] as string;
-      const currentResult = await currentTool.execute({
-        ...args[action],
-      });
-
-      if (args[nextAction]) {
-        currentResult?.content?.unshift({
-          type: "text",
-          text: `# You WILL call this tool(\`${name}\`) AGAIN using the \`${nextAction}\` action, after evaluating the result from previous action(${action}):`,
+        const action = args[ACTION_KEY] as string;
+        const nextAction = args[NEXT_ACTION_KEY] as string;
+        const currentResult = await currentTool.execute({
+          ...args[action],
         });
-      } else {
-        currentResult?.content?.unshift({
-          type: "text",
-          text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action(${action}):`,
-        });
-      }
 
-      return currentResult;
-    });
+        if (args[nextAction]) {
+          currentResult?.content?.unshift({
+            type: "text",
+            text: `# You WILL call this tool(\`${name}\`) AGAIN using the \`${nextAction}\` action, after evaluating the result from previous action(${action}):`,
+          });
+        } else {
+          currentResult?.content?.unshift({
+            type: "text",
+            text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action(${action}):`,
+          });
+        }
+
+        return currentResult;
+      }
+    );
   }
 }
 

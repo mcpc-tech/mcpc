@@ -8,6 +8,7 @@ import z from "zod";
 
 import { CheerioAPI, load } from "cheerio";
 import { smitheryToolNameCompatibale } from "./registory.ts";
+import { ToolNameRegex } from "./provider.ts";
 
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
@@ -43,7 +44,6 @@ interface NativePromptOptions {
    */
   missingVariableHandling?: "error" | "warn" | "ignore" | "empty";
 }
-
 
 /**
  * Creates a formatting function from a template string with type-safe input variables
@@ -181,7 +181,7 @@ export async function composeMcpDepTools(
     }
 
     const client = new Client({ name, version: "1.0.0" });
-    const serverId = generateId(7);
+    const serverId = ToolNameRegex.test(name) ? name : generateId(7);
 
     try {
       // Create the MCP client
@@ -194,8 +194,7 @@ export async function composeMcpDepTools(
       tools.forEach((tool) => {
         const { toolNameWithScope, toolName: internalToolName } =
           smitheryToolNameCompatibale(tool.name, name);
-        // Provider restriction: tools.0.custom.input_schema.properties: Property keys should match pattern '^[a-zA-Z0-9_-]{1,64}$
-        // While server name with scope may not match this pattern, we can use it as a unique ID to solve tool name collision
+        // Use serverId as a unique ID to solve tool name collision
         const toolId = `${serverId}_${internalToolName}`;
         if (
           filterIn &&
