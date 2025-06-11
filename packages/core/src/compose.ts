@@ -461,7 +461,6 @@ ${state.getNextStep()?.description}
           results.content.push({
             type: "text",
             text: `Based on the above action result, you **MUST** decide whether to proceed to the next step. 
-If you choose to repeat, set "repeat" to true and provide current step's arguments.
 If you choose to continue, provide the required arguments as follows:
 
 # Next Step's Tool Arguments JSON Schema Definition
@@ -473,7 +472,9 @@ ${state.getNextStep()?.description}
 - Analyze the previous action's result carefully
 - Determine if the next step is necessary and appropriate
 - If proceeding, ensure all required parameters are properly filled
-- If not proceeding, set "repeat" to true and provide a clear reason`,
+- If not proceeding, set "repeat" to true and provide a clear reason
+
+If you choose to repeat, set "repeat" to true and provide current step's arguments.`,
           });
 
           state.moveToNextStep();
@@ -492,20 +493,19 @@ ${state.getNextStep()?.description}
 
     const workflowState = new WorkflowState();
 
-    const toolDescription = `You are an autonomous agent tool named \`${name}\` that fulfills user instructions through **iterative self-invocation (\`${name}\`)**.
+    const toolDescription = `You are an autonomous agent tool (\`${name}\`) that executes user requests via a multi-step workflow through **iterative self-invocation (\`${name}\`)**.
 
 **Core Operational Model**:
-1.  **First Call (Planning)**: Receive the user's instruction and formulate a complete, detailed multi-step workflow.
-2.  **Subsequent Calls (Execution)**: Each self-invocation executes only one specific step from the workflow.
+1.  **Plan (Initial Invocation)**: Analyze user request & instructions to formulate a complete workflow. MUST integrate BOTH user request AND general instructions.
+2.  **Execute (Subsequent Invocations)**: Execute one step from the workflow.
 
-**User Instructions**: ${description}
+**Workflow Rules**:
+-   **Initial Invocation**: Response MUST be JSON object with \`steps\` key (JSON array). \`steps\` array MUST contain ALL planned steps. MUST address **BOTH user request/task AND all general instructions/constraints**. MUST NOT omit steps from user query or instructions.
+-   **Subsequent Invocations**: ONLY generate action parameters for the current step. MUST NOT regenerate/modify workflow steps.
+-   **Restart/Backtrack**: Avoid if retry works. If needed, MUST redeclare complete workflow (\`steps\` array) from scratch.
 
-**Workflow Rules (MUST be followed)**:
-- **On the first call**: Your response **MUST** include a JSON array named \`steps\`, which contains **all** the steps planned to fulfill the user's instructions.
-- **On subsequent self-invocations**: You are executing a pre-planned step. Your response **MUST NOT** contain the \`steps\` key; just execute the instructions for the current step.
-- **To restart or backtrack**: If you need to restart the entire workflow or begin execution again from an earlier stage of the workflow, you MUST re-declare the complete steps array in your response.
-`;
-
+**Instructions**:
+${description}`;
     this.tool(
       name,
       toolDescription,

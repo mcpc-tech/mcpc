@@ -51,4 +51,25 @@ export const internalActions: Record<string, Tool> = {
       } as CallToolResult;
     },
   },
+  // Added the evaluation action
+  evaluation: {
+    parameters: jsonSchema({
+      type: "object",
+      properties: {
+        result: {
+          type: "string",
+          description:
+            "The evaluation process, including assessing outcomes, monitoring progress, and identifying areas for improvement or correction",
+        },
+      },
+      required: ["result"],
+    }),
+    description:
+      "Use this tool to evaluate the results of actions, monitor progress towards goals, or assess the need for adjustments and corrections",
+    execute: async ({ result }) => {
+      return {
+        content: [{ type: "text", text: "Success" }],
+      } as CallToolResult;
+    },
+  },
 };
