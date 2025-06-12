@@ -238,14 +238,7 @@ BEST PRACTICES:
           properties: {
             description: {
               type: "string",
-              description:
-                "A human-readable description of what this step accomplishes",
-              examples: [
-                "List files in the source directory",
-                "Create necessary target directories",
-                "Move files to their respective folders",
-                "Validate input and initialize logging",
-              ],
+              description: `**Describes what a step does, what it needs from previous steps or context, and what it outputs.**`,
             },
             actions: {
               type: "array",
@@ -253,15 +246,18 @@ BEST PRACTICES:
               items: {
                 type: "string",
                 enum: allToolNames?.concat(Object.keys(internalActions)),
-                description: "Individual action name from available actions",
+                description: `Individual action name from available actions
+Available actions:
+${Object.entries(internalActions).map(
+  ([name, { description }]) => `- \`${name}\`: ${description}\n`
+)}
+${toolNameToDetailList.map(
+  ([name, { description }]: [string, any]) => `- \`${name}\`: ${description}\n`
+)}`,
               },
               uniqueItems: true,
               minItems: 1,
-              examples: [
-                ["list_directory"],
-                ["create_folder_a", "create_folder_b"],
-                ["validate_input"],
-              ],
+              examples: [["reasoning"], ["create_folder"]],
             },
           },
           required: ["description", "actions"],
@@ -386,13 +382,18 @@ BEST PRACTICES:
           content: [
             {
               type: "text",
-              text: `Workflow initialized with ${steps.length} steps.
+              text: `Workflow initialized with ${
+                steps.length
+              } steps. You MUST proceed to next step to \`${
+                state.getNextStep()?.description
+              }\`. Call tool \`${name}\` with arguments defined as follows:
 
-## Next Step's Tool Arguments JSON Schema Definition
 ${JSON.stringify(firstStepArgsDef, null, 2)}
 
-## Next Step's Purpose
-${state.getNextStep()?.description}
+## Important Instructions
+- Do NOT include 'steps' parameter in any subsequent tool calls
+- Focus only on the current step's required parameters
+- Use the provided JSON schema definition above for parameter validation
 `,
             },
           ],
@@ -460,21 +461,20 @@ ${state.getNextStep()?.description}
           const nextStepArgsDef = createArgsDef.forNextState(state);
           results.content.push({
             type: "text",
-            text: `Based on the above action result, you **MUST** decide whether to proceed to the next step. 
-If you choose to continue, provide the required arguments as follows:
+            text: `You **MUST** decide whether to proceed to the next step to \`${
+              state.getNextStep()?.description
+            }\`. 
+If you choose to continue, call tool \`${name}\` with arguments defined as follows:
 
-# Next Step's Tool Arguments JSON Schema Definition
 ${JSON.stringify(nextStepArgsDef, null, 2)}
-# Next Step's Purpose
-${state.getNextStep()?.description}
 
 **Instructions:**
 - Analyze the previous action's result carefully
 - Determine if the next step is necessary and appropriate
-- If proceeding, ensure all required parameters are properly filled
+- If proceeding, ensure all required parameters are properly filled, **Exclude the \`steps\` key from your generated parameters**
 - If not proceeding, set "repeat" to true and provide a clear reason
 
-If you choose to repeat, set "repeat" to true and provide current step's arguments.`,
+If the current step fails or needs to be retried, set \`repeat\` to true and provide the current step's arguments with any necessary adjustments`,
           });
 
           state.moveToNextStep();
@@ -483,7 +483,9 @@ If you choose to repeat, set "repeat" to true and provide current step's argumen
           state.reset();
           results.content.push({
             type: "text",
-            text: "**Workflow completed successfully**. All steps have been executed.",
+            text: `**Workflow completed successfully**. All steps have been executed.
+
+**NOTE**: If you need to start over or backtrack, make sure to call tool \`${name}\` with new \`steps\` clearly, when executing just one step/action, you MUST define the \`steps\` first`,
           });
         }
 
@@ -493,19 +495,34 @@ If you choose to repeat, set "repeat" to true and provide current step's argumen
 
     const workflowState = new WorkflowState();
 
-    const toolDescription = `You are an autonomous agent tool (\`${name}\`) that executes user requests via a multi-step workflow through **iterative self-invocation (\`${name}\`)**.
+    const toolDescription = `I am an autonomous agent tool named \`${name}\` that fulfills user requests through a structured multi-step workflow.
 
-**Core Operational Model**:
-1.  **Plan (Initial Invocation)**: Analyze user request & instructions to formulate a complete workflow. MUST integrate BOTH user request AND general instructions.
-2.  **Execute (Subsequent Invocations)**: Execute one step from the workflow.
+**My Instructions:**
+\`\`\`txt
+${description}
+\`\`\`
 
-**Workflow Rules**:
--   **Initial Invocation**: Response MUST be JSON object with \`steps\` key (JSON array). \`steps\` array MUST contain ALL planned steps. MUST address **BOTH user request/task AND all general instructions/constraints**. MUST NOT omit steps from user query or instructions.
--   **Subsequent Invocations**: ONLY generate action parameters for the current step. MUST NOT regenerate/modify workflow steps.
--   **Restart/Backtrack**: Avoid if retry works. If needed, MUST redeclare complete workflow (\`steps\` array) from scratch.
+**How I Work:**
 
-**Instructions**:
-${description}`;
+**FIRST CALL (Planning Phase):**
+- I analyze the user's request AND the instructions above
+- I create a complete workflow plan
+- Each step in the array represents one action I'll take
+- I MUST include ALL necessary steps to fulfill BOTH the user request AND follow all instructions
+
+**SUBSEQUENT CALLS (Execution Phase):**
+- I execute ONE step from my planned workflow
+- I generate only the action parameters for the current step
+- I do NOT modify or regenerate the workflow steps
+
+**Key Rules:**
+1. **Planning**: My first response MUST be a JSON object with a \`steps\` array containing the complete workflow
+2. **Execution**: Later responses execute individual steps only
+3. **Completeness**: I must address both user needs AND instruction requirements
+4. **Consistency**: Once planned, I stick to the workflow unless restart is absolutely necessary
+5. **Reasoning**: I use **reasoning actions** when I need to think or plan
+`;
+
     this.tool(
       name,
       toolDescription,

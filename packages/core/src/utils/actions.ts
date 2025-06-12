@@ -15,60 +15,31 @@ export const internalActions: Record<string, Tool> = {
     parameters: jsonSchema({
       type: "object",
       properties: {
-        result: {
+        context: {
           type: "string",
           description:
-            "The reasoning process, analysis, or logical thinking steps used to approach the problem",
+            "First, clearly identify what the problem is asking and what information you have available",
         },
-      },
-      required: ["result"],
-    }),
-    description:
-      "Use this tool to think through problems step by step, analyze information, and apply logical reasoning before providing answers",
-    execute: async ({ result }) => {
-      return {
-        content: [{ type: "text", text: "Success" }],
-      } as CallToolResult;
-    },
-  },
-  planning: {
-    parameters: jsonSchema({
-      type: "object",
-      properties: {
-        result: {
+        analysis: {
           type: "string",
           description:
-            "The planning process, including breaking down tasks, considering steps, timelines, and organizing approach",
+            "Break down the problem step by step. Show your logical reasoning process, calculations, or decision-making steps",
         },
-      },
-      required: ["result"],
-    }),
-    description:
-      "Use this tool to plan and organize your approach before executing tasks, including breaking down complex requests into manageable steps",
-    execute: async ({ result }) => {
-      return {
-        content: [{ type: "text", text: "Success" }],
-      } as CallToolResult;
-    },
-  },
-  // Added the evaluation action
-  evaluation: {
-    parameters: jsonSchema({
-      type: "object",
-      properties: {
-        result: {
+        conclusion: {
           type: "string",
           description:
-            "The evaluation process, including assessing outcomes, monitoring progress, and identifying areas for improvement or correction",
+            "State your final answer clearly and explain why this conclusion follows from your analysis",
         },
       },
-      required: ["result"],
+      required: ["context", "analysis", "conclusion"],
     }),
-    description:
-      "Use this tool to evaluate the results of actions, monitor progress towards goals, or assess the need for adjustments and corrections",
-    execute: async ({ result }) => {
+    description: `Use this tool to think through complex problems systematically. You MUST:
+    1. First understand the context and what's being asked
+    2. Show detailed step-by-step analysis 
+    3. Reach a clear conclusion based on your reasoning`,
+    execute: async ({ context, analysis, conclusion }) => {
       return {
-        content: [{ type: "text", text: "Success" }],
+        content: [{ type: "text", text: "Reasoning process documented" }],
       } as CallToolResult;
     },
   },
