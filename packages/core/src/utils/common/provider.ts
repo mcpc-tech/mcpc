@@ -2,10 +2,8 @@
  * AI model provider's restrciton
  */
 
+import { GEMINI_PREFERRED_FORMAT } from "./config.ts";
 import { optionalObject } from "./json.ts";
-
-const GEMINI_PREFERRED_FORMAT =
-  process.env.GEMINI_PREFERRED_FORMAT === "0" ? false : true;
 
 /**
  * Provider restriction: tools.0.custom.input_schema.properties: Property keys should match pattern '^[a-zA-Z0-9_-]{1,64}$

@@ -21,6 +21,7 @@ import { pick } from "@es-toolkit/es-toolkit";
 import { MCPCStep, WorkflowState } from "./utils/state.ts";
 import { createGoogleCompatibleJSONSchema } from "./utils/common/provider.ts";
 import { internalActions, toolNameToSchema } from "./utils/actions.ts";
+import { ENFORE_REASONING } from "./utils/common/config.ts";
 
 const TOOLS_PLACEHOLDER = "__ALL__";
 
@@ -195,7 +196,7 @@ export class ComposableMCPServer extends Server {
         includeRepeat: boolean
       ): Schema<{}>["jsonSchema"] => ({
         type: "object",
-        description: `**Object structured according to the current or next tool's JSON Schema argument definition**`,
+        description: `**Object structured according to the tool's JSON Schema argument definition**`,
         properties: {
           ...(includeRepeat
             ? {
@@ -222,7 +223,7 @@ CRITICAL:
 -   **Workflow as a Sequence of States**: Steps MUST be organized to reflect the workflow's logical sequence. Each step represents a distinct phase.
 -   **Sequential Dependency Rule**: If Action B depends on the outcome of Action A, they MUST be in separate, sequential steps (A in Step N, B in Step N+1).
 -   **Concurrent Action Rule**: All actions within a single step are considered independent and MUST be executable concurrently.
--   **Action Fidelity Rule**: The set of generated actions MUST be a complete and faithful one-to-one mapping of the operations requested in the user's description. Do not add unrequested actions or omit requested ones.
+-   **Action Fidelity Rule**: The set of generated actions MUST be a complete and faithful one-to-one mapping of the operations requested in the user's description. Do NOT omit requested ones.
 
 BEST PRACTICES:
 -   **Atomicity**: A step should be as atomic as possible.
@@ -374,6 +375,19 @@ ${toolNameToDetailList.map(
           };
         }
 
+        if (ENFORE_REASONING) {
+          steps.unshift({
+            description:
+              "Initial reasoning - analyze input and plan approach using available context",
+            actions: ["reasoning"],
+          });
+          steps.push({
+            description:
+              "Final reasoning - synthesize results and validate against original objectives",
+            actions: ["reasoning"],
+          });
+        }
+
         state.initialize(steps);
 
         const firstStepArgsDef = createArgsDef.forCurrentState(state);
@@ -386,18 +400,19 @@ ${toolNameToDetailList.map(
                 steps.length
               } steps. You MUST proceed to next step to \`${
                 state.getNextStep()?.description
-              }\`. Call tool \`${name}\` with arguments defined as follows:
+              }\`. **EXECUTE tool \`${name}\` with these arguments - MANDATORY**
 
 ${JSON.stringify(firstStepArgsDef, null, 2)}
 
 ## Important Instructions
-- Do NOT include 'steps' parameter in any subsequent tool calls
-- Focus only on the current step's required parameters
-- Use the provided JSON schema definition above for parameter validation
+- **Do NOT include 'steps' parameter in any subsequent tool calls**
+- **If the current step fails or requires retry, you MUST set \`repeat\` to true to retry it**
+- **MUST Use the provided JSON schema definition above for parameter generation and validation**
 `,
             },
           ],
           isError: false,
+          _meta: { description: "Planning workflows" },
         };
       },
 
@@ -419,6 +434,7 @@ ${JSON.stringify(firstStepArgsDef, null, 2)}
         const results: CallToolResult = {
           content: [],
           isError: false,
+          _meta: { description: state.getCurrentStep()?.description },
         };
 
         // Execute all actions in the current step
@@ -464,7 +480,7 @@ ${JSON.stringify(firstStepArgsDef, null, 2)}
             text: `You **MUST** decide whether to proceed to the next step to \`${
               state.getNextStep()?.description
             }\`. 
-If you choose to continue, call tool \`${name}\` with arguments defined as follows:
+If you choose to continue, **EXECUTE tool \`${name}\` with these arguments - MANDATORY**:
 
 ${JSON.stringify(nextStepArgsDef, null, 2)}
 
@@ -472,9 +488,8 @@ ${JSON.stringify(nextStepArgsDef, null, 2)}
 - Analyze the previous action's result carefully
 - Determine if the next step is necessary and appropriate
 - If proceeding, ensure all required parameters are properly filled, **Exclude the \`steps\` key from your generated parameters**
-- If not proceeding, set "repeat" to true and provide a clear reason
 
-If the current step fails or needs to be retried, set \`repeat\` to true and provide the current step's arguments with any necessary adjustments`,
+If the current step fails or requires retry, you MUST set \`repeat\` to true to retry the current step.`,
           });
 
           state.moveToNextStep();
@@ -483,9 +498,7 @@ If the current step fails or needs to be retried, set \`repeat\` to true and pro
           state.reset();
           results.content.push({
             type: "text",
-            text: `**Workflow completed successfully**. All steps have been executed.
-
-**NOTE**: If you need to start over or backtrack, make sure to call tool \`${name}\` with new \`steps\` clearly, when executing just one step/action, you MUST define the \`steps\` first`,
+            text: `Workflow completed successfully. **If you need to start over or backtrack or retry, you MUST provide 'steps' parameter to start a new workflow.**`,
           });
         }
 
