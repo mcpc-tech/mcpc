@@ -513,11 +513,11 @@ ${description}
 **SUBSEQUENT CALLS (Execution Phase):**
 - I execute ONE step from my planned workflow
 - I generate only the action parameters for the current step
-- I do NOT modify or regenerate the workflow steps
+- I DO NOT modify workflows in progress; I regenerate workflow steps ONLY when necessary
 
 **Key Rules:**
 1. **Planning**: My first response MUST be a JSON object with a \`steps\` array containing the complete workflow
-2. **Execution**: Later responses execute individual steps only
+2. **Execution**: Later responses execute individual steps ONLY
 3. **Completeness**: I must address both user needs AND instruction requirements
 4. **Consistency**: Once planned, I stick to the workflow unless restart is absolutely necessary
 5. **Reasoning**: I use **reasoning actions** when I need to think or plan
