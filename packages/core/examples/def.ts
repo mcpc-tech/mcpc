@@ -34,7 +34,7 @@ export const insImageGen: ComposeDefination = {
 
     Use <tool name="@microsoft/playwright-mcp.browser_close"/>
 
-Remember to show the user generated image using ![image][{filename}] syntax
+Remember to show the user generated image using ![image][file://{filename}] syntax
  `,
   deps: {
     mcpServers: {

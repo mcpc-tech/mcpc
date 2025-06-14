@@ -96,12 +96,12 @@ export class ComposableMCPServer extends Server {
     name: string,
     description: string,
     depsConfig: z.infer<typeof McpSettingsSchema>,
-    options: ComposeDefination["options"] = { mode: "agentic_workflow" }
+    options: ComposeDefination["options"] = { mode: "agentic" }
   ) {
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
     const tools = await composeMcpDepTools(
       depsConfig,
-      ({ mcpName, toolNameWithScope, internalToolName, toolId }) => {
+      ({ mcpName, toolNameWithScope, toolId }) => {
         return tagToResults.tool.find((tool) => {
           const selectAll =
             tool.attribs.name === `${mcpName}.${TOOLS_PLACEHOLDER}`;
@@ -193,17 +193,17 @@ export class ComposableMCPServer extends Server {
     const createArgsDef = {
       common: (
         extra: { [n: string]: Schema<{}>["jsonSchema"] },
-        includeRepeat: boolean
+        includeProceed: boolean
       ): Schema<{}>["jsonSchema"] => ({
         type: "object",
         description: `**Tool arguments structured according to the step's JSON Schema definition; it's DYNAMIC and will update for each step**`,
         properties: {
-          ...(includeRepeat
+          ...(includeProceed
             ? {
-                repeat: {
+                proceed: {
                   type: "boolean",
                   description:
-                    "**Controls step execution flow. MUST be set to `true` if you repeat the current step**",
+                    "**Controls step execution flow. MUST be set to `true` to advance to the next step. If omitted or false, this step will be re-executed with the provided arguments**",
                 },
               }
             : {}),
@@ -282,8 +282,6 @@ ${toolNameToDetailList.map(
           additionalProperties: false,
         },
         minItems: 1,
-        // Resitrict to one action for now.
-        maxItems: 1,
       }),
 
       forCurrentState: (state: WorkflowState): Schema<{}>["jsonSchema"] => {
@@ -304,9 +302,10 @@ ${toolNameToDetailList.map(
           ...pick(toolNameToSchema(internalActions), currentStep.actions),
           ...pick(depGroups, currentStep.actions),
         };
-        const includeRepeat = state.hasNextStep();
 
-        return createArgsDef.common(stepDependencies, includeRepeat);
+        const includeProceed =
+          state.getCurrentStepIndex() !== 0 && state.hasNextStep();
+        return createArgsDef.common(stepDependencies, includeProceed);
       },
 
       forNextState: (state: WorkflowState): Schema<{}>["jsonSchema"] => {
@@ -329,27 +328,50 @@ ${toolNameToDetailList.map(
           ...pick(depGroups, nextStep.actions),
         };
 
-        const includeRepeat = currentStepIndex + 2 < allSteps.length;
+        const includeProceed = currentStepIndex + 1 < allSteps.length;
 
-        return createArgsDef.common(stepDependencies, includeRepeat);
+        return createArgsDef.common(stepDependencies, includeProceed);
       },
     };
 
     const executor = {
       async execute(args: any, state: WorkflowState): Promise<any> {
         // User intent detection - if steps are provided and workflow is already initialized, reset state
-        if (args.steps && state.isWorkflowInitialized()) {
-          state.reset();
+        if (args.steps) {
+          if (state.isWorkflowInitialized()) {
+            state.reset();
+          }
+          return await this.initialize(args, state);
         }
 
-        // Step back for repeat mode (normal forward flow continues in `executeStep`)
-        if (args.repeat) {
-          state.moveToPreviousStep();
+        if (!state.isWorkflowInitialized()) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Workflow not initialized. Please provide 'steps' parameter to start a new workflow.",
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (args.proceed === true) {
+          if (!state.hasNextStep()) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: "Error: Cannot proceed, you are already at the final step.",
+                },
+              ],
+              isError: true,
+            };
+          }
+          state.moveToNextStep();
         }
 
         const validationSchema = createArgsDef.forCurrentState(state);
-
-        // Parameter validation using the appropriate schema
         const validate = ajv.compile(validationSchema);
         if (!validate(args)) {
           const errors = new AggregateAjvError(validate.errors!);
@@ -364,23 +386,7 @@ ${toolNameToDetailList.map(
           };
         }
 
-        // Route to specific method based on workflow state
-        if (!state.isWorkflowInitialized()) {
-          if (!args.steps) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: "Error: Workflow not initialized. Please provide 'steps' parameter to start a new workflow.",
-                },
-              ],
-              isError: true,
-            };
-          }
-          return await this.initialize(args, state);
-        } else {
-          return await this.executeStep(args, state, true);
-        }
+        return await this.executeStep(args, state);
       },
 
       async initialize(args: any, state: WorkflowState): Promise<any> {
@@ -406,12 +412,6 @@ ${toolNameToDetailList.map(
           });
         }
 
-        steps.push({
-          description:
-            "Final verification and conclusion of the workflow. Execute this to confirm successful completion.",
-          actions: ["reasoning"],
-        });
-
         state.initialize(steps);
 
         // The initial next step is the first one of the steps.
@@ -422,7 +422,7 @@ ${toolNameToDetailList.map(
               text:
                 `Workflow initialized with ${
                   steps.length
-                } steps. You MUST proceed to next step to \`${
+                } steps. You MUST start the workflow with the first step to \`${
                   state.getCurrentStep()?.description
                 }\`. 
               
@@ -432,11 +432,8 @@ ${JSON.stringify(createArgsDef.forCurrentState(state), null, 2)}
 
 ## Important Instructions
 - **Do NOT include 'steps' parameter in any subsequent tool calls**
-- **If the current step fails or requires retry, you MUST explicitly set \`"repeat": true\`**
 - **MUST Use the provided JSON schema definition above for parameter generation and validation**
-` + ENFORE_REASONING
-                  ? `## Steps\n${JSON.stringify(steps)}`
-                  : "",
+` + (ENFORE_REASONING ? `## Steps\n${JSON.stringify(steps)}` : ""),
             },
           ],
           isError: false,
@@ -444,11 +441,7 @@ ${JSON.stringify(createArgsDef.forCurrentState(state), null, 2)}
         };
       },
 
-      async executeStep(
-        args: any,
-        state: WorkflowState,
-        shouldContinue: boolean
-      ): Promise<any> {
+      async executeStep(args: any, state: WorkflowState): Promise<any> {
         const currentStep = state.getCurrentStep();
         if (!currentStep) {
           return {
@@ -486,16 +479,20 @@ ${JSON.stringify(createArgsDef.forCurrentState(state), null, 2)}
 
             results.content.push({
               type: "text",
-              text: `Action ${action} result: ${JSON.stringify(
-                actionResult,
-                null,
-                2
-              )}`,
+              text: `Action ${action} excuted with result: `,
+            });
+            results.content.push({
+              type: "text",
+              text: `${JSON.stringify(actionResult, null, 2)}`,
             });
           } catch (error) {
             results.content.push({
               type: "text",
-              text: `Action ${action} failed: ${(error as any).message}`,
+              text: `Action ${action} failed with error: `,
+            });
+            results.content.push({
+              type: "text",
+              text: `${(error as any).message}`,
             });
             results.isError = true;
           }
@@ -508,8 +505,8 @@ ${JSON.stringify(createArgsDef.forCurrentState(state), null, 2)}
             text: `You **MUST** decide whether to proceed to the next step to \`${
               state.getNextStep()?.description
             }\`.
-If current step fails or requires retry, **You MUST EXECUTE tool \`${name}\` with current step's arguments and explicitly SET \`repeat\` to \`true\` to retry the current step.
-If you choose to proceed, **You MUST EXECUTE tool \`${name}\` with these new tool arguments**:
+To retry, **You MUST EXECUTE tool \`${name}\` with current step's arguments
+To proceed, You MUST EXECUTE tool \`${name}\` with the following tool arguments, ensuring the proceed parameter is set to true:
 
 ${JSON.stringify(nextStepArgsDef, null, 2)}
 
@@ -518,14 +515,18 @@ ${JSON.stringify(nextStepArgsDef, null, 2)}
 - Determine if the next step is necessary and appropriate
 - **Exclude the \`steps\` key from your generated parameters**`,
           });
-
-          state.moveToNextStep();
         } else {
-          // Workflow completed
-          state.reset();
           results.content.push({
             type: "text",
-            text: `Workflow completed successfully. **If you need to start over or backtrack or retry, you MUST provide 'steps' parameter to start a new workflow.**`,
+            text: `Workflow completed. All steps have been executed.
+
+The result of the final step is shown above. Based on this result, please choose your next action from the options below:
+
+1.  **✅ Conclude and Finish:** If the result meets all expectations, provide the final answer or summary to the user directly. **Do not call this tool again.**
+
+2.  **🔄 Retry the Final Step:** If the result of the final step is unsatisfactory or incorrect, you **CAN retry it** by calling this tool again with the required arguments for this last step.
+
+3.  **🆕 Start a New Workflow:** If you need to start a brand new task from scratch, you **MUST** call this tool with a new \`steps\` parameter.`,
           });
         }
 
@@ -542,25 +543,18 @@ ${JSON.stringify(nextStepArgsDef, null, 2)}
 ${description}
 \`\`\`
 
-**FIRST CALL (Planning Phase):**
-- MUST analyzes the user's request AND the instructions above
-- MUST creates a complete workflow plan
-- Each step in the array represents one action it will take
-- MUST include ALL necessary steps to fulfill BOTH the user request AND follow all instructions
+**WORKFLOW PHASES:**
 
-**SUBSEQUENT CALLS (Execution Phase):**
-- MUST executes ONE step from its planned workflow for every interation
-- MUST specify ONLY the action parameters for the current step, **NO \`steps\`**
-- **DO NOT modify workflows in progress**
-- **MUST regenerates workflow steps ONLY when necessary**
+**Phase 1 - PLANNING (First Call Only):**
+- Analyze user request and instructions
+- Generate complete workflow with ALL steps
 
-**Key Rules:**
-1. **Planning**: the first call MUST be a JSON object with a \`steps\` array containing the complete workflow
-2. **Execution**: Later responses execute individual steps ONLY
-3. **Completeness**: MUST address both user needs AND instruction requirements
-4. **Consistency**: Once planned, sticks to the workflow unless restart is absolutely necessary
-5. **Reasoning**: Using **reasoning action** when it needs to think or plan
-`;
+**Phase 2 - EXECUTION (All Subsequent Calls):**
+- **CRITICAL: NEVER include 'steps' field in response**
+- **ONLY provide current step execution parameters**
+- Use "reasoning" action when thinking/planning is needed
+
+**STRICT RULE: After first call, 'steps' field is FORBIDDEN, keep executing steps sequentially until the final step is completed**`;
 
     this.tool(
       name,
