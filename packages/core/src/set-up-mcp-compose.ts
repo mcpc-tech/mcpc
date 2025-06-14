@@ -13,7 +13,7 @@ export interface ComposeDefination {
 
   options?: {
     /**
-     * @default workflow
+     * @default "agentic_workflow"
      */
     mode?: "agentic" | "agentic_workflow" | "static_workflow";
   };

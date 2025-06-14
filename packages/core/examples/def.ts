@@ -17,7 +17,7 @@ export const insImageGen: ComposeDefination = {
 
 3.  **Persist HTML to Local File:** Write the generated HTML code to a local file.
 
-    Use <tool name="@wonderwhy-er/desktop-commander.write_file"/>, path shall under /tmp.
+    Use <tool name="@wonderwhy-er/desktop-commander.write_file"/>, path must under /tmp.
 
 4.  **Navigate to HTML File:**
 
@@ -27,12 +27,14 @@ export const insImageGen: ComposeDefination = {
 
     Use <tool name="@microsoft/playwright-mcp.browser_take_screenshot"/>
 
-    **MUST** specify element,ref,filename args when taking screenshot.
+**MUST** specify element, ref, and filename arguments when taking a screenshot. The filename is a path, and it must be under /tmp.
 
 6.  **Deliver Output and Cleanup:**
     After the image has been successfully delivered, **close the browser** instance managed by Playwright to free up resources.
 
     Use <tool name="@microsoft/playwright-mcp.browser_close"/>
+
+Remember to show the user generated image using ![image][{filename}] syntax
  `,
   deps: {
     mcpServers: {
@@ -42,7 +44,7 @@ export const insImageGen: ComposeDefination = {
       },
       "@microsoft/playwright-mcp": {
         command: "npx",
-        args: ["-y", "@playwright/mcp@latest", "--image-responses", "emit"],
+        args: ["@playwright/mcp@latest", "--image-responses=emit"],
       },
     },
   },

@@ -17,7 +17,7 @@ import addFormats from "ajv-formats";
 import z from "zod";
 import { composeMcpDepTools, parseTags } from "../mod.ts";
 import { ComposeDefination } from "./set-up-mcp-compose.ts";
-import { pick } from "@es-toolkit/es-toolkit";
+import { at, pick } from "@es-toolkit/es-toolkit";
 import { MCPCStep, WorkflowState } from "./utils/state.ts";
 import { createGoogleCompatibleJSONSchema } from "./utils/common/provider.ts";
 import { internalActions, toolNameToSchema } from "./utils/actions.ts";
@@ -196,20 +196,37 @@ export class ComposableMCPServer extends Server {
         includeRepeat: boolean
       ): Schema<{}>["jsonSchema"] => ({
         type: "object",
-        description: `**Object structured according to the tool's JSON Schema argument definition**`,
+        description: `**Tool arguments structured according to the step's JSON Schema definition; it's DYNAMIC and will update for each step**`,
         properties: {
           ...(includeRepeat
             ? {
                 repeat: {
                   type: "boolean",
                   description:
-                    "**Controls step execution flow. Set to true to repeat the current step**",
-                  default: false,
+                    "**Controls step execution flow. MUST be set to `true` if you repeat the current step**",
                 },
               }
             : {}),
           ...extra,
         },
+        examples: [
+          {
+            steps: [
+              {
+                description: "Analyze user request and plan workflow",
+                actions: ["reasoning"],
+              },
+            ],
+          },
+          {
+            reasoning: {
+              context: "Login page not loading",
+              analysis: "Server returns 404, login.html missing",
+              conclusion:
+                "Workflow: 1) Locate missing file 2) Add to build process 3) Redeploy 4) Verify page loads 5) Test login function",
+            },
+          },
+        ],
         required: Object.keys(extra).filter((n) => n !== "steps"),
         additionalProperties: true,
       }),
@@ -217,7 +234,7 @@ export class ComposableMCPServer extends Server {
       steps: (): Schema<{}>["jsonSchema"] => ({
         type: "array",
         description: `
-An array of step objects that define a sequence of COMPLETE actions as part of a workflow to be executed to fulfill the user's request.
+An array of step objects that defines the complete sequence of actions for a workflow. This array should be provided only on the initial call, unless a workflow restart is required.
 
 CRITICAL:
 -   **Workflow as a Sequence of States**: Steps MUST be organized to reflect the workflow's logical sequence. Each step represents a distinct phase.
@@ -258,14 +275,15 @@ ${toolNameToDetailList.map(
               },
               uniqueItems: true,
               minItems: 1,
-              examples: [["reasoning"], ["create_folder"]],
+              examples: [["reasoning"]],
             },
           },
           required: ["description", "actions"],
           additionalProperties: false,
         },
         minItems: 1,
-        maxItems: 50,
+        // Resitrict to one action for now.
+        maxItems: 1,
       }),
 
       forCurrentState: (state: WorkflowState): Schema<{}>["jsonSchema"] => {
@@ -388,27 +406,37 @@ ${toolNameToDetailList.map(
           });
         }
 
+        steps.push({
+          description:
+            "Final verification and conclusion of the workflow. Execute this to confirm successful completion.",
+          actions: ["reasoning"],
+        });
+
         state.initialize(steps);
 
-        const firstStepArgsDef = createArgsDef.forCurrentState(state);
-
+        // The initial next step is the first one of the steps.
         return {
           content: [
             {
               type: "text",
-              text: `Workflow initialized with ${
-                steps.length
-              } steps. You MUST proceed to next step to \`${
-                state.getNextStep()?.description
-              }\`. **EXECUTE tool \`${name}\` with these arguments - MANDATORY**
+              text:
+                `Workflow initialized with ${
+                  steps.length
+                } steps. You MUST proceed to next step to \`${
+                  state.getCurrentStep()?.description
+                }\`. 
+              
+## EXECUTE tool \`${name}\` with following new tool arguments**
 
-${JSON.stringify(firstStepArgsDef, null, 2)}
+${JSON.stringify(createArgsDef.forCurrentState(state), null, 2)}
 
 ## Important Instructions
 - **Do NOT include 'steps' parameter in any subsequent tool calls**
-- **If the current step fails or requires retry, you MUST set \`repeat\` to true to retry it**
+- **If the current step fails or requires retry, you MUST explicitly set \`"repeat": true\`**
 - **MUST Use the provided JSON schema definition above for parameter generation and validation**
-`,
+` + ENFORE_REASONING
+                  ? `## Steps\n${JSON.stringify(steps)}`
+                  : "",
             },
           ],
           isError: false,
@@ -479,17 +507,16 @@ ${JSON.stringify(firstStepArgsDef, null, 2)}
             type: "text",
             text: `You **MUST** decide whether to proceed to the next step to \`${
               state.getNextStep()?.description
-            }\`. 
-If you choose to continue, **EXECUTE tool \`${name}\` with these arguments - MANDATORY**:
+            }\`.
+If current step fails or requires retry, **You MUST EXECUTE tool \`${name}\` with current step's arguments and explicitly SET \`repeat\` to \`true\` to retry the current step.
+If you choose to proceed, **You MUST EXECUTE tool \`${name}\` with these new tool arguments**:
 
 ${JSON.stringify(nextStepArgsDef, null, 2)}
 
 **Instructions:**
 - Analyze the previous action's result carefully
 - Determine if the next step is necessary and appropriate
-- If proceeding, ensure all required parameters are properly filled, **Exclude the \`steps\` key from your generated parameters**
-
-If the current step fails or requires retry, you MUST set \`repeat\` to true to retry the current step.`,
+- **Exclude the \`steps\` key from your generated parameters**`,
           });
 
           state.moveToNextStep();
@@ -508,32 +535,31 @@ If the current step fails or requires retry, you MUST set \`repeat\` to true to 
 
     const workflowState = new WorkflowState();
 
-    const toolDescription = `I am an autonomous agent tool named \`${name}\` that fulfills user requests through a structured multi-step workflow.
+    const toolDescription = `This is an autonomous agent tool named \`${name}\` that fulfills user requests through a structured multi-step workflow.
 
-**My Instructions:**
+**Instructions:**
 \`\`\`txt
 ${description}
 \`\`\`
 
-**How I Work:**
-
 **FIRST CALL (Planning Phase):**
-- I analyze the user's request AND the instructions above
-- I create a complete workflow plan
-- Each step in the array represents one action I'll take
-- I MUST include ALL necessary steps to fulfill BOTH the user request AND follow all instructions
+- MUST analyzes the user's request AND the instructions above
+- MUST creates a complete workflow plan
+- Each step in the array represents one action it will take
+- MUST include ALL necessary steps to fulfill BOTH the user request AND follow all instructions
 
 **SUBSEQUENT CALLS (Execution Phase):**
-- I execute ONE step from my planned workflow
-- I generate only the action parameters for the current step
-- I DO NOT modify workflows in progress; I regenerate workflow steps ONLY when necessary
+- MUST executes ONE step from its planned workflow for every interation
+- MUST specify ONLY the action parameters for the current step, **NO \`steps\`**
+- **DO NOT modify workflows in progress**
+- **MUST regenerates workflow steps ONLY when necessary**
 
 **Key Rules:**
-1. **Planning**: My first response MUST be a JSON object with a \`steps\` array containing the complete workflow
+1. **Planning**: the first call MUST be a JSON object with a \`steps\` array containing the complete workflow
 2. **Execution**: Later responses execute individual steps ONLY
-3. **Completeness**: I must address both user needs AND instruction requirements
-4. **Consistency**: Once planned, I stick to the workflow unless restart is absolutely necessary
-5. **Reasoning**: I use **reasoning actions** when I need to think or plan
+3. **Completeness**: MUST address both user needs AND instruction requirements
+4. **Consistency**: Once planned, sticks to the workflow unless restart is absolutely necessary
+5. **Reasoning**: Using **reasoning action** when it needs to think or plan
 `;
 
     this.tool(
