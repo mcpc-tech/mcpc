@@ -1,6 +1,7 @@
 import { ComposableMCPServer } from "../mod.ts";
 import minimist from "minimist";
 import { connectToSmitheryServer } from "./utils/common/registory.ts";
+import { MCPCStep } from "./utils/state.ts";
 import { MCPSetting } from "./service/tools.ts";
 import { insImageGen } from "../examples/def.ts";
 
@@ -13,9 +14,20 @@ export interface ComposeDefination {
 
   options?: {
     /**
+     * Execution mode for the agent
+     * - "agentic": Fully autonomous agent mode without any workflow structure
+     * - "agentic_workflow": Agent workflow mode that can either generate steps at runtime or use predefined steps
      * @default "agentic"
      */
-    mode?: "agentic" | "agentic_workflow" | "static_workflow";
+    mode?: "agentic" | "agentic_workflow";
+
+    /**
+     * Optional predefined workflow steps for agentic_workflow mode
+     * - If provided: Uses these predefined steps in agentic_workflow mode
+     * - If empty/undefined: Generates workflow steps dynamically at runtime in agentic_workflow mode
+     * - Ignored when mode is "agentic"
+     */
+    steps?: MCPCStep[];
   };
 }
 

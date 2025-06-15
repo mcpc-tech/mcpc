@@ -17,7 +17,7 @@ import addFormats from "ajv-formats";
 import z from "zod";
 import { composeMcpDepTools, parseTags } from "../mod.ts";
 import { ComposeDefination } from "./set-up-mcp-compose.ts";
-import { at, pick } from "@es-toolkit/es-toolkit";
+import { pick } from "@es-toolkit/es-toolkit";
 import { MCPCStep, WorkflowState } from "./utils/state.ts";
 import { createGoogleCompatibleJSONSchema } from "./utils/common/provider.ts";
 import { internalActions, toolNameToSchema } from "./utils/actions.ts";
@@ -45,17 +45,6 @@ type ExtractVariables<S extends string> =
       ? ActualVar | ExtractVariables<Rest>
       : Var | ExtractVariables<Rest> // Standard case {var}
     : never;
-
-/**
- * Type for the input object required by the formatting function.
- * Maps extracted variable names to allowed input types (string, number, boolean).
- */
-type PromptInput<T extends string> = Record<
-  ExtractVariables<T>,
-  string | number | boolean
->;
-
-export interface MCPCOptions {}
 
 export class ComposableMCPServer extends Server {
   private tools: Tool[] = [];
@@ -99,9 +88,23 @@ export class ComposableMCPServer extends Server {
     options: ComposeDefination["options"] = { mode: "agentic" }
   ) {
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
+
+    // Filter tools and transform scoped tool names to valid action identifierss
     const tools = await composeMcpDepTools(
       depsConfig,
       ({ mcpName, toolNameWithScope, toolId }) => {
+        const matchingStep = options.steps?.find((step) =>
+          step.actions.includes(toolNameWithScope)
+        );
+
+        if (matchingStep) {
+          const actionIndex = matchingStep.actions.indexOf(toolNameWithScope);
+          if (actionIndex !== -1) {
+            matchingStep.actions[actionIndex] = toolId;
+          }
+          return true;
+        }
+
         return tagToResults.tool.find((tool) => {
           const selectAll =
             tool.attribs.name === `${mcpName}.${TOOLS_PLACEHOLDER}`;
@@ -178,6 +181,7 @@ export class ComposableMCPServer extends Server {
           allToolNames,
           depGroups,
           toolNameToDetailList,
+          predefinedSteps: options.steps,
         });
         return;
     }
@@ -189,46 +193,19 @@ export class ComposableMCPServer extends Server {
     allToolNames,
     depGroups,
     toolNameToDetailList,
+    predefinedSteps,
   }: any) {
     const createArgsDef = {
-      common: (
-        extra: { [n: string]: Schema<{}>["jsonSchema"] },
-        includeProceed: boolean
-      ): Schema<{}>["jsonSchema"] => ({
+      common: (extra: {
+        [n: string]: Schema<{}>["jsonSchema"];
+      }): Schema<{}>["jsonSchema"] => ({
         type: "object",
         description: `**Tool arguments structured according to the step's JSON Schema definition; it's DYNAMIC and will update for each step**`,
         properties: {
-          ...(includeProceed
-            ? {
-                proceed: {
-                  type: "boolean",
-                  description:
-                    "**Controls step execution flow. MUST be set to `true` to advance to the next step. If omitted or false, this step will be re-executed with the provided arguments**",
-                },
-              }
-            : {}),
           ...extra,
         },
-        examples: [
-          {
-            steps: [
-              {
-                description: "Analyze user request and plan workflow",
-                actions: ["reasoning"],
-              },
-            ],
-          },
-          {
-            reasoning: {
-              context: "Login page not loading",
-              analysis: "Server returns 404, login.html missing",
-              conclusion:
-                "Workflow: 1) Locate missing file 2) Add to build process 3) Redeploy 4) Verify page loads 5) Test login function",
-            },
-          },
-        ],
-        required: Object.keys(extra).filter((n) => n !== "steps"),
-        additionalProperties: true,
+        required: Object.keys(extra),
+        additionalProperties: false,
       }),
 
       steps: (): Schema<{}>["jsonSchema"] => ({
@@ -241,17 +218,15 @@ CRITICAL:
 -   **Sequential Dependency Rule**: If Action B depends on the outcome of Action A, they MUST be in separate, sequential steps (A in Step N, B in Step N+1).
 -   **Concurrent Action Rule**: All actions within a single step are considered independent and MUST be executable concurrently.
 -   **Action Fidelity Rule**: The set of generated actions MUST be a complete and faithful one-to-one mapping of the operations requested in the user's description. Do NOT omit requested ones.
+-   **Predefined steps**: MUST remain unspecified if predefined steps are present
 
 BEST PRACTICES:
 -   **Atomicity**: A step should be as atomic as possible.
 -   **Idempotency**: Actions should be designed to be idempotent for safe retries.
--   **Clarity over Brevity**: Prefer more, smaller, focused steps over fewer, complex ones.
-`,
+-   **Clarity over Brevity**: Prefer more, smaller, focused steps over fewer, complex ones.`,
         items: {
           type: "object",
-          description: `
-          A single step containing actions that execute concurrently.
-          All actions in this step run simultaneously with no guaranteed order.
+          description: `A single step containing actions that execute concurrently. All actions in this step run simultaneously with no guaranteed order.
         `,
           properties: {
             description: {
@@ -264,6 +239,7 @@ BEST PRACTICES:
               items: {
                 type: "string",
                 enum: allToolNames?.concat(Object.keys(internalActions)),
+                // TODO: Does the model need to know tool arguments to fully understand the purpose?
                 description: `Individual action name from available actions
 Available actions:
 ${Object.entries(internalActions).map(
@@ -275,24 +251,49 @@ ${toolNameToDetailList.map(
               },
               uniqueItems: true,
               minItems: 1,
+              // TODO: remove this restriction when workflow planning is good enough
+              maxItems: 1,
               examples: [["reasoning"]],
             },
           },
           required: ["description", "actions"],
           additionalProperties: false,
         },
+        default: predefinedSteps ? predefinedSteps : undefined,
         minItems: 1,
       }),
 
+      init: (): Schema<{}>["jsonSchema"] => ({
+        type: "boolean",
+        description: `Init a new workflow`,
+        enum: [true],
+      }),
+
+      proceed: (): Schema<{}>["jsonSchema"] => ({
+        type: "boolean",
+        description:
+          "**Controls step execution flow. MUST be set to `true` to advance to the next step. If omitted or false, this step will be re-executed with the provided arguments**",
+      }),
+
+      forTool: (): Schema<{}>["jsonSchema"] => {
+        return createArgsDef.common({});
+      },
+
       forCurrentState: (state: WorkflowState): Schema<{}>["jsonSchema"] => {
         if (!state.isWorkflowInitialized()) {
-          return createArgsDef.common({ steps: createArgsDef.steps() }, false);
+          if (predefinedSteps) {
+            return createArgsDef.common({ init: createArgsDef.init() });
+          }
+          return createArgsDef.common({
+            steps: createArgsDef.steps(),
+            init: createArgsDef.init(),
+          });
         }
 
         const currentStep = state.getCurrentStep();
         if (!currentStep) {
           throw new Error(
-            `Invalid workflow state: no current step,${JSON.stringify(
+            `Invalid workflow state: no current step, ${JSON.stringify(
               state.getDebugInfo()
             )}`
           );
@@ -303,9 +304,9 @@ ${toolNameToDetailList.map(
           ...pick(depGroups, currentStep.actions),
         };
 
-        const includeProceed =
-          state.getCurrentStepIndex() !== 0 && state.hasNextStep();
-        return createArgsDef.common(stepDependencies, includeProceed);
+        stepDependencies["proceed"] = createArgsDef.proceed();
+
+        return createArgsDef.common(stepDependencies);
       },
 
       forNextState: (state: WorkflowState): Schema<{}>["jsonSchema"] => {
@@ -328,47 +329,78 @@ ${toolNameToDetailList.map(
           ...pick(depGroups, nextStep.actions),
         };
 
-        const includeProceed = currentStepIndex + 1 < allSteps.length;
+        stepDependencies["proceed"] = createArgsDef.proceed();
 
-        return createArgsDef.common(stepDependencies, includeProceed);
+        return createArgsDef.common(stepDependencies);
       },
+
+      forToolDescription: (description: string, state: WorkflowState) => {
+        const enforceToolArgs = createArgsDef.forCurrentState(state);
+        const title = predefinedSteps
+          ? `**YOU MUST execute this tool with following tool arguments to init the workflow**
+NOTE: The \`steps\` has been predefined`
+          : `**You MUST execute this tool with following tool arguments to plan and init the workflow**`;
+
+        return `${description}
+${title}
+${JSON.stringify(enforceToolArgs, null, 2)}`;
+      },
+
+      forInitialStepDescription: (steps: MCPCStep[], state: WorkflowState) =>
+        `Workflow initialized with ${
+          steps.length
+        } steps. You MUST start the workflow with the first step to \`${
+          state.getCurrentStep()?.description
+        }\`. 
+              
+## EXECUTE tool \`${name}\` with following new tool arguments
+
+${JSON.stringify(createArgsDef.forCurrentState(state))}
+
+## Important Instructions
+- **Do NOT include 'steps' parameter in any subsequent tool calls**
+- **MUST Use the provided JSON schema definition above for parameter generation and validation**
+` +
+        (predefinedSteps ?? ENFORE_REASONING
+          ? `## Steps\n${JSON.stringify(steps)}`
+          : ""),
     };
 
     const executor = {
       async execute(args: any, state: WorkflowState): Promise<any> {
-        // User intent detection - if steps are provided and workflow is already initialized, reset state
-        if (args.steps) {
-          if (state.isWorkflowInitialized()) {
-            state.reset();
-          }
-          return await this.initialize(args, state);
-        }
-
-        if (!state.isWorkflowInitialized()) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: "Error: Workflow not initialized. Please provide 'steps' parameter to start a new workflow.",
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        if (args.proceed === true) {
-          if (!state.hasNextStep()) {
+        if (args.init) {
+          state.reset();
+        } else {
+          if (!state.isWorkflowInitialized() && !args.init) {
             return {
               content: [
                 {
                   type: "text",
-                  text: "Error: Cannot proceed, you are already at the final step.",
+                  text: "Error: Workflow not initialized. Please provide 'steps' parameter to start a new workflow.",
                 },
               ],
               isError: true,
             };
           }
-          state.moveToNextStep();
+
+          if (args.proceed === true) {
+            if (!state.hasNextStep()) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: "Error: Cannot proceed, you are already at the final step.",
+                  },
+                ],
+                isError: true,
+              };
+            }
+            if (state.isWorkflowStarted()) {
+              state.moveToNextStep();
+            } else {
+              state.start();
+            }
+          }
         }
 
         const validationSchema = createArgsDef.forCurrentState(state);
@@ -386,11 +418,15 @@ ${toolNameToDetailList.map(
           };
         }
 
+        if (args.init) {
+          return await this.initialize(args, state);
+        }
+
         return await this.executeStep(args, state);
       },
 
       async initialize(args: any, state: WorkflowState): Promise<any> {
-        const steps = args.steps as Array<MCPCStep>;
+        const steps = (predefinedSteps ?? args.steps) as Array<MCPCStep>;
 
         if (!steps || steps.length === 0) {
           return {
@@ -419,21 +455,10 @@ ${toolNameToDetailList.map(
           content: [
             {
               type: "text",
-              text:
-                `Workflow initialized with ${
-                  steps.length
-                } steps. You MUST start the workflow with the first step to \`${
-                  state.getCurrentStep()?.description
-                }\`. 
-              
-## EXECUTE tool \`${name}\` with following new tool arguments**
-
-${JSON.stringify(createArgsDef.forCurrentState(state), null, 2)}
-
-## Important Instructions
-- **Do NOT include 'steps' parameter in any subsequent tool calls**
-- **MUST Use the provided JSON schema definition above for parameter generation and validation**
-` + (ENFORE_REASONING ? `## Steps\n${JSON.stringify(steps)}` : ""),
+              text: createArgsDef.forInitialStepDescription(
+                predefinedSteps ?? args.steps,
+                state
+              ),
             },
           ],
           isError: false,
@@ -479,7 +504,7 @@ ${JSON.stringify(createArgsDef.forCurrentState(state), null, 2)}
 
             results.content.push({
               type: "text",
-              text: `Action ${action} excuted with result: `,
+              text: `Action \`${action}\` excuted with result: `,
             });
             results.content.push({
               type: "text",
@@ -488,7 +513,7 @@ ${JSON.stringify(createArgsDef.forCurrentState(state), null, 2)}
           } catch (error) {
             results.content.push({
               type: "text",
-              text: `Action ${action} failed with error: `,
+              text: `Action \`${action}\` failed with error: `,
             });
             results.content.push({
               type: "text",
@@ -526,7 +551,7 @@ The result of the final step is shown above. Based on this result, please choose
 
 2.  **🔄 Retry the Final Step:** If the result of the final step is unsatisfactory or incorrect, you **CAN retry it** by calling this tool again with the required arguments for this last step.
 
-3.  **🆕 Start a New Workflow:** If you need to start a brand new task from scratch, you **MUST** call this tool with a new \`steps\` parameter.`,
+3.  **🆕 Start a New Workflow:** If you need to start a brand new task from scratch, you **MUST** call this tool to initialize a new workflow`,
           });
         }
 
@@ -548,6 +573,7 @@ ${description}
 **Phase 1 - PLANNING (First Call Only):**
 - Analyze user request and instructions
 - Generate complete workflow with ALL steps
+- Set \`init\` to true
 
 **Phase 2 - EXECUTION (All Subsequent Calls):**
 - **CRITICAL: NEVER include 'steps' field in response**
@@ -558,11 +584,9 @@ ${description}
 
     this.tool(
       name,
-      toolDescription,
+      createArgsDef.forToolDescription(toolDescription, workflowState),
       jsonSchema(
-        createGoogleCompatibleJSONSchema(
-          createArgsDef.forCurrentState(workflowState) as any
-        )
+        createGoogleCompatibleJSONSchema(createArgsDef.forTool() as any)
       ),
       async (args: any) => {
         try {

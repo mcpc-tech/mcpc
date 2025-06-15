@@ -7,6 +7,13 @@ export class WorkflowState {
   private currentStepIndex: number = -1;
   private steps: Array<MCPCStep> = [];
   private isInitialized: boolean = false;
+  private isStarted: boolean = false;
+
+  constructor(steps?: MCPCStep[]) {
+    if (steps) {
+      this.initialize(steps);
+    }
+  }
 
   getCurrentStepIndex(): number {
     return this.currentStepIndex;
@@ -54,6 +61,10 @@ export class WorkflowState {
     return this.isInitialized && this.currentStepIndex === 0;
   }
 
+  isWorkflowStarted(): boolean {
+    return this.isStarted;
+  }
+
   isCompleted(): boolean {
     return this.isInitialized && this.currentStepIndex >= this.steps.length - 1;
   }
@@ -62,6 +73,10 @@ export class WorkflowState {
     this.steps = steps;
     this.currentStepIndex = 0;
     this.isInitialized = true;
+  }
+
+  start() {
+    this.isStarted = true;
   }
 
   moveToNextStep(): boolean {

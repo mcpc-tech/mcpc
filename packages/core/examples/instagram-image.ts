@@ -1,6 +1,6 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { ComposeDefination, mcpc } from "../mod.ts";
-import { insImageGen } from "./def.ts";
+import { insImageGenWorkflow as insImageGen } from "./def.ts";
 
 export const server = await mcpc(
   [
