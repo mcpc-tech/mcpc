@@ -362,7 +362,7 @@ ${JSON.stringify(createArgsDef.forCurrentState(state))}
 - **MUST Use the provided JSON schema definition above for parameter generation and validation**
 ` +
         (predefinedSteps ?? ENFORE_REASONING
-          ? `## Steps\n${JSON.stringify(steps)}`
+          ? `## Workflow Steps\n${JSON.stringify(steps, null, 2)}`
           : ""),
     };
 
