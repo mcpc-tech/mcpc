@@ -462,7 +462,6 @@ ${JSON.stringify(createArgsDef.forCurrentState(state))}
             },
           ],
           isError: false,
-          _meta: { description: "Planning workflows" },
         };
       },
 
@@ -480,7 +479,6 @@ ${JSON.stringify(createArgsDef.forCurrentState(state))}
         const results: CallToolResult = {
           content: [],
           isError: false,
-          _meta: { description: state.getCurrentStep()?.description },
         };
 
         // Execute all actions in the current step
