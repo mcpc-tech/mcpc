@@ -205,7 +205,6 @@ export class ComposableMCPServer extends Server {
           ...extra,
         },
         required: Object.keys(extra),
-        additionalProperties: false,
       }),
 
       steps: (): Schema<{}>["jsonSchema"] => ({
@@ -571,6 +570,7 @@ ${description}
 **WORKFLOW PHASES:**
 
 **Phase 1 - PLANNING (First Call Only):**
+- **If predefined steps exist, do NOT specify \`steps\`**
 - Analyze user request and instructions
 - Generate complete workflow with ALL steps
 - Set \`init\` to true
