@@ -376,7 +376,9 @@ ${JSON.stringify(createArgsDef.forCurrentState(state))}
               content: [
                 {
                   type: "text",
-                  text: "Error: Workflow not initialized. Please provide 'steps' parameter to start a new workflow.",
+                  text: predefinedSteps
+                    ? "Error: Workflow not initialized. Please provide 'init' parameter to start a new workflow."
+                    : `"Error: Workflow not initialized. Please provide 'init' and 'steps' parameter to start a new workflow."`,
                 },
               ],
               isError: true,
