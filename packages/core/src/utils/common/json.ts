@@ -1,4 +1,5 @@
 import { jsonrepair } from "jsonrepair";
+import { inspect } from "node:util";
 
 /**
  * Attempts to parse JSON with a repair function if initial parse fails.
@@ -20,10 +21,9 @@ export function parseJSON<T>(text: string): T | null {
 }
 
 export function truncateJSON(obj: unknown): string {
-  return Deno.inspect(obj, {
+  return inspect(obj, {
     depth: 3,
     colors: false,
-    // @ts-expect-error -
     maxStringLength: 120,
   });
 }

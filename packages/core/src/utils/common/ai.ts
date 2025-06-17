@@ -9,6 +9,7 @@ import z from "zod";
 import { CheerioAPI, load } from "cheerio";
 import { smitheryToolNameCompatibale } from "./registory.ts";
 import { ToolNameRegex } from "./provider.ts";
+import { cwd } from "node:process";
 
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
@@ -174,7 +175,7 @@ export async function composeMcpDepTools(
           ...(process.env as any),
           ...def.env,
         },
-        cwd: Deno.cwd(),
+        cwd: cwd(),
       });
     } else {
       throw new Error(`Unsupported transport type: ${JSON.stringify(def)}`);
