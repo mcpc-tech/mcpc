@@ -13,7 +13,7 @@ export const server = await mcpc(
     {
       name: "diagram",
       description: `Generate a diagram.
-Tools: <tool name="g.generate_mind_map"/>`,
+Tools: <tool name="g.__ALL__"/>`,
       deps: {
         mcpServers: {
           g: {

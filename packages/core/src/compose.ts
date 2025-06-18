@@ -22,6 +22,7 @@ import { MCPCStep, WorkflowState } from "./utils/state.ts";
 import { createGoogleCompatibleJSONSchema } from "./utils/common/provider.ts";
 import { internalActions, toolNameToSchema } from "./utils/actions.ts";
 import { ENFORE_REASONING } from "./utils/common/config.ts";
+import { updateRefPaths } from "./utils/common/schema.ts";
 
 const TOOLS_PLACEHOLDER = "__ALL__";
 
@@ -149,13 +150,13 @@ export class ComposableMCPServer extends Server {
             ? baseSchema.required
             : [];
 
+        const updatedProperties = updateRefPaths(baseProperties, toolName);
+
         return {
           [toolName]: {
             type: "object",
             description: tool.description,
-            properties: {
-              ...baseProperties,
-            },
+            properties: updatedProperties,
 
             required: [...baseRequired],
             additionalProperties: false,
