@@ -186,7 +186,7 @@ export async function composeMcpDepTools(
 
     try {
       // Create the MCP client
-      await client.connect(transport);
+      await client.connect(transport, { timeout: 60_000 * 10 });
 
       // Get the tools from the client
       const { tools } = await client.listTools();
