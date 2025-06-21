@@ -1,5 +1,0 @@
-{
-	"dependencies": {
-		"@mcpc/oapi-invoker-mcp": "jsr:^0.0.2"
-	}
-}
