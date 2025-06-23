@@ -19,12 +19,12 @@ Tools: <tool name="g.__ALL__"/>`,
           g: {
             transportType: "stdio",
             command: "npx",
-            args: ["@jsr2npm/yao__gpt-vis-mcp@0.0.1"],
+            args: ["-y", "@jsr2npm/yao__gpt-vis-mcp@0.0.4"],
           },
         },
       },
     },
-  ]
+  ],
 );
 
 const transport = new StdioServerTransport();

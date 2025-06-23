@@ -3,11 +3,7 @@
   "nodeModulesDir": "auto",
   "tasks": {},
   "workspace": [
-    "./packages/template",
-    "./packages/oapi-invoker-mcp",
-    "./packages/diagram-thinker-mcp",
-    "./packages/core",
-    "./packages/code-runner-mcp"
+    "./packages/core"
   ],
   "imports": {
     "@es-toolkit/es-toolkit": "jsr:@es-toolkit/es-toolkit@^1.37.2",
