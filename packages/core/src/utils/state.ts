@@ -61,6 +61,11 @@ export class WorkflowState {
     return this.isInitialized && this.currentStepIndex === 0;
   }
 
+  // Check if currently at the last step
+  isAtLastStep(): boolean {
+    return this.isInitialized && this.currentStepIndex >= this.steps.length - 1;
+  }
+
   isWorkflowStarted(): boolean {
     return this.isStarted;
   }

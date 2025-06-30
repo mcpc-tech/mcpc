@@ -386,7 +386,7 @@ ${JSON.stringify(createArgsDef.forCurrentState(state))}
           }
 
           if (args.proceed === true) {
-            if (!state.hasNextStep()) {
+            if (!state.hasNextStep() && !state.isAtLastStep()) {
               return {
                 content: [
                   {
