@@ -561,27 +561,22 @@ The result of the final step is shown above. Based on this result, please choose
 
     const workflowState = new WorkflowState();
 
-    const toolDescription = `This is an autonomous agent tool named \`${name}\` that fulfills user requests through a structured multi-step workflow.
+    const toolDescription = `This is the autonomous tool \`${name}\` that fulfills user requests through a structured multi-step workflow. You MUST follow the instructions below to execute the workflow.
 
-**Instructions:**
-\`\`\`txt
-${description}
-\`\`\`
+<instructions>${description}</instructions>
 
 **WORKFLOW PHASES:**
 
 **Phase 1 - PLANNING (First Call Only):**
 - **If predefined steps exist, do NOT specify \`steps\`**
-- Analyze user request and instructions
-- Generate complete workflow with ALL steps
-- Set \`init\` to true
+- Analyze user request and instructions.
+- Generate complete workflow with ALL steps.
+- Set \`init\` to true.
 
 **Phase 2 - EXECUTION (All Subsequent Calls):**
-- **CRITICAL: NEVER include 'steps' field in response**
-- **ONLY provide current step execution parameters**
-- Use "reasoning" action when thinking/planning is needed
-
-**STRICT RULE: After first call, 'steps' field is FORBIDDEN, keep executing steps sequentially until the final step is completed**`;
+- **CRITICAL: NEVER include 'steps' field in response.**
+- **ONLY provide current step execution parameters.**
+- **MUST use \`reasoning\` action when thinking, planning, or capturing an observation is needed.**`;
 
     this.tool(
       name,
@@ -615,25 +610,19 @@ ${description}
     depGroups,
     toolNameToDetailList,
   }: any) {
-    description = `Context: This is the autonomous MCP tool \`${name}\`. It fulfills user instructions by orchestrating actions via **iterative self-invocation(\`${name}\`)**.
+    description = `This is the autonomous MCP tool \`${name}\`. It fulfills user instructions by orchestrating actions via **iterative self-invocation(\`${name}\`)**. You MUST follow the instructions below to execute the workflow.
 
-# User Instructions: ${description}
+<instructions>${description}</instructions>
 
 # Action Execution Protocol
 
-The MCP tool executes actions in a multi-step process. Follow these steps for each iteration:
-
-* Do not treat actions merely as simple tool calls.
-* Always execute actions via this protocol. Do NOT attempt direct, unstructured calls.
-
+This tool executes actions in a multi-step process. Follow these steps for each iteration:
 1.  **Determine Current Action:** Based on user instructions, overall task goal, and prior results, identify the *single most appropriate action* for this step.
 2.  **Anticipate Next Action (if any):** Plan and anticipate the likely *next action* needed to complete the task after the current step.
 
-# Available Actions
+* Do not treat actions merely as simple tool calls.
+* Always execute actions via this protocol. Do NOT attempt direct, unstructured calls.`;
 
-**WARNING:** ONLY call or execute actions from this list. DO NOT attempt to call or execute actions not explicitly listed here.
-${allToolNames.join(", ")}
-`;
     const allOf = toolNameToDetailList.map(([toolName]: [string]) => {
       return {
         if: {
