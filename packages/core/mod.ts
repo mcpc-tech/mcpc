@@ -3,9 +3,6 @@
  * MCPC allows you to create composable MCP servers with one-prompt automation
  * workflow declaration, supporting thousands of dependent MCPs from the community.
  *
- * This module provides utilities for AI services, WeChat Work integration,
- * LLM providers (Ollama, Qwen), middleware, and MCP composition capabilities.
- *
  * ```ts
  * import { mcpc } from "@mcpc/core";
  * import { StdioServerTransport } from "@modelcontextprotocol/sdk";
