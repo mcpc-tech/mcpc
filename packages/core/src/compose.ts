@@ -21,7 +21,6 @@ import { pick } from "@es-toolkit/es-toolkit";
 import { MCPCStep, WorkflowState } from "./utils/state.ts";
 import { createGoogleCompatibleJSONSchema } from "./utils/common/provider.ts";
 import { internalActions, toolNameToSchema } from "./utils/actions.ts";
-import { ENFORE_REASONING } from "./utils/common/config.ts";
 import { updateRefPaths } from "./utils/common/schema.ts";
 
 const TOOLS_PLACEHOLDER = "__ALL__";
@@ -361,7 +360,7 @@ ${JSON.stringify(createArgsDef.forCurrentState(state))}
 - **Do NOT include 'steps' parameter in any subsequent tool calls**
 - **MUST Use the provided JSON schema definition above for parameter generation and validation**
 ` +
-        (predefinedSteps ?? ENFORE_REASONING
+        (predefinedSteps
           ? `## Workflow Steps\n${JSON.stringify(steps, null, 2)}`
           : ""),
     };
@@ -435,19 +434,6 @@ ${JSON.stringify(createArgsDef.forCurrentState(state))}
             content: [{ type: "text", text: "Error: No steps provided" }],
             isError: true,
           };
-        }
-
-        if (ENFORE_REASONING) {
-          steps.unshift({
-            description:
-              "Initial reasoning - analyze input and plan approach using available context",
-            actions: ["reasoning"],
-          });
-          steps.push({
-            description:
-              "Final reasoning - synthesize results and validate against original objectives",
-            actions: ["reasoning"],
-          });
         }
 
         state.initialize(steps);
