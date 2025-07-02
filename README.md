@@ -5,8 +5,8 @@ MCPC: One prompt instantly builds your scalable agentic MCP server from thousand
 > Read more at [Introducing MCPC: One Prompt for Your Agentic MCP Server, Powered by Thousands](https://x.com/yaoandyan/article/1921532787905237398)
 
 1. One-Prompt General Automation Workflow Declaration;
-2. Save token by internally calling dependent MCP servers;
-3. Community & Custom MCPs Support.
+2. Community & Custom MCPs Support;
+3. Building client-agnostic agent via MCP protocol.
 
 # Getting Started
 
