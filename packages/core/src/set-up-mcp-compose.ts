@@ -10,7 +10,7 @@ export const INCOMING_MSG_ROUTE_PATH = "/core/messages";
 export interface ComposeDefination {
   name: string;
   description: string;
-  deps: MCPSetting;
+  deps?: MCPSetting;
 
   options?: {
     /**

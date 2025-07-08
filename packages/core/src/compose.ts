@@ -84,7 +84,7 @@ export class ComposableMCPServer extends Server {
   async compose(
     name: string,
     description: string,
-    depsConfig: z.infer<typeof McpSettingsSchema>,
+    depsConfig: z.infer<typeof McpSettingsSchema> = { mcpServers: {} },
     options: ComposeDefination["options"] = { mode: "agentic" }
   ) {
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
@@ -246,7 +246,7 @@ ${Object.entries(internalActions).map(
 )}
 ${toolNameToDetailList.map(
   ([name, { description }]: [string, any]) => `- \`${name}\`: ${description}\n`
-)}`,
+) ?? ''}`,
               },
               uniqueItems: true,
               minItems: 1,
@@ -643,7 +643,7 @@ This tool executes actions in a multi-step process. Follow these steps for each 
       required: [ACTION_KEY],
     };
 
-    const validate = ajv.compile(argsDef);
+    const validate = ajv.compile(allToolNames.length > 0 ? argsDef : {});
 
     this.tool(
       name,
