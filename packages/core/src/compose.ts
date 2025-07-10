@@ -195,6 +195,7 @@ export class ComposableMCPServer extends Server {
     toolNameToDetailList,
     predefinedSteps,
   }: any) {
+    const hasDepTools = allToolNames.length > 0;
     const createArgsDef = {
       common: (extra: {
         [n: string]: Schema<{}>["jsonSchema"];
@@ -236,20 +237,31 @@ BEST PRACTICES:
               type: "array",
               description: `Array of action names that execute concurrently in this step.`,
               items: {
+                ...{
+                  enum: allToolNames.concat(Object.keys(internalActions)),
+                },
                 type: "string",
-                enum: allToolNames?.concat(Object.keys(internalActions)),
                 // TODO: Does the model need to know tool arguments to fully understand the purpose?
                 description: `Individual action name from available actions
 Available actions:
-${Object.entries(internalActions).map(
-  ([name, { description }]) => `- \`${name}\`: ${description}\n`
-)}
-${toolNameToDetailList.map(
-  ([name, { description }]: [string, any]) => `- \`${name}\`: ${description}\n`
-) ?? ''}`,
+${
+  hasDepTools
+    ? Object.entries(internalActions)
+        .map(([name, { description }]) => `- \`${name}\`: ${description}\n`)
+        .join("")
+    : ""
+}
+${
+  toolNameToDetailList
+    .map(
+      ([name, { description }]: [string, any]) =>
+        `- \`${name}\`: ${description}\n`
+    )
+    .join("") ?? ""
+}`,
               },
               uniqueItems: true,
-              minItems: 1,
+              minItems: 0,
               // TODO: remove this restriction when workflow planning is good enough
               maxItems: 1,
               examples: [["reasoning"]],
@@ -642,13 +654,14 @@ This tool executes actions in a multi-step process. Follow these steps for each 
       },
       required: [ACTION_KEY],
     };
-
-    const validate = ajv.compile(allToolNames.length > 0 ? argsDef : {});
+    const schema =
+      allToolNames.length > 0 ? argsDef : { type: "object", properties: {} };
+    const validate = ajv.compile(schema);
 
     this.tool(
       name,
       description,
-      jsonSchema<any>(createGoogleCompatibleJSONSchema(argsDef as any)),
+      jsonSchema<any>(createGoogleCompatibleJSONSchema(schema as any)),
       async (args) => {
         if (!validate(args)) {
           const errors = new AggregateAjvError(validate.errors!);
@@ -666,6 +679,17 @@ This tool executes actions in a multi-step process. Follow these steps for each 
         const currentTool = toolNameToDetailList.find(
           ([name]: [string]) => name === args[ACTION_KEY]
         )?.[1];
+
+        if (!currentTool) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Compeleted, no dependent tools to execute`,
+              },
+            ],
+          };
+        }
 
         const action = args[ACTION_KEY] as string;
         const nextAction = args[NEXT_ACTION_KEY] as string;

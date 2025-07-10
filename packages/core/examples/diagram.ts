@@ -12,17 +12,16 @@ export const server = await mcpc(
   [
     {
       name: "diagram",
-      description: `Generate a diagram.
-Tools: <tool name="g.__ALL__"/>`,
-      deps: {
-        mcpServers: {
-          g: {
-            transportType: "stdio",
-            command: "npx",
-            args: ["-y", "@jsr2npm/yao__gpt-vis-mcp@0.0.4"],
-          },
-        },
-      },
+      description: `Generate a diagram.`,
+      // deps: {
+      //   mcpServers: {
+      //     g: {
+      //       transportType: "stdio",
+      //       command: "npx",
+      //       args: ["-y", "@jsr2npm/yao__gpt-vis-mcp@0.0.4"],
+      //     },
+      //   },
+      // },
     },
   ],
 );
