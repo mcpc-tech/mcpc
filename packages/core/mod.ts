@@ -47,7 +47,6 @@ export * from "./src/utils/common/json.ts";
 export * from "./src/utils/wecom.ts";
 
 export * from "./src/schemas/error.ts";
-export * from "./src/schemas/wecom.ts";
 
 export * from "./src/controllers/openapi-docs.controller.ts";
 

@@ -20,7 +20,6 @@ import { ComposeDefination } from "./set-up-mcp-compose.ts";
 import { pick } from "@es-toolkit/es-toolkit";
 import { MCPCStep, WorkflowState } from "./utils/state.ts";
 import { createGoogleCompatibleJSONSchema } from "./utils/common/provider.ts";
-import { internalActions, toolNameToSchema } from "./utils/actions.ts";
 import { updateRefPaths } from "./utils/common/schema.ts";
 
 const TOOLS_PLACEHOLDER = "__ALL__";
@@ -238,27 +237,11 @@ BEST PRACTICES:
               description: `Array of action names that execute concurrently in this step.`,
               items: {
                 ...{
-                  enum: allToolNames.concat(Object.keys(internalActions)),
+                  enum: allToolNames,
                 },
                 type: "string",
                 // TODO: Does the model need to know tool arguments to fully understand the purpose?
-                description: `Individual action name from available actions
-Available actions:
-${
-  hasDepTools
-    ? Object.entries(internalActions)
-        .map(([name, { description }]) => `- \`${name}\`: ${description}\n`)
-        .join("")
-    : ""
-}
-${
-  toolNameToDetailList
-    .map(
-      ([name, { description }]: [string, any]) =>
-        `- \`${name}\`: ${description}\n`
-    )
-    .join("") ?? ""
-}`,
+                description: `Individual action name from available actions`,
               },
               uniqueItems: true,
               minItems: 0,
@@ -311,7 +294,6 @@ ${
         }
 
         const stepDependencies = {
-          ...pick(toolNameToSchema(internalActions), currentStep.actions),
           ...pick(depGroups, currentStep.actions),
         };
 
@@ -336,7 +318,6 @@ ${
         }
 
         const stepDependencies = {
-          ...pick(toolNameToSchema(internalActions), nextStep.actions),
           ...pick(depGroups, nextStep.actions),
         };
 
@@ -484,10 +465,9 @@ ${JSON.stringify(createArgsDef.forCurrentState(state))}
         // Execute all actions in the current step
         for (const action of currentStep.actions) {
           try {
-            const currentTool =
-              toolNameToDetailList.find(
-                ([toolName]: [string]) => toolName === action
-              )?.[1] ?? internalActions[action];
+            const currentTool = toolNameToDetailList.find(
+              ([toolName]: [string]) => toolName === action
+            )?.[1];
 
             if (!currentTool) {
               throw new Error(`Tool ${action} not found`);
@@ -559,7 +539,7 @@ The result of the final step is shown above. Based on this result, please choose
 
     const workflowState = new WorkflowState();
 
-    const toolDescription = `This is the autonomous tool \`${name}\` that fulfills user requests through a structured multi-step workflow. You MUST follow the instructions below to execute the workflow.
+    const toolDescription = `This is the autonomous agent \`${name}\` that fulfills user requests through a structured multi-step workflow. You MUST follow the instructions below to execute the workflow.
 
 <instructions>${description}</instructions>
 
@@ -608,7 +588,7 @@ The result of the final step is shown above. Based on this result, please choose
     depGroups,
     toolNameToDetailList,
   }: any) {
-    description = `This is the autonomous MCP tool \`${name}\`. It fulfills user instructions by orchestrating actions via **iterative self-invocation(\`${name}\`)**. You MUST follow the instructions below to execute the workflow.
+    description = `This is the autonomous MCP agent \`${name}\`. It fulfills user instructions by orchestrating actions via **iterative self-invocation(\`${name}\`)**. You MUST follow the instructions below to execute the workflow.
 
 <instructions>${description}</instructions>
 

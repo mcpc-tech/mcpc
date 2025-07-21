@@ -2,7 +2,6 @@ import { createOpenAI, OpenAIProvider } from "@ai-sdk/openai";
 import { LanguageModelV1, wrapLanguageModel } from "ai";
 import { imitateToolUseMiddleware } from "../../middleware/imitate-tool-use.middleware.ts";
 import { parseThinkingEventsMiddleware } from "../../middleware/thinking.middleware.ts";
-import { WecomIncomingParams } from "@mcpc/core";
 import process from "node:process";
 
 export const _ollama: OpenAIProvider = createOpenAI({
@@ -24,10 +23,10 @@ export const _ollama: OpenAIProvider = createOpenAI({
 
 export const ollama: (
   model: string,
-  params: WecomIncomingParams
+  params: Record<string, string>
 ) => Promise<LanguageModelV1> = async (
   model: string,
-  params: WecomIncomingParams
+  params: Record<string, string>
 ) => {
   const baseModel = _ollama(model);
 

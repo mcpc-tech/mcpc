@@ -8,7 +8,6 @@ import {
 
 import { p } from "../utils/common/ai.ts";
 
-import type { WecomIncomingParams } from "../schemas/wecom.ts";
 import { parseJSON } from "../utils/common/json.ts";
 import { Tool } from "@modelcontextprotocol/sdk";
 
@@ -327,7 +326,7 @@ function createToolCallTransformer() {
  * Middleware that imitates tool use functionality for models that don't natively support it
  */
 export function imitateToolUseMiddleware(
-  params?: WecomIncomingParams
+  params?: Record<string, string>
 ): LanguageModelV1Middleware {
   return {
     transformParams: async ({ params: originalParams }) => {

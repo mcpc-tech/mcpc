@@ -1,6 +1,8 @@
 {
   "version": "5",
   "specifiers": {
+    "jsr:@david/code-block-writer@^13.0.2": "13.0.3",
+    "jsr:@deno/dnt@*": "0.41.3",
     "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.37.2",
     "jsr:@mcpc/code-runner-mcp@*": "0.0.6",
     "jsr:@mcpc/core@^0.0.2": "0.0.2",
@@ -8,6 +10,7 @@
     "jsr:@std/encoding@^1.0.9": "1.0.9",
     "jsr:@std/fmt@1": "1.0.6",
     "jsr:@std/fmt@^1.0.6": "1.0.6",
+    "jsr:@std/fs@1": "1.0.15",
     "jsr:@std/html@^1.0.3": "1.0.3",
     "jsr:@std/http@^1.0.14": "1.0.14",
     "jsr:@std/media-types@^1.1.0": "1.1.0",
@@ -15,6 +18,8 @@
     "jsr:@std/path@1": "1.0.8",
     "jsr:@std/path@^1.0.8": "1.0.8",
     "jsr:@std/streams@^1.0.9": "1.0.9",
+    "jsr:@ts-morph/bootstrap@0.24": "0.24.0",
+    "jsr:@ts-morph/common@0.24": "0.24.0",
     "npm:@ai-sdk/openai@^1.3.7": "1.3.18_zod@3.24.3",
     "npm:@hono/zod-openapi@~0.19.2": "0.19.5_hono@4.7.7_zod@3.24.3",
     "npm:@modelcontextprotocol/sdk@^1.8.0": "1.10.2_express@5.1.0_zod@3.24.3",
@@ -50,6 +55,19 @@
     "npm:zod@^3.24.2": "3.24.3"
   },
   "jsr": {
+    "@david/code-block-writer@13.0.3": {
+      "integrity": "f98c77d320f5957899a61bfb7a9bead7c6d83ad1515daee92dbacc861e13bb7f"
+    },
+    "@deno/dnt@0.41.3": {
+      "integrity": "b2ef2c8a5111eef86cb5bfcae103d6a2938e8e649e2461634a7befb7fc59d6d2",
+      "dependencies": [
+        "jsr:@david/code-block-writer",
+        "jsr:@std/fmt@1",
+        "jsr:@std/fs",
+        "jsr:@std/path@1",
+        "jsr:@ts-morph/bootstrap"
+      ]
+    },
     "@es-toolkit/es-toolkit@1.37.2": {
       "integrity": "c628554e7c77587666c8bff2ca8dab30d4cd8c4166002e756b01ea1662e9bb1e"
     },
@@ -86,6 +104,12 @@
     "@std/fmt@1.0.6": {
       "integrity": "a2c56a69a2369876ddb3ad6a500bb6501b5bad47bb3ea16bfb0c18974d2661fc"
     },
+    "@std/fs@1.0.15": {
+      "integrity": "c083fb479889d6440d768e498195c3fc499d426fbf9a6592f98f53884d1d3f41",
+      "dependencies": [
+        "jsr:@std/path@^1.0.8"
+      ]
+    },
     "@std/html@1.0.3": {
       "integrity": "7a0ac35e050431fb49d44e61c8b8aac1ebd55937e0dc9ec6409aa4bab39a7988"
     },
@@ -113,6 +137,15 @@
     },
     "@std/streams@1.0.9": {
       "integrity": "a9d26b1988cdd7aa7b1f4b51e1c36c1557f3f252880fa6cc5b9f37078b1a5035"
+    },
+    "@ts-morph/bootstrap@0.24.0": {
+      "integrity": "a826a2ef7fa8a7c3f1042df2c034d20744d94da2ee32bf29275bcd4dffd3c060",
+      "dependencies": [
+        "jsr:@ts-morph/common"
+      ]
+    },
+    "@ts-morph/common@0.24.0": {
+      "integrity": "12b625b8e562446ba658cdbe9ad77774b4bd96b992ae8bd34c60dbf24d06c1f3"
     }
   },
   "npm": {
