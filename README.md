@@ -4,9 +4,23 @@ MCPC: One prompt instantly builds your scalable agentic MCP server from thousand
 
 > Read more at [Introducing MCPC: One Prompt for Your Agentic MCP Server, Powered by Thousands](https://x.com/yaoandyan/article/1921532787905237398)
 
-1. One-Prompt General Automation Workflow Declaration;
-2. Community & Custom MCPs Support;
-3. Building client-agnostic agent via MCP protocol.
+## ⭐ Key Features
+
+🤖 **Intelligent Execution Modes**
+- **Agentic Mode:** Fully autonomous agents with self-orchestration
+- **Workflow Mode:** Structured step-by-step execution with state management
+- **Dynamic Workflows:** Runtime step generation based on context
+
+🔧 **Advanced Tool Management**
+- **Tool Overrides:** Customize descriptions and hide sensitive operations
+- **Hidden Tools:** Internal tools for security and audit logging
+- **Wildcard Selection:** Use `__ALL__` to include all tools from an MCP server
+- **Smart Namespacing:** Automatic conflict resolution and organization
+
+🌐 **Multi-MCP Integration**
+- **Seamless Composition:** Combine multiple MCP servers into unified workflows
+- **Intelligent Orchestration:** Automatic tool coordination across different servers
+- **Dependency Management:** Declarative configuration for external MCP servers
 
 # Getting Started
 
@@ -20,10 +34,9 @@ After defining your agentic workflow, simply click the **"Generate" button** to 
 
 What's more, this powerful workflow configuration can be easily **shared with your colleagues or anyone interested**. This not only fosters team collaboration and knowledge sharing but also allows more people to experience the automation solutions you've built.
 
-## 2. Integrate Deeply Using Code
+## 2. Programmatic Integration
 
-For developers who prefer a programmatic approach, or for seamless integration into existing pipelines, MCP Compose offers robust code-based options. Leverage our comprehensive SDK, API, or CLI tools to declaratively define your workflows, compose MCPs. This method provides ultimate control and flexibility for advanced automation scenarios.
-To get started, first install @mcpc/core SDK:
+For developers seeking deep integration and customization, MCPC provides a comprehensive SDK with powerful composition capabilities:
 
 ```bash
 # Use with deno
@@ -36,7 +49,7 @@ yarn add jsr:@mcpc/core
 npx jsr add @mcpc/core
 ```
 
-Then create your composiable MCP server:
+### Basic Composition Example
 
 ```typescript
 import { StdioServerTransport } from "@modelcontextprotocol/sdk";
@@ -45,17 +58,23 @@ import { mcpc } from "@mcpc/core";
 export const server = await mcpc(
   [
     {
-      name: "mcpc",
-      version: "0.1.0",
+      name: "smart-file-manager",
+      version: "1.0.0",
     },
     { capabilities: { tools: { listChanged: true } } },
   ],
   [
     {
-      name: "tidy-folder",
-      description: `Goal: Automatically keep the users folder tidy, organized, and free from clutter by intelligently classifying(with folders) and managing files(moving to corresponding folder).
-Tools: <tool name="@wonderwhy-er/desktop-commander.list_directory"/> , <tool name="@wonderwhy-er/desktop-commander.create_directory"/> , <tool name="@wonderwhy-er/desktop-commander.move_file"/> 
-`,
+      name: "file-organizer",
+      description: `I am an intelligent file organizer with advanced capabilities.
+
+Available tools:
+<tool name="@wonderwhy-er/desktop-commander.list_directory"/>
+<tool name="@wonderwhy-er/desktop-commander.create_directory"/>
+<tool name="@wonderwhy-er/desktop-commander.move_file"/>
+
+I can automatically organize files by type, date, and content with smart conflict resolution.`,
+      
       deps: {
         mcpServers: {
           "@wonderwhy-er/desktop-commander": {
@@ -72,4 +91,296 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 ```
 
-See more example code snippets at: https://github.com/mcpc-tech/mcpc/tree/main/packages/core/examples
+### Advanced Workflow Example
+
+```typescript
+import { mcpc } from "@mcpc/core";
+
+// Structured workflow with predefined steps
+export const server = await mcpc(
+  [{ name: "image-generator", version: "1.0.0" }],
+  [
+    {
+      name: "design-creator",
+      options: {
+        mode: "agentic_workflow",
+        steps: [
+          {
+            description: "Analyze design requirements and create detailed plan",
+            actions: ["reasoning"]
+          },
+          {
+            description: "Generate HTML/CSS code with modern design principles",
+            actions: ["@wonderwhy-er/desktop-commander.write_file"]
+          },
+          {
+            description: "Render design in browser and capture screenshot",
+            actions: ["@microsoft/playwright-mcp.browser_screenshot"]
+          }
+        ]
+      },
+      description: `Create professional images through structured design workflow...`,
+      deps: { /* ... */ }
+    }
+  ]
+);
+```
+
+### Advanced Tool Management
+
+```typescript
+import { ComposableMCPServer } from "@mcpc/core";
+
+// Direct server control for advanced features
+const server = new ComposableMCPServer(
+  { name: "secure-manager", version: "1.0.0" },
+  { capabilities: { tools: { listChanged: true } } }
+);
+
+// Tool overrides and hidden tools
+await server.compose(
+  "secure-file-manager",
+  `Enhanced file manager with security features.
+
+<tool name="file-operations.delete" description="Secure file deletion with audit logging"/>
+<tool name="internal-logger" hide/>
+<tool name="file-operations.__ALL__"/>`,
+  { /* dependencies */ }
+);
+
+// Add hidden internal tools
+server.hiddenTool(
+  "audit-logger",
+  "Internal security logging",
+  schema,
+  (args) => { /* logging logic */ }
+);
+
+// Secure public interface using hidden tools
+server.tool(
+  "secure-delete",
+  "Delete files with validation and logging",
+  schema,
+  async (args) => {
+    await server.callInternalTool("audit-logger", {...});
+    // Secure deletion logic
+  }
+);
+```
+
+## 🔧 Core Features
+
+### Execution Modes
+
+**Agentic Mode** - Complete autonomy and self-orchestration
+```typescript
+{
+  name: "autonomous-analyst",
+  options: { mode: "agentic" },
+  description: `I autonomously analyze data and make decisions...`
+}
+```
+
+**Workflow Mode** - Structured step-by-step execution
+```typescript
+{
+  name: "structured-processor",
+  options: {
+    mode: "agentic_workflow",
+    steps: [
+      { description: "Analyze input", actions: ["reasoning"] },
+      { description: "Process data", actions: ["tool1", "tool2"] },
+      { description: "Generate output", actions: ["tool3"] }
+    ]
+  }
+}
+```
+
+**Dynamic Workflows** - Runtime step generation
+```typescript
+{
+  options: { mode: "agentic_workflow" }, // No predefined steps
+  description: `I generate workflow steps dynamically based on the task...`
+}
+```
+
+### Tool Management
+
+**Tool Selection**
+```typescript
+description: `
+Available tools:
+<tool name="server.specific_tool"/>
+<tool name="server.__ALL__"/>  // Include all tools
+<tool name="tool1" description="Enhanced description"/>
+<tool name="sensitive_tool" hide/>  // Hide from public interface
+`
+```
+
+**Hidden Tools and Security**
+```typescript
+// Register internal tools
+server.hiddenTool("audit-logger", "Internal logging", schema, callback);
+
+// Use hidden tools in public interfaces
+server.tool("secure-operation", "Safe operation", schema, async (args) => {
+  await server.callInternalTool("audit-logger", {...});
+  // Secure operation logic
+});
+```
+
+### Multi-MCP Integration
+
+**Seamless Composition**
+```typescript
+deps: {
+  mcpServers: {
+    "@microsoft/playwright-mcp": {
+      command: "npx",
+      args: ["@playwright/mcp@latest"]
+    },
+    "code-runner": {
+      command: "deno",
+      args: ["run", "--allow-all", "jsr:@mcpc/code-runner-mcp/bin"]
+    },
+    "@wonderwhy-er/desktop-commander": {
+      command: "npx",
+      args: ["-y", "@wonderwhy-er/desktop-commander@latest"]
+    }
+  }
+}
+```
+
+### Real-Time Transport
+
+**Server-Sent Events (SSE)**
+```typescript
+import { SSEServerTransport } from "@mcpc/core";
+
+const sseTransport = new SSEServerTransport("/events");
+await server.connect(sseTransport);
+
+// Client side
+const eventSource = new EventSource('http://localhost:3001/events');
+eventSource.addEventListener('progress', (event) => {
+  console.log('Real-time update:', event.data);
+});
+```
+
+## 📚 Comprehensive Examples
+
+Explore our complete example collection demonstrating all MCPC features:
+
+### Core Examples
+- **[Basic File Manager](packages/core/examples/comprehensive-features/01-basic-file-manager.ts)** - Simple composition and tool selection
+- **[Agentic Data Analyst](packages/core/examples/comprehensive-features/02-agentic-data-analyst.ts)** - Autonomous mode with complete flexibility
+- **[Workflow Image Generator](packages/core/examples/comprehensive-features/03-workflow-image-generator.ts)** - Structured workflows with predefined steps
+- **[Dynamic Document Processor](packages/core/examples/comprehensive-features/04-dynamic-workflow-processor.ts)** - Runtime workflow generation
+
+### Advanced Examples
+- **[Tool Override Manager](packages/core/examples/comprehensive-features/05-tool-override-manager.ts)** - Advanced tool management and security
+- **[Multi-MCP Web Analyzer](packages/core/examples/comprehensive-features/06-multi-mcp-web-analyzer.ts)** - Complex multi-server integration
+- **[SSE Transport Server](packages/core/examples/comprehensive-features/07-sse-transport-server.ts)** - Real-time communication
+- **[Thinking Middleware Agent](packages/core/examples/comprehensive-features/08-thinking-middleware-agent.ts)** - Transparent AI reasoning
+
+Each example is complete, runnable, and demonstrates specific MCPC capabilities with detailed documentation.
+
+## 🚀 Use Cases
+
+### DevOps & Automation
+- **CI/CD Pipeline Management:** Orchestrate build, test, and deployment workflows
+- **Infrastructure Monitoring:** Real-time system health and performance tracking
+- **Log Analysis:** Intelligent parsing and alerting for system events
+- **Deployment Automation:** Multi-stage deployment with validation and rollback
+
+### Data Processing & Analytics
+- **ETL Pipelines:** Extract, transform, and load data from multiple sources
+- **Report Generation:** Automated analysis and visualization creation
+- **Data Quality Monitoring:** Continuous validation and quality assurance
+- **Machine Learning Workflows:** Model training, evaluation, and deployment
+
+### Content Creation & Management
+- **Document Processing:** Intelligent parsing, transformation, and organization
+- **Image Generation:** Dynamic visual content creation with HTML/CSS rendering
+- **Website Analysis:** SEO, performance, and accessibility auditing
+- **Content Optimization:** Automated improvements and recommendations
+
+### Security & Compliance
+- **Audit Logging:** Comprehensive tracking for regulatory compliance
+- **Security Scanning:** Automated vulnerability detection and reporting
+- **Access Control:** Role-based permissions and secure operations
+- **Incident Response:** Automated threat detection and mitigation
+
+## 🔗 Integration
+
+### Claude Desktop Configuration
+
+```json
+{
+  "mcpServers": {
+    "file-manager": {
+      "command": "deno",
+      "args": ["run", "--allow-all", "path/to/your-server.ts"]
+    },
+    "data-analyst": {
+      "command": "node",
+      "args": ["path/to/compiled-server.js"]
+    }
+  }
+}
+```
+
+### API Integration
+
+```typescript
+import { mcpc, SSEServerTransport } from "@mcpc/core";
+
+// Create server for API integration
+const server = await mcpc([...], [...]);
+
+// Use with web frameworks
+const transport = new SSEServerTransport("/api/mcp");
+await server.connect(transport);
+
+// Or stdio for CLI tools
+import { StdioServerTransport } from "@modelcontextprotocol/sdk";
+const stdioTransport = new StdioServerTransport();
+await server.connect(stdioTransport);
+```
+
+## 📖 Documentation
+
+- **[Comprehensive Examples](packages/core/examples/comprehensive-features/)** - Complete feature demonstrations
+- **[Core API Reference](packages/core/src/)** - Detailed API documentation
+- **[Integration Guides](packages/core/examples/)** - Platform-specific integration examples
+
+## 🛠️ Development
+
+```bash
+# Clone the repository
+git clone https://github.com/mcpc-tech/mcpc.git
+cd mcpc
+
+# Install dependencies
+deno install
+
+# Run examples
+deno run --allow-all packages/core/examples/comprehensive-features/01-basic-file-manager.ts
+
+# Or with Node.js
+npm install
+npm run build
+node dist/examples/01-basic-file-manager.js
+```
+
+## 🤝 Contributing
+
+MCPC is an open-source project welcoming contributions. Whether you're building new MCP integrations, improving existing features, or creating examples, we'd love your help!
+
+- **Report Issues:** [GitHub Issues](https://github.com/mcpc-tech/mcpc/issues)
+- **Feature Requests:** [Discussions](https://github.com/mcpc-tech/mcpc/discussions)
+- **Pull Requests:** [Contributing Guide](CONTRIBUTING.md)
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.

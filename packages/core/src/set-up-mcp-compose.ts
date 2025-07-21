@@ -3,7 +3,6 @@ import minimist from "minimist";
 import { connectToSmitheryServer } from "./utils/common/registory.ts";
 import { MCPCStep } from "./utils/state.ts";
 import { MCPSetting } from "./service/tools.ts";
-import { insImageGen } from "../examples/def.ts";
 
 export const INCOMING_MSG_ROUTE_PATH = "/core/messages";
 
@@ -39,9 +38,7 @@ export function parseMcpcConfigs(
   conf?: ComposeDefination[]
 ): ComposeDefination[] {
   const mcpcConfigRaw =
-    minimist(process.argv.slice(2))?.["mcpc-config"] ??
-    process.env.MCPC_CONFIG ??
-    JSON.stringify([insImageGen]);
+    minimist(process.argv.slice(2))?.["mcpc-config"] ?? process.env.MCPC_CONFIG;
   const mcpcConfigs = conf ?? JSON.parse(mcpcConfigRaw);
   const newMcpcConfigs = [];
 
@@ -64,10 +61,16 @@ export function parseMcpcConfigs(
 
 export async function mcpc(
   serverConf: ConstructorParameters<typeof ComposableMCPServer>,
-  composeConf?: ComposeDefination[]
+  composeConf?: ComposeDefination[],
+  setupCallback?: (server: ComposableMCPServer) => void | Promise<void>
 ): Promise<InstanceType<typeof ComposableMCPServer>> {
   const server = new ComposableMCPServer(...serverConf);
   const parsed = parseMcpcConfigs(composeConf);
+
+  // Allow user to register tools before composing
+  if (setupCallback) {
+    await setupCallback(server);
+  }
 
   for (const mcpcConfig of parsed) {
     await server.compose(
