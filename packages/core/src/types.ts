@@ -19,7 +19,6 @@ export interface ArgsDefCreator {
   steps: () => JSONSchema;
   init: () => JSONSchema;
   proceed: () => JSONSchema;
-  executeAction: () => JSONSchema;
   forTool: () => JSONSchema;
   forCurrentState: (state: import("./utils/state.ts").WorkflowState) => JSONSchema;
   forNextState: (state: import("./utils/state.ts").WorkflowState) => JSONSchema;

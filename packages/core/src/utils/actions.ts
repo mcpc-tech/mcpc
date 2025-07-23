@@ -17,26 +17,23 @@ export const internalActions: Record<string, Tool> = {
       properties: {
         context: {
           type: "string",
-          description:
-            "First, clearly identify what the problem is asking and what information you have available",
+          description: "Problem definition and available information",
         },
         analysis: {
           type: "string",
-          description:
-            "Break down the problem step by step. Show your logical reasoning process, calculations, or decision-making steps",
+          description: "Step-by-step logical reasoning and calculations",
         },
         conclusion: {
           type: "string",
-          description:
-            "State your final answer clearly and explain why this conclusion follows from your analysis",
+          description: "Final answer with clear justification",
         },
       },
       required: ["context", "analysis", "conclusion"],
     }),
-    description: `Use this tool to think through complex problems systematically. You MUST:
-    1. First understand the context and what's being asked
-    2. Show detailed step-by-step analysis 
-    3. Reach a clear conclusion based on your reasoning`,
+    description: `Systematic problem-solving tool. Steps:
+    1. Context: Define the problem and available information
+    2. Analysis: Break down step-by-step reasoning
+    3. Conclusion: State clear answer with justification`,
     execute: async ({ context, analysis, conclusion }) => {
       return {
         content: [{ type: "text", text: "Reasoning process documented" }],

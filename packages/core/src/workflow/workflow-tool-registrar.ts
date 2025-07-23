@@ -1,16 +1,13 @@
-import { jsonSchema, type Schema } from "ai";
+import { jsonSchema } from "ai";
 import type { RegisterWorkflowToolParams } from "../types.ts";
 import { WorkflowState } from "../utils/state.ts";
 import { createGoogleCompatibleJSONSchema } from "../utils/common/provider.ts";
 import { WorkflowExecutor } from "./workflow-executor.ts";
 import { createArgsDefFactory } from "./args-def-factory.ts";
-
-interface MCPServer {
-  tool: <T>(name: string, description: string, schema: Schema<T>, callback: (args: T) => unknown) => void;
-}
+import type { ComposableMCPServer } from "../compose.ts";
 
 export function registerAgenticWorkflowTool(
-  server: MCPServer,
+  server: ComposableMCPServer,
   {
     description,
     name,
@@ -21,24 +18,27 @@ export function registerAgenticWorkflowTool(
   }: RegisterWorkflowToolParams
 ) {
   const createArgsDef = createArgsDefFactory(name, allToolNames, depGroups, predefinedSteps);
-  const executor = new WorkflowExecutor(name, allToolNames, toolNameToDetailList, createArgsDef, predefinedSteps);
+  const executor = new WorkflowExecutor(name, allToolNames, toolNameToDetailList, createArgsDef, server, predefinedSteps);
   const workflowState = new WorkflowState();
 
-  const toolDescription = `This is the autonomous agent \`${name}\` that fulfills user requests through a structured multi-step workflow. You MUST follow the instructions below to execute the workflow.
+  const toolDescription = `Autonomous workflow execution tool \`${name}\` that processes user requests through structured multi-step workflows.
 
 <instructions>${description}</instructions>
 
-**WORKFLOW PHASES:**
+## Workflow Execution Protocol
 
-**Phase 1 - PLANNING (First Call Only):**
-- **If predefined steps exist, do NOT specify \`steps\`**
-- **Call this tool with \`init\` set to true**
-- **Generate complete workflow with ALL steps**
+**🎯 FIRST CALL (Planning):**
+${predefinedSteps ? '- Set \`init: true\` (steps are predefined)' : '- Set \`init: true\` and define complete \`steps\` array'}
 
-**Phase 2 - EXECUTION (All Subsequent Calls):**
-- **CRITICAL: NEVER include 'steps' field in response.**
-- **ONLY provide current step execution parameters.**
-- **MUST use \`reasoning\` action when thinking, planning, or capturing an observation is needed.**`;
+**⚡ SUBSEQUENT CALLS (Execution):**
+- Provide ONLY current step parameters
+- **ADVANCE STEP**: Set \`proceed: true\` to move to next step  
+- **RETRY STEP**: Set \`proceed: false\` (or omit) to retry current step
+- Use \`reasoning\` action for thinking/analysis
+
+**🚫 Do NOT include \`steps\` parameter during normal execution**
+**✅ Include \`steps\` parameter ONLY when restarting workflow with \`init: true\`**
+**⚠️ CRITICAL: When retrying failed steps, NEVER use \`proceed: true\`**`;
 
   server.tool(
     name,

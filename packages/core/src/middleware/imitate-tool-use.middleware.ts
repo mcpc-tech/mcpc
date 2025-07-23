@@ -30,39 +30,23 @@ export const toolCallPattern: RegExp = new RegExp(
 
 // System prompt to guide the model to use the tool call format
 const imitateToolCallPrompt = `
-# Tool Use Instructions
+# Tool Usage Instructions
 
-You have access to tools. To use a tool, you MUST output exactly in the following format, with no extra characters or markdown formatting:
-{ImitateToolCallTag.StartTag}{"name": "tool_name", "parameters": {"param1": "value1", "param2": "value2"}}{ImitateToolCallTag.EndTag}
+Use tools by outputting this exact format (no extra formatting):
+{ImitateToolCallTag.StartTag}{"name": "tool_name", "parameters": {"param1": "value1"}}{ImitateToolCallTag.EndTag}
 
-CRITICAL:
-1.  You MUST include both the opening tag {ImitateToolCallTag.StartTag} and the closing tag {ImitateToolCallTag.EndTag}.
-2.  The closing tag {ImitateToolCallTag.EndTag} MUST immediately follow the JSON object. No text or newlines between the JSON closing brace } and {ImitateToolCallTag.EndTag}.
-3.  Only call one tool per turn. Wait for the response before deciding your next action or tool call.
-4.  The parameters object within the JSON should only contain the parameter names and the actual values you want to use for the call (e.g., "param_name": actual_value). Do NOT include type, description, or other definition details within the call itself.
-5.  You can analyze parameters before calling a tool, but do NOT output parameters code block. Directly execute the tool call.
+**CRITICAL RULES:**
+1. Include both {ImitateToolCallTag.StartTag} and {ImitateToolCallTag.EndTag} tags
+2. Closing tag MUST immediately follow JSON (no spaces/newlines) 
+3. One tool per turn - wait for response
+4. Parameters contain actual values only (not type definitions)
+5. No parameter code blocks - execute directly
 
-## Available Tools
-Tool definitions are provided below within <tool_definition> tags. Use these to understand the tool's purpose and required parameters. This definition format is for your information only, NOT for making the call.
-<tool_definition>{"name": "tool_name", "description": "tool_description", "parameters": {"param1": {"type": "string", "description": "description of param1"}, "param2": {"type": "number", "description": "description of param2"}}}</tool_definition>
+## Tool Format Examples
+✅ Correct: {ImitateToolCallTag.StartTag}{"name": "search", "parameters": {"query": "AI research"}}{ImitateToolCallTag.EndTag}
+❌ Wrong: {"name": "search", "parameters": {"query": "AI research"}} (missing tags)
 
-Example Definitions - DO NOT CALL THESE, just understand the format:
-<tool_definition>{"name": "search", "description": "Useful for when you need to answer questions about current events. Ask targeted questions.", "parameters": {"query": {"type": "string", "description": "The search query"}}}</tool_definition>
-<tool_definition>{"name": "calculator", "description": "Useful for performing mathematical calculations.", "parameters": {"operation": {"type": "string", "description": "Operation (add, subtract, multiply, divide)"}, "x": {"type": "number", "description": "First number"}, "y": {"type": "number", "description": "Second number"}}}</tool_definition>
-
-## Correct Tool Call Examples
-Notice the exact format: {ImitateToolCallTag.StartTag}JSON{ImitateToolCallTag.EndTag}
-{ImitateToolCallTag.StartTag}{"name": "search", "parameters": {"query": "Latest AI research breakthroughs"}}{ImitateToolCallTag.EndTag}
-{ImitateToolCallTag.StartTag}{"name": "calculator", "parameters": {"operation": "multiply", "x": 15, "y": 8}}{ImitateToolCallTag.EndTag}
-{ImitateToolCallTag.StartTag}{"name": "capi.capi.post-/cls/SearchLog", "parameters": {"inputParams": {"From": 1744924800000, "To": 1744968000000, "Query": "*", "TopicId": "57fc27cc-359c-49dc-9f2b-f40f0cad78ec", "Limit": 2, "Sort": "desc"}}}{ImitateToolCallTag.EndTag}
-
-## Wrong Tool Call Examples
-Notice the exact format: {ImitateToolCallTag.StartTag}JSON{ImitateToolCallTag.EndTag}
-No end tag: {ImitateToolCallTag.StartTag}{"name": "search", "parameters": {"query": "Latest AI research breakthroughs"}}
-Missing start/end tag: {"name": "search", "parameters": {"query": "Latest AI research breakthroughs"}}
-Invalid json: {ImitateToolCallTag.StartTag}{"name": "search", "parameters": {"query": "Latest AI research breakthroughs"}{ImitateToolCallTag.EndTag}
-
-## Your Available Tools:
+## Available Tools:
 {tool_definitions}
 `;
 

@@ -9,11 +9,16 @@ export function createArgsDefFactory(
   predefinedSteps?: MCPCStep[]
 ): ArgsDefCreator {
   return {
-    common: (extra: { [n: string]: JSONSchema }, optionalFields: string[] = []): JSONSchema => {
-      const requiredFields = Object.keys(extra).filter(key => !optionalFields.includes(key));
+    common: (
+      extra: { [n: string]: JSONSchema },
+      optionalFields: string[] = []
+    ): JSONSchema => {
+      const requiredFields = Object.keys(extra).filter(
+        (key) => !optionalFields.includes(key)
+      );
       return {
         type: "object",
-        description: `**Tool arguments structured according to the step's JSON Schema definition; it's DYNAMIC and will update for each step**`,
+        description: `**Tool parameters dynamically update per workflow step**`,
         properties: {
           ...extra,
         },
@@ -24,26 +29,25 @@ export function createArgsDefFactory(
     steps: (): JSONSchema => ({
       type: "array",
       description: `
-An array of step objects that defines the complete sequence of actions for a workflow. This array should be provided only on the initial call, unless a workflow restart is required.
+Workflow step definitions - provide ONLY on initial call.
 
-CRITICAL:
--   **Workflow as a Sequence of States**: Steps MUST be organized to reflect the workflow's logical sequence. Each step represents a distinct phase.
--   **Sequential Dependency Rule**: If Action B depends on the outcome of Action A, they MUST be in separate, sequential steps (A in Step N, B in Step N+1).
--   **Concurrent Action Rule**: All actions within a single step are considered independent and MUST be executable concurrently.
--   **Action Fidelity Rule**: The set of generated actions MUST be a complete and faithful one-to-one mapping of the operations requested in the user's description. Do NOT omit requested ones.
--   **Predefined steps**: MUST remain unspecified if predefined steps are present
+**CRITICAL RULES:**
+- **Sequential Dependency:** If Action B depends on Action A's result → separate steps
+- **Concurrent Actions:** Independent actions can share one step  
+- **Complete Mapping:** Include ALL requested operations
+- **Predefined Steps:** Leave unspecified if predefined steps exist
 
-BEST PRACTICES:
--   **Atomicity**: A step should be as atomic as possible.
--   **Idempotency**: Actions should be designed to be idempotent for safe retries.
--   **Clarity over Brevity**: Prefer more, smaller, focused steps over fewer, complex ones.`,
+**BEST PRACTICES:**
+- Atomic, focused steps
+- Idempotent actions for safe retries
+- Clear step descriptions with input/output context`,
       items: {
         type: "object",
         description: `A single step containing actions that execute concurrently. All actions in this step run simultaneously with no guaranteed order.`,
         properties: {
           description: {
             type: "string",
-            description: `**Describes what a step does, what it needs from previous steps or context, and what it outputs.**`,
+            description: `**Step purpose, required inputs, and expected outputs**`,
           },
           actions: {
             type: "array",
@@ -77,32 +81,24 @@ BEST PRACTICES:
     proceed: (): JSONSchema => ({
       type: "boolean",
       description:
-        "**Controls step execution flow. MUST be set to `true` to advance to the next step. If omitted or false, this step will be re-executed with the provided arguments**",
+        "**Step execution control. Set \`true\` to advance, \`false\`/omit to retry. ⚠️ CRITICAL: For failed steps, NEVER use \`true\`**",
     }),
 
-    // Direct call support - allows LLM to directly call any available tool
-    executeAction: (): JSONSchema => ({
-      type: "boolean",
-      description: `**Direct action execution mode. Set to true when you want to execute a specific action directly without going through the workflow process.**`,
-    }),
-
-    forTool: function(): JSONSchema {
+    forTool: function (): JSONSchema {
       return this.common({});
     },
 
-    forCurrentState: function(state: WorkflowState): JSONSchema {
+    forCurrentState: function (state: WorkflowState): JSONSchema {
       if (!state.isWorkflowInitialized()) {
         if (predefinedSteps) {
-          return this.common({ 
+          return this.common({
             init: this.init(),
-            executeAction: this.executeAction()
-          }, ["executeAction"]);
+          });
         }
         return this.common({
           steps: this.steps(),
           init: this.init(),
-          executeAction: this.executeAction()
-        }, ["executeAction"]);
+        });
       }
 
       const currentStep = state.getCurrentStep();
@@ -119,16 +115,13 @@ BEST PRACTICES:
       } as Record<string, JSONSchema>;
 
       stepDependencies["proceed"] = this.proceed();
-      stepDependencies["executeAction"] = this.executeAction();
 
-      return this.common(stepDependencies, ["proceed", "executeAction"]);
+      return this.common(stepDependencies, ["proceed"]);
     },
 
-    forNextState: function(state: WorkflowState): JSONSchema {
+    forNextState: function (state: WorkflowState): JSONSchema {
       if (!state.isWorkflowInitialized() || !state.hasNextStep()) {
-        throw new Error(
-          `Cannot get next state schema: no next step available`
-        );
+        throw new Error(`Cannot get next state schema: no next step available`);
       }
 
       const currentStepIndex = state.getCurrentStepIndex();
@@ -148,7 +141,10 @@ BEST PRACTICES:
       return this.common(stepDependencies);
     },
 
-    forToolDescription: function(description: string, state: WorkflowState): string {
+    forToolDescription: function (
+      description: string,
+      state: WorkflowState
+    ): string {
       const enforceToolArgs = this.forCurrentState(state);
       const title = predefinedSteps
         ? `**YOU MUST execute this tool with following tool arguments to init the workflow**
@@ -160,24 +156,33 @@ ${title}
 ${JSON.stringify(enforceToolArgs, null, 2)}`;
     },
 
-    forInitialStepDescription: function(steps: MCPCStep[], state: WorkflowState): string {
-      return `Workflow initialized with ${
-        steps.length
-      } steps. You MUST start the workflow with the first step to \`${
-        state.getCurrentStep()?.description
-      }\`. 
+    forInitialStepDescription: function (
+      steps: MCPCStep[],
+      state: WorkflowState
+    ): string {
+      return (
+        `Workflow initialized with ${
+          steps.length
+        } steps. You MUST start the workflow with the first step to \`${
+          state.getCurrentStep()?.description
+        }\`. 
               
 ## EXECUTE tool \`${name}\` with following new tool arguments
 
-${JSON.stringify(this.forCurrentState(state))}
+${JSON.stringify(this.forCurrentState(state), null, 2)}
 
 ## Important Instructions
-- **Do NOT include 'steps' parameter in any subsequent tool calls**
+- **Include 'steps' parameter ONLY when restarting workflow (with 'init: true')**
+- **Do NOT include 'steps' parameter during normal step execution**
 - **MUST Use the provided JSON schema definition above for parameter generation and validation**
+- **ADVANCE STEP: Set 'proceed' to true to advance to next step**
+- **RETRY STEP: Set 'proceed' to false or omit it to re-execute current step**
+- **⚠️ CRITICAL: When retrying failed steps, NEVER set 'proceed' to true**
 ` +
-      (predefinedSteps
-        ? `## Workflow Steps\n${JSON.stringify(steps, null, 2)}`
-        : "");
-    }
+        (predefinedSteps
+          ? `## Workflow Steps\n${JSON.stringify(steps, null, 2)}`
+          : "")
+      );
+    },
   };
 }

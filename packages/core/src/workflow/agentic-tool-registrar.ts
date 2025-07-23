@@ -31,18 +31,20 @@ export function registerAgenticTool(
     toolNameToDetailList,
   }: RegisterToolParams
 ) {
-  description = `This is the autonomous MCP agent \`${name}\`. It fulfills user instructions by orchestrating actions via **iterative self-invocation(\`${name}\`)**. You MUST follow the instructions below to execute the workflow.
+  description = `Autonomous MCP execution tool \`${name}\` that processes user instructions through iterative self-invocation.
 
 <instructions>${description}</instructions>
 
-# Action Execution Protocol
+## Action Execution Protocol
 
-This tool executes actions in a multi-step process. Follow these steps for each iteration:
-1.  **Determine Current Action:** Based on user instructions, overall task goal, and prior results, identify the *single most appropriate action* for this step.
-2.  **Anticipate Next Action (if any):** Plan and anticipate the likely *next action* needed to complete the task after the current step.
+**🎯 Each Iteration:**
+1. **Identify Current Action:** Select the single most appropriate action based on context and goals
+2. **Plan Next Action:** Anticipate the likely next step needed (if any)
 
-* Do not treat actions merely as simple tool calls.
-* Always execute actions via this protocol. Do NOT attempt direct, unstructured calls.`;
+**⚡ Key Rules:**
+- Execute ONE action per iteration
+- Use structured protocol - no direct tool calls
+- Always analyze results before proceeding`;
 
   // Get all tools that should be available as actions (non-hidden external tools + internal tools)
   const externalToolNames = toolNameToDetailList.map(([name]) => name);

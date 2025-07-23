@@ -4,6 +4,7 @@ import { AggregateAjvError } from "@segment/ajv-human-errors";
 import addFormats from "ajv-formats";
 import type { MCPCStep, WorkflowState } from "../utils/state.ts";
 import type { ArgsDefCreator } from "../types.ts";
+import type { ComposableMCPServer } from "../compose.ts";
 
 const ajv = new Ajv({
   allErrors: true,
@@ -18,16 +19,14 @@ export class WorkflowExecutor {
     private allToolNames: string[],
     private toolNameToDetailList: [string, unknown][],
     private createArgsDef: ArgsDefCreator,
-    private predefinedSteps?: MCPCStep[],
-    private executeToolCallback?: (toolName: string, args: Record<string, unknown>) => Promise<CallToolResult>
+    private server: ComposableMCPServer,
+    private predefinedSteps?: MCPCStep[]
   ) {}
 
-  async execute(args: Record<string, unknown>, state: WorkflowState): Promise<CallToolResult> {
-    // Handle direct action execution mode
-    if (args.executeAction === true) {
-      return await this.executeDirectAction(args);
-    }
-
+  async execute(
+    args: Record<string, unknown>,
+    state: WorkflowState
+  ): Promise<CallToolResult> {
     if (args.init) {
       state.reset();
     } else {
@@ -87,7 +86,10 @@ export class WorkflowExecutor {
     return await this.executeStep(args, state);
   }
 
-  initialize(args: Record<string, unknown>, state: WorkflowState): CallToolResult {
+  initialize(
+    args: Record<string, unknown>,
+    state: WorkflowState
+  ): CallToolResult {
     const steps = (this.predefinedSteps ?? args.steps) as Array<MCPCStep>;
 
     if (!steps || steps.length === 0) {
@@ -105,7 +107,7 @@ export class WorkflowExecutor {
         {
           type: "text",
           text: this.createArgsDef.forInitialStepDescription(
-            this.predefinedSteps ?? args.steps as MCPCStep[],
+            this.predefinedSteps ?? (args.steps as MCPCStep[]),
             state
           ),
         },
@@ -114,13 +116,14 @@ export class WorkflowExecutor {
     };
   }
 
-  async executeStep(args: Record<string, unknown>, state: WorkflowState): Promise<CallToolResult> {
+  async executeStep(
+    args: Record<string, unknown>,
+    state: WorkflowState
+  ): Promise<CallToolResult> {
     const currentStep = state.getCurrentStep();
     if (!currentStep) {
       return {
-        content: [
-          { type: "text", text: "Error: No current step to execute" },
-        ],
+        content: [{ type: "text", text: "Error: No current step to execute" }],
         isError: true,
       };
     }
@@ -133,16 +136,11 @@ export class WorkflowExecutor {
     // Execute all actions in the current step
     for (const action of currentStep.actions) {
       try {
-        const currentTool = this.toolNameToDetailList.find(
-          ([toolName]: [string, unknown]) => toolName === action
-        )?.[1] as { execute: (args: unknown) => Promise<CallToolResult> } | undefined;
-
-        if (!currentTool) {
-          throw new Error(`Tool ${action} not found`);
-        }
-
         const actionArgs = args[action] || {};
-        const actionResult = await currentTool.execute(actionArgs);
+        const actionResult = (await this.server.callTool(
+          action,
+          actionArgs
+        )) as CallToolResult;
 
         if (!results.isError) {
           results.isError = actionResult.isError;
@@ -173,105 +171,39 @@ export class WorkflowExecutor {
       const nextStepArgsDef = this.createArgsDef.forNextState(state);
       results.content.push({
         type: "text",
-        text: `You **MUST** decide whether to proceed to the next step to \`${
-          state.getNextStep()?.description
-        }\`.
-To retry, **You MUST EXECUTE tool \`${this.name}\` with current step's arguments
-To proceed, You MUST EXECUTE tool \`${this.name}\` with the following tool arguments, ensuring the proceed parameter is set to true:
+        text: `**Next Step Decision Required**
+
+Previous step completed. Choose your action:
+
+**🔄 RETRY Current Step:** 
+- Call \`${this.name}\` with current parameters
+- ⚠️ CRITICAL: Set \`proceed: false\` OR omit \`proceed\` parameter
+
+**▶️ PROCEED to Next Step:** 
+- Call \`${this.name}\` with parameters below
+- Set \`proceed: true\`
+
+Next step: \`${state.getNextStep()?.description}\`
 
 ${JSON.stringify(nextStepArgsDef, null, 2)}
 
-**Instructions:**
-- Analyze the previous action's result carefully
-- Determine if the next step is necessary and appropriate
-- **Exclude the \`steps\` key from your generated parameters**`,
+**Important:** Exclude \`steps\` key from your parameters`,
       });
     } else {
       results.content.push({
         type: "text",
-        text: `Workflow completed. All steps have been executed.
+        text: `**Workflow Complete** ✅
 
-The result of the final step is shown above. Based on this result, please choose your next action from the options below:
+All steps executed successfully. Choose your next action:
 
-1.  **✅ Conclude and Finish:** If the result meets all expectations, provide the final answer or summary to the user directly. **Do not call this tool again.**
-
-2.  **🔄 Retry the Final Step:** If the result of the final step is unsatisfactory or incorrect, you **CAN retry it** by calling this tool again with the required arguments for this last step.
-
-3.  **🆕 Start a New Workflow:** If you need to start a brand new task from scratch, you **MUST** call this tool to initialize a new workflow`,
+**1. ✅ Finish:** Provide final summary to user (don't call this tool)
+**2. 🔄 Retry Final Step:** Call \`${this.name}\` with final step parameters  
+**3. 🆕 New Workflow:** Call \`${this.name}\` with \`init: true\`${
+          this.predefinedSteps ? "" : " and new \`steps\` array"
+        }`,
       });
     }
 
     return results;
-  }
-
-  private async executeDirectAction(args: Record<string, unknown>): Promise<CallToolResult> {
-    // Find the tool to execute (any parameter except executeAction)
-    const toolEntries = Object.entries(args).filter(([key]) => key !== 'executeAction');
-    
-    if (toolEntries.length === 0) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: No tool specified for direct action execution. Please provide a tool name as a parameter.`,
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    if (toolEntries.length > 1) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: Multiple tools specified for direct action execution. Please provide only one tool at a time. Found: ${toolEntries.map(([key]) => key).join(', ')}`,
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    const [toolName, toolArgs] = toolEntries[0];
-    
-    try {
-      // Try to find the tool in the toolNameToDetailList first
-      const currentTool = this.toolNameToDetailList.find(
-        ([name]: [string, unknown]) => name === toolName
-      )?.[1] as { execute: (args: unknown) => Promise<CallToolResult> } | undefined;
-
-      if (currentTool) {
-        // Execute external tool
-        const result = await currentTool.execute(toolArgs);
-        return result;
-      }
-
-      // If not found in external tools and executeToolCallback is available, try internal tools
-      if (this.executeToolCallback) {
-        const result = await this.executeToolCallback(toolName, toolArgs as Record<string, unknown>);
-        return result;
-      }
-
-      // Tool not found
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: Tool "${toolName}" not found. Available tools: ${this.allToolNames.join(', ')}`,
-          },
-        ],
-        isError: true,
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error executing tool "${toolName}": ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-        isError: true,
-      };
-    }
   }
 }
