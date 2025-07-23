@@ -205,19 +205,6 @@ The result of the final step is shown above. Based on this result, please choose
   }
 
   private async executeDirectAction(args: Record<string, unknown>): Promise<CallToolResult> {
-    // Check if executeToolCallback is available
-    if (!this.executeToolCallback) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: Direct action execution is not supported in this context.`,
-          },
-        ],
-        isError: true,
-      };
-    }
-
     // Find the tool to execute (any parameter except executeAction)
     const toolEntries = Object.entries(args).filter(([key]) => key !== 'executeAction');
     
@@ -248,9 +235,33 @@ The result of the final step is shown above. Based on this result, please choose
     const [toolName, toolArgs] = toolEntries[0];
     
     try {
-      // Call the tool directly through the callback
-      const result = await this.executeToolCallback(toolName, toolArgs as Record<string, unknown>);
-      return result;
+      // Try to find the tool in the toolNameToDetailList first
+      const currentTool = this.toolNameToDetailList.find(
+        ([name]: [string, unknown]) => name === toolName
+      )?.[1] as { execute: (args: unknown) => Promise<CallToolResult> } | undefined;
+
+      if (currentTool) {
+        // Execute external tool
+        const result = await currentTool.execute(toolArgs);
+        return result;
+      }
+
+      // If not found in external tools and executeToolCallback is available, try internal tools
+      if (this.executeToolCallback) {
+        const result = await this.executeToolCallback(toolName, toolArgs as Record<string, unknown>);
+        return result;
+      }
+
+      // Tool not found
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Tool "${toolName}" not found. Available tools: ${this.allToolNames.join(', ')}`,
+          },
+        ],
+        isError: true,
+      };
     } catch (error) {
       return {
         content: [

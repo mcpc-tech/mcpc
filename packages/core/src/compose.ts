@@ -32,7 +32,7 @@ export interface ToolOverrideOptions {
 export class ComposableMCPServer extends Server {
   private tools: Tool[] = [];
   private nameToCb: Map<string, ToolCallback> = new Map();
-  private internalTools: Map<string, ToolCallback> = new Map();
+  private internalTools: Map<string, { callback: ToolCallback; description: string; schema: JSONSchema }> = new Map();
   private hiddenTools: Map<string, ToolCallback> = new Map(); // Separate storage for hidden tools
   private composedTools: Map<string, ToolCallback> = new Map();
   private toolOverrides: Map<string, ToolOverrideOptions> = new Map();
@@ -90,7 +90,11 @@ export class ComposableMCPServer extends Server {
       this.nameToCb.set(name, cb as ToolCallback);
     } else {
       // Register as internal tool - not visible in public list
-      this.internalTools.set(name, cb as ToolCallback);
+      this.internalTools.set(name, {
+        callback: cb as ToolCallback,
+        description,
+        schema: paramsSchema.jsonSchema as JSONSchema
+      });
     }
 
     this.setRequestHandler(ListToolsRequestSchema, () => {
@@ -115,10 +119,10 @@ export class ComposableMCPServer extends Server {
       }
 
       // Check internal tools
-      const internalCallback = this.internalTools.get(n);
-      if (internalCallback) {
+      const internalTool = this.internalTools.get(n);
+      if (internalTool) {
         const processedArgs = override?.args ? override.args(args) : args;
-        return internalCallback(processedArgs, extra) as CallToolResult;
+        return internalTool.callback(processedArgs, extra) as CallToolResult;
       }
 
       throw new Error(`Tool ${n} not found`);
@@ -139,7 +143,7 @@ export class ComposableMCPServer extends Server {
 
     const callback =
       this.nameToCb.get(resolvedName) ||
-      this.internalTools.get(resolvedName) ||
+      this.internalTools.get(resolvedName)?.callback ||
       this.hiddenTools.get(resolvedName) ||
       this.composedTools.get(resolvedName);
 
@@ -180,6 +184,20 @@ export class ComposableMCPServer extends Server {
    */
   getInternalToolNames(): string[] {
     return Array.from(this.internalTools.keys());
+  }
+
+  /**
+   * Get internal tool schema by name
+   */
+  getInternalToolSchema(name: string): { description: string; schema: JSONSchema } | undefined {
+    const internalTool = this.internalTools.get(name);
+    if (internalTool) {
+      return {
+        description: internalTool.description,
+        schema: internalTool.schema
+      };
+    }
+    return undefined;
   }
 
   /**
@@ -346,16 +364,16 @@ export class ComposableMCPServer extends Server {
 
     // Add internal tools to depGroups
     internalToolNames.forEach((toolName) => {
-      // For internal tools, we need to get their schema from the tools list
-      // Since internal tools are registered with schemas, we should be able to access them
-      // For now, we'll use a generic schema - this could be improved later
-      depGroups[toolName] = {
-        type: "object",
-        description: `Internal tool: ${toolName}`,
-        properties: {},
-        required: [],
-        additionalProperties: true, // Allow any properties for internal tools
-      };
+      const toolSchema = this.getInternalToolSchema(toolName);
+      if (toolSchema) {
+        depGroups[toolName] = {
+          ...toolSchema.schema,
+          description: toolSchema.description,
+        };
+      } else {
+        // Error if internal tool schema not found
+        throw new Error(`Internal tool schema not found for: ${toolName}`);
+      }
     });
 
     switch (options.mode) {

@@ -55,6 +55,27 @@ npx jsr add @mcpc/core
 import { StdioServerTransport } from "@modelcontextprotocol/sdk";
 import { mcpc } from "@mcpc/core";
 
+// 1. Define dependencies
+const dependencies = {
+  mcpServers: {
+    "@wonderwhy-er/desktop-commander": {
+      command: "npx",
+      args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+    },
+  },
+};
+
+// 2. Write agent description
+const agentDescription = `I am an intelligent file organizer with advanced capabilities.
+
+Available tools:
+<tool name="@wonderwhy-er/desktop-commander.list_directory"/>
+<tool name="@wonderwhy-er/desktop-commander.create_directory"/>
+<tool name="@wonderwhy-er/desktop-commander.move_file"/>
+
+I can automatically organize files by type, date, and content with smart conflict resolution.`;
+
+// 3. Create server using mcpc API
 export const server = await mcpc(
   [
     {
@@ -66,107 +87,14 @@ export const server = await mcpc(
   [
     {
       name: "file-organizer",
-      description: `I am an intelligent file organizer with advanced capabilities.
-
-Available tools:
-<tool name="@wonderwhy-er/desktop-commander.list_directory"/>
-<tool name="@wonderwhy-er/desktop-commander.create_directory"/>
-<tool name="@wonderwhy-er/desktop-commander.move_file"/>
-
-I can automatically organize files by type, date, and content with smart conflict resolution.`,
-      
-      deps: {
-        mcpServers: {
-          "@wonderwhy-er/desktop-commander": {
-            command: "npx",
-            args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
-          },
-        },
-      },
+      description: agentDescription,
+      deps: dependencies,
     },
   ]
 );
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
-```
-
-### Advanced Workflow Example
-
-```typescript
-import { mcpc } from "@mcpc/core";
-
-// Structured workflow with predefined steps
-export const server = await mcpc(
-  [{ name: "image-generator", version: "1.0.0" }],
-  [
-    {
-      name: "design-creator",
-      options: {
-        mode: "agentic_workflow",
-        steps: [
-          {
-            description: "Analyze design requirements and create detailed plan",
-            actions: ["reasoning"]
-          },
-          {
-            description: "Generate HTML/CSS code with modern design principles",
-            actions: ["@wonderwhy-er/desktop-commander.write_file"]
-          },
-          {
-            description: "Render design in browser and capture screenshot",
-            actions: ["@microsoft/playwright-mcp.browser_screenshot"]
-          }
-        ]
-      },
-      description: `Create professional images through structured design workflow...`,
-      deps: { /* ... */ }
-    }
-  ]
-);
-```
-
-### Advanced Tool Management
-
-```typescript
-import { ComposableMCPServer } from "@mcpc/core";
-
-// Direct server control for advanced features
-const server = new ComposableMCPServer(
-  { name: "secure-manager", version: "1.0.0" },
-  { capabilities: { tools: { listChanged: true } } }
-);
-
-// Tool overrides and internal tools
-await server.compose(
-  "secure-file-manager",
-  `Enhanced file manager with security features.
-
-<tool name="file-operations.delete" description="Secure file deletion with audit logging"/>
-<tool name="internal-logger" hide/>
-<tool name="file-operations.__ALL__"/>`,
-  { /* dependencies */ }
-);
-
-// Add internal tools
-server.tool(
-  "audit-logger",
-  "Internal security logging",
-  schema,
-  (args) => { /* logging logic */ },
-  true // internal tool
-);
-
-// Secure public interface using internal tools
-server.tool(
-  "secure-delete",
-  "Delete files with validation and logging",
-  schema,
-  async (args) => {
-    await server.callTool("audit-logger", {...});
-    // Secure deletion logic
-  }
-);
 ```
 
 ## 🔧 Core Features
@@ -254,47 +182,7 @@ deps: {
 
 ### Core API Overview
 
-**Complete MCPC Capabilities in One Example**
-```typescript
-import { mcpc, ComposableMCPServer } from "@mcpc/core";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-
-const server = await mcpc(
-  [{ name: "my-agent", version: "1.0.0" }],
-  [
-    {
-      name: "intelligent-assistant",
-      options: {
-        mode: "agentic", // or "agentic_workflow"
-        steps: [ // Optional: for structured workflows
-          { description: "Analyze task", actions: ["reasoning"] },
-          { description: "Execute actions", actions: ["tool1", "tool2"] }
-        ]
-      },
-      description: `I am an intelligent assistant with these capabilities:
-
-Available tools:
-<tool name="server.specific_tool"/>
-<tool name="server.__ALL__"/>  // Include all tools
-<tool name="tool1" description="Enhanced description"/>
-<tool name="sensitive_tool" hide/>  // Hide from public interface
-`,
-      deps: {
-        mcpServers: {
-          "external-server": {
-            command: "npx",
-            args: ["package@latest"]
-          }
-        }
-      }
-    }
-  ]
-);
-
-// Connect to Claude Desktop
-const transport = new StdioServerTransport();
-await server.connect(transport);
-```
+MCPC provides a simple and powerful API for creating intelligent MCP servers. The core workflow follows three steps: define dependencies, write agent descriptions, and create servers using the mcpc API.
 
 ## 📚 Comprehensive Examples
 
@@ -379,31 +267,6 @@ Add to Claude Desktop configuration:
     "my-assistant": {
       "command": "deno",
       "args": ["run", "--allow-all", "path/to/my-server.ts"]
-    }
-  }
-}
-```
-
-### Alternative Runtimes
-
-**Node.js**
-```json
-{
-  "mcpServers": {
-    "my-assistant": {
-      "command": "node",
-      "args": ["path/to/compiled-server.js"]
-    }
-  }
-}
-```
-
-**Direct Binary**
-```json
-{
-  "mcpServers": {
-    "my-assistant": {
-      "command": "path/to/compiled-binary"
     }
   }
 }
