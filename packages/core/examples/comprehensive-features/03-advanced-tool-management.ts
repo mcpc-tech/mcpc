@@ -3,15 +3,15 @@
  * 
  * This example demonstrates advanced tool management features in MCPC:
  * - Tool overrides and customization
- * - Hidden tools for internal operations
+ * - Internal tools for internal operations
  * - Tool selection with wildcards and filtering
  * - Namespace management and tool organization
  * - Internal tool invocation
  * 
  * Key Concepts:
  * - Tool override attributes (description, hide)
- * - ComposableMCPServer.hiddenTool()
- * - ComposableMCPServer.callInternalTool()
+ * - ComposableMCPServer.tool() with internal parameter
+ * - ComposableMCPServer.callTool()
  * - Tool selection patterns and wildcards
  */
 
@@ -39,7 +39,7 @@ async function createAdvancedToolManagementServer() {
 <tool name="@wonderwhy-er/desktop-commander.create_directory" description="Create new directories with automatic permission and structure setup"/>
 <tool name="@wonderwhy-er/desktop-commander.move_file" description="Move files with conflict resolution and backup options"/>
 
-**Hidden Internal Tools:**
+**Internal Tools:**
 <tool name="@wonderwhy-er/desktop-commander.delete_file" hide/>
 <tool name="@wonderwhy-er/desktop-commander.read_file" hide/>
 <tool name="security-logger" hide/>
@@ -50,7 +50,7 @@ async function createAdvancedToolManagementServer() {
 I provide enhanced file management with safety features and audit logging.
 All destructive operations are logged and require internal validation.`;
 
-  // Compose with tool overrides and hidden tools
+  // Compose with tool overrides and internal tools
   await server.compose(
     "advanced-file-manager",
     description,
@@ -73,19 +73,19 @@ All destructive operations are logged and require internal validation.`;
 }
 
 /**
- * Example 2: Hidden Tools and Internal Operations
+ * Example 2: Internal Tools and Internal Operations
  * 
- * Demonstrates creating hidden tools that are not exposed in the public
+ * Demonstrates creating internal tools that are not exposed in the public
  * tool list but can be called internally by the server.
  */
-function createServerWithHiddenTools() {
+function createServerWithInternalTools() {
   const server = new ComposableMCPServer(
     { name: "secure-operations", version: "1.0.0" },
     { capabilities: { tools: { listChanged: true } } }
   );
 
-  // Register hidden tools that won't appear in the public interface
-  server.hiddenTool(
+  // Register internal tools that won't appear in the public interface
+  server.tool(
     "audit-logger",
     "Internal audit logging for security and compliance",
     jsonSchema<{ 
@@ -131,10 +131,11 @@ function createServerWithHiddenTools() {
           }
         ]
       };
-    }
+    },
+    true // internal tool
   );
 
-  server.hiddenTool(
+  server.tool(
     "security-validator",
     "Internal security validation for sensitive operations",
     jsonSchema<{ 
@@ -172,10 +173,11 @@ function createServerWithHiddenTools() {
           }
         ]
       };
-    }
+    },
+    true // internal tool
   );
 
-  // Public tool that uses hidden tools internally
+  // Public tool that uses internal tools internally
   server.tool(
     "secure-file-delete",
     "Securely delete files with audit logging and validation",
@@ -196,14 +198,14 @@ function createServerWithHiddenTools() {
     async (args) => {
       try {
         // Step 1: Security validation
-        const _validationResult = await server.callInternalTool("security-validator", {
+        const _validationResult = await server.callTool("security-validator", {
           operation: "delete",
           path: args.path,
           checkType: "permission"
         });
 
         // Step 2: Audit logging
-        await server.callInternalTool("audit-logger", {
+        await server.callTool("audit-logger", {
           action: "file_delete_attempt",
           user: args.user || "unknown",
           resource: args.path,
@@ -211,12 +213,12 @@ function createServerWithHiddenTools() {
         });
 
         // Step 3: Perform actual deletion (would call hidden delete tool)
-        // const deleteResult = await server.callInternalTool("@wonderwhy-er/desktop-commander.delete_file", {
+        // const deleteResult = await server.callTool("@wonderwhy-er/desktop-commander.delete_file", {
         //   path: args.path
         // });
 
         // Step 4: Final audit log
-        await server.callInternalTool("audit-logger", {
+        await server.callTool("audit-logger", {
           action: "file_delete_completed",
           user: args.user || "unknown", 
           resource: args.path,
@@ -233,7 +235,7 @@ function createServerWithHiddenTools() {
         };
       } catch (error) {
         // Error audit logging
-        await server.callInternalTool("audit-logger", {
+        await server.callTool("audit-logger", {
           action: "file_delete_failed",
           user: args.user || "unknown",
           resource: args.path,
@@ -279,7 +281,7 @@ Select individual tools with custom descriptions:
 <tool name="code-runner.python-code-runner" description="Execute Python code with enhanced security and monitoring"/>
 <tool name="code-runner.javascript-code-runner" description="Execute JavaScript/TypeScript code in a secure sandbox"/>
 
-**Pattern 3: Hidden Tools for Internal Use**
+**Pattern 3: Internal Tools for Internal Use**
 Tools available internally but not exposed to users:
 <tool name="browser-automation.browser_close" hide/>
 <tool name="browser-automation.browser_clear_cache" hide/>
@@ -312,37 +314,62 @@ Tools are automatically organized by their MCP server namespace to prevent confl
 }
 
 /**
- * Example 4: Dynamic Tool Override Registration
+ * Example 4: Dynamic Tool Configuration
  * 
- * Demonstrates registering tool overrides programmatically after server creation.
+ * Demonstrates configuring tools programmatically after server creation.
  */
-async function createServerWithDynamicOverrides() {
+async function createServerWithDynamicConfiguration() {
   const server = new ComposableMCPServer(
-    { name: "dynamic-overrides", version: "1.0.0" },
+    { name: "dynamic-config", version: "1.0.0" },
     { capabilities: { tools: { listChanged: true } } }
   );
 
-  // Register tool overrides programmatically
-  server.registerToolOverride("code-runner.python-code-runner", {
-    description: "Execute Python code with AI-powered error detection and optimization suggestions",
-    hide: false
-  });
+  // Configure tools directly with enhanced descriptions - no need for separate override method
+  server.tool(
+    "python-optimizer",
+    "Execute Python code with AI-powered error detection and optimization suggestions",
+    jsonSchema<{ code: string; optimize: boolean }>({
+      type: "object",
+      properties: {
+        code: { type: "string", description: "Python code to execute" },
+        optimize: { type: "boolean", description: "Apply AI optimization suggestions" }
+      },
+      required: ["code"]
+    }),
+    (args) => {
+      // Enhanced Python execution with optimization
+      const result = `Executing optimized Python code: ${args.code}`;
+      return {
+        content: [{ type: "text", text: result }]
+      };
+    }
+  );
 
-  server.registerToolOverride("@wonderwhy-er/desktop-commander.delete_file", {
-    description: "Safely delete files with automatic backup and recovery options",
-    hide: true // Hide destructive operations
-  });
+  server.tool(
+    "safe-file-ops",
+    "Safely delete files with automatic backup and recovery options",
+    jsonSchema<{ path: string; backup: boolean }>({
+      type: "object", 
+      properties: {
+        path: { type: "string", description: "File path" },
+        backup: { type: "boolean", description: "Create backup before deletion" }
+      },
+      required: ["path"]
+    }),
+    (args) => {
+      // Safe file operations with backup
+      const result = `Safely processed file: ${args.path} ${args.backup ? 'with backup' : ''}`;
+      return {
+        content: [{ type: "text", text: result }]
+      };
+    },
+    true // internal tool - hidden from public interface
+  );
 
-  // Override can also be applied to make tools visible with new descriptions
-  server.registerToolOverride("internal-diagnostics", {
-    description: "Advanced system diagnostics with performance analytics",
-    hide: false
-  });
-
-  const description = `I am a system with dynamically configured tool overrides.
+  const description = `I am a system with dynamically configured tools.
 
 Available tools are configured at runtime based on:
-- Security policies and user permissions
+- Security policies and user permissions  
 - Feature flags and experimental capabilities
 - Environment-specific configurations
 - Runtime performance considerations
@@ -401,15 +428,15 @@ async function demonstrateAdvancedToolManagement() {
 
   // Create servers demonstrating different features
   const basicServer = await createAdvancedToolManagementServer();
-  const secureServer = await createServerWithHiddenTools();
+  const secureServer = await createServerWithInternalTools();
   const selectionServer = await createServerWithAdvancedToolSelection();
-  const dynamicServer = await createServerWithDynamicOverrides();
+  const dynamicServer = await createServerWithDynamicConfiguration();
 
   console.log("Created servers with advanced tool management:");
   console.log("1. Tool Overrides & Customization");
-  console.log("2. Hidden Tools & Internal Operations");
+  console.log("2. Internal Tools & Internal Operations");
   console.log("3. Advanced Tool Selection Patterns");
-  console.log("4. Dynamic Override Registration\n");
+  console.log("4. Dynamic Tool Configuration\n");
 
   // Connect servers
   const transports = [
@@ -434,9 +461,9 @@ async function demonstrateAdvancedToolManagement() {
  */
 export {
   createAdvancedToolManagementServer,
-  createServerWithHiddenTools,
+  createServerWithInternalTools,
   createServerWithAdvancedToolSelection,
-  createServerWithDynamicOverrides,
+  createServerWithDynamicConfiguration,
   demonstrateAdvancedToolManagement
 };
 
@@ -446,11 +473,11 @@ export {
  * 1. Tool Overrides:
  *    - Use <tool name="..." description="..."/> to customize descriptions
  *    - Use <tool name="..." hide/> to hide tools from public interface
- *    - registerToolOverride() for programmatic configuration
+ *    - Define tools directly with tool() method for custom behavior
  * 
- * 2. Hidden Tools:
- *    - hiddenTool() creates tools not exposed in list_tools
- *    - callInternalTool() invokes any tool (public or hidden)
+ * 2. Internal Tools:
+ *    - tool() with internal=true creates tools not exposed in list_tools
+ *    - callTool() invokes any tool (public or internal)
  *    - Useful for internal operations, security, and audit logging
  * 
  * 3. Tool Selection:

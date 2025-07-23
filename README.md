@@ -1,6 +1,6 @@
 # [MCPC](https://mcpc.tech/) &middot; [![JSR](https://jsr.io/badges/@mcpc/code-runner-mcp)](https://jsr.io/@mcpc/core)
 
-MCPC: One prompt instantly builds your scalable agentic MCP server from thousands of dependent MCPs.
+MCPC: One prompt to instantly build scalable agentic MCP servers from thousands of dependent MCPs.
 
 > Read more at [Introducing MCPC: One Prompt for Your Agentic MCP Server, Powered by Thousands](https://x.com/yaoandyan/article/1921532787905237398)
 
@@ -13,7 +13,7 @@ MCPC: One prompt instantly builds your scalable agentic MCP server from thousand
 
 🔧 **Advanced Tool Management**
 - **Tool Overrides:** Customize descriptions and hide sensitive operations
-- **Hidden Tools:** Internal tools for security and audit logging
+- **Internal Tools:** Internal tools for security and audit logging
 - **Wildcard Selection:** Use `__ALL__` to include all tools from an MCP server
 - **Smart Namespacing:** Automatic conflict resolution and organization
 
@@ -137,7 +137,7 @@ const server = new ComposableMCPServer(
   { capabilities: { tools: { listChanged: true } } }
 );
 
-// Tool overrides and hidden tools
+// Tool overrides and internal tools
 await server.compose(
   "secure-file-manager",
   `Enhanced file manager with security features.
@@ -148,21 +148,22 @@ await server.compose(
   { /* dependencies */ }
 );
 
-// Add hidden internal tools
-server.hiddenTool(
+// Add internal tools
+server.tool(
   "audit-logger",
   "Internal security logging",
   schema,
-  (args) => { /* logging logic */ }
+  (args) => { /* logging logic */ },
+  true // internal tool
 );
 
-// Secure public interface using hidden tools
+// Secure public interface using internal tools
 server.tool(
   "secure-delete",
   "Delete files with validation and logging",
   schema,
   async (args) => {
-    await server.callInternalTool("audit-logger", {...});
+    await server.callTool("audit-logger", {...});
     // Secure deletion logic
   }
 );
@@ -217,14 +218,14 @@ Available tools:
 `
 ```
 
-**Hidden Tools and Security**
+**Internal Tools and Security**
 ```typescript
 // Register internal tools
-server.hiddenTool("audit-logger", "Internal logging", schema, callback);
+server.tool("audit-logger", "Internal logging", schema, callback, true);
 
-// Use hidden tools in public interfaces
+// Use internal tools in public interfaces
 server.tool("secure-operation", "Safe operation", schema, async (args) => {
-  await server.callInternalTool("audit-logger", {...});
+  await server.callTool("audit-logger", {...});
   // Secure operation logic
 });
 ```
@@ -251,20 +252,48 @@ deps: {
 }
 ```
 
-### Real-Time Transport
+### Core API Overview
 
-**Server-Sent Events (SSE)**
+**Complete MCPC Capabilities in One Example**
 ```typescript
-import { SSEServerTransport } from "@mcpc/core";
+import { mcpc, ComposableMCPServer } from "@mcpc/core";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-const sseTransport = new SSEServerTransport("/events");
-await server.connect(sseTransport);
+const server = await mcpc(
+  [{ name: "my-agent", version: "1.0.0" }],
+  [
+    {
+      name: "intelligent-assistant",
+      options: {
+        mode: "agentic", // or "agentic_workflow"
+        steps: [ // Optional: for structured workflows
+          { description: "Analyze task", actions: ["reasoning"] },
+          { description: "Execute actions", actions: ["tool1", "tool2"] }
+        ]
+      },
+      description: `I am an intelligent assistant with these capabilities:
 
-// Client side
-const eventSource = new EventSource('http://localhost:3001/events');
-eventSource.addEventListener('progress', (event) => {
-  console.log('Real-time update:', event.data);
-});
+Available tools:
+<tool name="server.specific_tool"/>
+<tool name="server.__ALL__"/>  // Include all tools
+<tool name="tool1" description="Enhanced description"/>
+<tool name="sensitive_tool" hide/>  // Hide from public interface
+`,
+      deps: {
+        mcpServers: {
+          "external-server": {
+            command: "npx",
+            args: ["package@latest"]
+          }
+        }
+      }
+    }
+  ]
+);
+
+// Connect to Claude Desktop
+const transport = new StdioServerTransport();
+await server.connect(transport);
 ```
 
 ## 📚 Comprehensive Examples
@@ -280,8 +309,7 @@ Explore our complete example collection demonstrating all MCPC features:
 ### Advanced Examples
 - **[Tool Override Manager](packages/core/examples/comprehensive-features/05-tool-override-manager.ts)** - Advanced tool management and security
 - **[Multi-MCP Web Analyzer](packages/core/examples/comprehensive-features/06-multi-mcp-web-analyzer.ts)** - Complex multi-server integration
-- **[SSE Transport Server](packages/core/examples/comprehensive-features/07-sse-transport-server.ts)** - Real-time communication
-- **[Thinking Middleware Agent](packages/core/examples/comprehensive-features/08-thinking-middleware-agent.ts)** - Transparent AI reasoning
+- **[Thinking Middleware Agent](packages/core/examples/comprehensive-features/07-thinking-middleware-agent.ts)** - Transparent AI reasoning
 
 Each example is complete, runnable, and demonstrates specific MCPC capabilities with detailed documentation.
 
@@ -313,16 +341,56 @@ Each example is complete, runnable, and demonstrates specific MCPC capabilities 
 
 ## 🔗 Integration
 
-### Claude Desktop Configuration
+### Connect to Claude Desktop
+
+Create your MCPC server file (e.g., `my-server.ts`):
+
+```typescript
+import { mcpc } from "@mcpc/core";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+const server = await mcpc(
+  [{ name: "my-assistant", version: "1.0.0" }],
+  [
+    {
+      name: "intelligent-helper",
+      description: `I can help with various tasks using multiple tools.`,
+      deps: {
+        mcpServers: {
+          "@wonderwhy-er/desktop-commander": {
+            command: "npx",
+            args: ["-y", "@wonderwhy-er/desktop-commander@latest"]
+          }
+        }
+      }
+    }
+  ]
+);
+
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+Add to Claude Desktop configuration:
 
 ```json
 {
   "mcpServers": {
-    "file-manager": {
+    "my-assistant": {
       "command": "deno",
-      "args": ["run", "--allow-all", "path/to/your-server.ts"]
-    },
-    "data-analyst": {
+      "args": ["run", "--allow-all", "path/to/my-server.ts"]
+    }
+  }
+}
+```
+
+### Alternative Runtimes
+
+**Node.js**
+```json
+{
+  "mcpServers": {
+    "my-assistant": {
       "command": "node",
       "args": ["path/to/compiled-server.js"]
     }
@@ -330,22 +398,15 @@ Each example is complete, runnable, and demonstrates specific MCPC capabilities 
 }
 ```
 
-### API Integration
-
-```typescript
-import { mcpc, SSEServerTransport } from "@mcpc/core";
-
-// Create server for API integration
-const server = await mcpc([...], [...]);
-
-// Use with web frameworks
-const transport = new SSEServerTransport("/api/mcp");
-await server.connect(transport);
-
-// Or stdio for CLI tools
-import { StdioServerTransport } from "@modelcontextprotocol/sdk";
-const stdioTransport = new StdioServerTransport();
-await server.connect(stdioTransport);
+**Direct Binary**
+```json
+{
+  "mcpServers": {
+    "my-assistant": {
+      "command": "path/to/compiled-binary"
+    }
+  }
+}
 ```
 
 ## 📖 Documentation
@@ -366,11 +427,6 @@ deno install
 
 # Run examples
 deno run --allow-all packages/core/examples/comprehensive-features/01-basic-file-manager.ts
-
-# Or with Node.js
-npm install
-npm run build
-node dist/examples/01-basic-file-manager.js
 ```
 
 ## 🤝 Contributing

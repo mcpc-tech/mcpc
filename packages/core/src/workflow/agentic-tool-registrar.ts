@@ -5,6 +5,7 @@ import { jsonSchema, type Schema } from "ai";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { RegisterToolParams } from "../types.ts";
 import { createGoogleCompatibleJSONSchema } from "../utils/common/provider.ts";
+import { ComposableMCPServer } from "../compose.ts";
 
 interface MCPServer {
   tool: <T>(name: string, description: string, schema: Schema<T>, callback: (args: T) => unknown) => void;
@@ -21,11 +22,11 @@ const ajv = new Ajv({
 addFormats(ajv);
 
 export function registerAgenticTool(
-  server: MCPServer,
+  server: ComposableMCPServer,
   {
     description,
     name,
-    allToolNames,
+    allToolNames: _allToolNames, // Prefix with underscore to indicate it's intentionally unused
     depGroups,
     toolNameToDetailList,
   }: RegisterToolParams
@@ -43,6 +44,11 @@ This tool executes actions in a multi-step process. Follow these steps for each 
 * Do not treat actions merely as simple tool calls.
 * Always execute actions via this protocol. Do NOT attempt direct, unstructured calls.`;
 
+  // Get all tools that should be available as actions (non-hidden external tools + internal tools)
+  const externalToolNames = toolNameToDetailList.map(([name]) => name);
+  const internalToolNames = server.getInternalToolNames();
+  const availableActionNames = [...externalToolNames, ...internalToolNames];
+
   const allOf = toolNameToDetailList.map(([toolName, _toolDetail]: [string, unknown]) => {
     return {
       if: {
@@ -55,6 +61,19 @@ This tool executes actions in a multi-step process. Follow these steps for each 
     };
   });
 
+  // Add internal tools to allOf array
+  internalToolNames.forEach((toolName) => {
+    allOf.push({
+      if: {
+        properties: { [ACTION_KEY]: { const: toolName } },
+        required: [ACTION_KEY],
+      },
+      then: {
+        required: [toolName],
+      },
+    });
+  });
+
   const argsDef: Schema<Record<PropertyKey, never>>["jsonSchema"] = {
     additionalProperties: false,
     allOf,
@@ -62,13 +81,13 @@ This tool executes actions in a multi-step process. Follow these steps for each 
     properties: {
       [ACTION_KEY]: {
         type: "string",
-        enum: allToolNames,
+        enum: availableActionNames, // Use available actions instead of allToolNames
         description:
           "Specifies the action to be performed from the enum. Based on the value chosen for 'action', the corresponding sibling property (which shares the same name as the action value and contains its specific parameters) **MUST** also be provided in this object. For example, if 'action' is 'get_weather', then the 'get_weather' parameter object is mandatory.",
       },
       [NEXT_ACTION_KEY]: {
         type: "string",
-        enum: allToolNames,
+        enum: availableActionNames, // Use available actions instead of allToolNames
         description:
           "Specify the next action to execute only when the user's request requires additional steps. If no next action is needed, this property **MUST BE OMITTED** from the object.",
       },
@@ -77,7 +96,7 @@ This tool executes actions in a multi-step process. Follow these steps for each 
     required: [ACTION_KEY],
   };
   const schema =
-    allToolNames.length > 0 ? argsDef : { type: "object", properties: {} };
+    availableActionNames.length > 0 ? argsDef : { type: "object", properties: {} };
   const validate = ajv.compile(schema);
 
   server.tool(
@@ -98,40 +117,85 @@ This tool executes actions in a multi-step process. Follow these steps for each 
         };
       }
 
+      const actionName = args[ACTION_KEY] as string;
+      
+      // First check external tools
       const currentTool = toolNameToDetailList.find(
-        ([name, _detail]: [string, unknown]) => name === args[ACTION_KEY]
+        ([name, _detail]: [string, unknown]) => name === actionName
       )?.[1] as { execute: (args: unknown) => Promise<CallToolResult> } | undefined;
 
-      if (!currentTool) {
-        return {
-          content: [
-            {
+      if (currentTool) {
+        // Execute external tool
+        const nextAction = args[NEXT_ACTION_KEY] as string;
+        const currentResult = await currentTool.execute({
+          ...(args[actionName] as Record<string, unknown>),
+        });
+
+        if (args[nextAction]) {
+          currentResult?.content?.unshift({
+            type: "text",
+            text: `# You WILL call this tool(\`${name}\`) AGAIN using the \`${nextAction}\` action, after evaluating the result from previous action(${actionName}):`,
+          });
+        } else {
+          currentResult?.content?.unshift({
+            type: "text",
+            text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action(${actionName}):`,
+          });
+        }
+
+        return currentResult;
+      }
+
+      // If not found in external tools, check internal tools
+      if (internalToolNames.includes(actionName)) {
+        try {
+          const result = await server.callTool(actionName, args[actionName] as Record<string, unknown>);
+          
+          const nextAction = args[NEXT_ACTION_KEY] as string;
+          const callToolResult = {
+            content: [
+              {
+                type: "text" as const,
+                text: typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+              }
+            ]
+          };
+
+          if (nextAction && availableActionNames.includes(nextAction)) {
+            callToolResult.content.unshift({
               type: "text",
-              text: `Compeleted, no dependent tools to execute`,
-            },
-          ],
-        };
+              text: `# You WILL call this tool(\`${name}\`) AGAIN using the \`${nextAction}\` action, after evaluating the result from previous action(${actionName}):`,
+            });
+          } else {
+            callToolResult.content.unshift({
+              type: "text",
+              text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action(${actionName}):`,
+            });
+          }
+
+          return callToolResult;
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error executing internal tool ${actionName}: ${error instanceof Error ? error.message : String(error)}`,
+              },
+            ],
+            isError: true,
+          };
+        }
       }
 
-      const action = args[ACTION_KEY] as string;
-      const nextAction = args[NEXT_ACTION_KEY] as string;
-      const currentResult = await currentTool.execute({
-        ...(args[action] as Record<string, unknown>),
-      });
-
-      if (args[nextAction]) {
-        currentResult?.content?.unshift({
-          type: "text",
-          text: `# You WILL call this tool(\`${name}\`) AGAIN using the \`${nextAction}\` action, after evaluating the result from previous action(${action}):`,
-        });
-      } else {
-        currentResult?.content?.unshift({
-          type: "text",
-          text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action(${action}):`,
-        });
-      }
-
-      return currentResult;
+      // Tool not found
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Completed, no dependent tools to execute`,
+          },
+        ],
+      };
     }
   );
 }

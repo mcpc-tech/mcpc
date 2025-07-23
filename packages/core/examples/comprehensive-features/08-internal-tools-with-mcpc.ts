@@ -81,7 +81,7 @@ I can execute code safely with additional logging, timeout protection, and safet
         const { code, timeout = 30, enableLogging = true } = args;
 
         // First validate the code using our internal safety validator
-        const validationResult = await server.callInternalTool(
+        const validationResult = await server.callTool(
           "safe-code-validator",
           {
             code,
@@ -119,7 +119,7 @@ except Exception as e:
         console.log("✅ Code wrapped with safety features");
 
         // Execute the wrapped code using the external Python code runner
-        const executionResult = await server.callInternalTool(
+        const executionResult = await server.callTool(
           "code-runner.python-code-runner",
           {
             code: wrappedCode,

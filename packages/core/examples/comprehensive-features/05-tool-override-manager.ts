@@ -3,7 +3,7 @@
  * 
  * Demonstrates advanced tool management features including:
  * - Tool description overrides
- * - Hidden tools for internal operations
+ * - Internal tools for internal operations
  * - Tool selection with wildcards
  * - Internal tool invocation
  * 
@@ -28,7 +28,7 @@ const description = `I am an advanced file management system with sophisticated 
 <tool name="@wonderwhy-er/desktop-commander.create_directory" description="Create new directories with automatic permission setup, structure validation, and audit logging"/>
 <tool name="@wonderwhy-er/desktop-commander.move_file" description="Move files with intelligent conflict resolution, backup creation, and integrity verification"/>
 
-**Hidden Internal Tools (Not Exposed to Users):**
+**Internal Tools (Not Exposed to Users):**
 <tool name="@wonderwhy-er/desktop-commander.delete_file" hide/>
 <tool name="@wonderwhy-er/desktop-commander.read_file" hide/>
 
@@ -70,10 +70,10 @@ await server.compose(
   { mode: "agentic" }
 );
 
-// Add hidden tools for internal security operations
+// Add internal tools for internal security operations
 import { jsonSchema } from "ai";
 
-server.hiddenTool(
+server.tool(
   "audit-logger",
   "Internal audit logging for security and compliance tracking",
   jsonSchema<{ 
@@ -118,10 +118,11 @@ server.hiddenTool(
         }
       ]
     };
-  }
+  },
+  true // internal tool
 );
 
-server.hiddenTool(
+server.tool(
   "security-validator",
   "Internal security validation for sensitive file operations",
   jsonSchema<{ 
@@ -161,10 +162,11 @@ server.hiddenTool(
         }
       ]
     };
-  }
+  },
+  true // internal tool
 );
 
-// Add a public tool that uses hidden tools internally
+// Add a public tool that uses internal tools internally
 server.tool(
   "secure-file-delete",
   "Securely delete files with comprehensive validation, audit logging, and backup creation",
@@ -190,14 +192,14 @@ server.tool(
   async (args) => {
     try {
       // Step 1: Security validation using hidden tool
-      const _validationResult = await server.callInternalTool("security-validator", {
+      const _validationResult = await server.callTool("security-validator", {
         operation: "delete",
         path: args.path,
         checkType: "permission"
       });
 
       // Step 2: Audit logging using hidden tool
-      await server.callInternalTool("audit-logger", {
+      await server.callTool("audit-logger", {
         action: "secure_file_delete_initiated",
         user: args.user || "system",
         resource: args.path,
@@ -206,7 +208,7 @@ server.tool(
 
       // Step 3: Create backup if requested (using hidden read tool)
       if (args.createBackup) {
-        await server.callInternalTool("audit-logger", {
+        await server.callTool("audit-logger", {
           action: "backup_creation_started",
           user: args.user || "system",
           resource: args.path,
@@ -215,12 +217,12 @@ server.tool(
       }
 
       // Step 4: Perform deletion (would use hidden delete tool)
-      // const deleteResult = await server.callInternalTool("@wonderwhy-er/desktop-commander.delete_file", {
+      // const deleteResult = await server.callTool("@wonderwhy-er/desktop-commander.delete_file", {
       //   path: args.path
       // });
 
       // Step 5: Final audit log
-      await server.callInternalTool("audit-logger", {
+      await server.callTool("audit-logger", {
         action: "secure_file_delete_completed",
         user: args.user || "system",
         resource: args.path,
@@ -237,7 +239,7 @@ server.tool(
       };
     } catch (error) {
       // Error audit logging
-      await server.callInternalTool("audit-logger", {
+      await server.callTool("audit-logger", {
         action: "secure_file_delete_failed",
         user: args.user || "system",
         resource: args.path,
@@ -269,14 +271,14 @@ await server.connect(transport);
  *    - <tool name="..." hide/> hides tools from public interface
  *    - Enhanced descriptions provide better user guidance
  * 
- * 2. **Hidden Tools:**
- *    - Created with server.hiddenTool()
+ * 2. **Internal Tools:**
+ *    - Created with server.tool(..., true)
  *    - Not visible in list_tools responses
  *    - Available for internal operations only
  *    - Perfect for security, logging, and validation
  * 
  * 3. **Internal Tool Invocation:**
- *    - server.callInternalTool() calls any tool (public or hidden)
+ *    - server.callTool() calls any tool (public or internal)
  *    - Enables complex internal workflows
  *    - Maintains clean public interfaces
  * 

@@ -32,15 +32,8 @@ export interface ToolOverrideOptions {
 export class ComposableMCPServer extends Server {
   private tools: Tool[] = [];
   private nameToCb: Map<string, ToolCallback> = new Map();
-  private hiddenTools: Map<string, ToolCallback> = new Map();
-  private internalTools: Map<
-    string,
-    {
-      callback: ToolCallback;
-      description: string;
-      inputSchema: Tool["inputSchema"];
-    }
-  > = new Map();
+  private internalTools: Map<string, ToolCallback> = new Map();
+  private hiddenTools: Map<string, ToolCallback> = new Map(); // Separate storage for hidden tools
   private composedTools: Map<string, ToolCallback> = new Map();
   private toolOverrides: Map<string, ToolOverrideOptions> = new Map();
   // Store mapping between dot notation and underscore notation for tool names
@@ -57,9 +50,9 @@ export class ComposableMCPServer extends Server {
     // Try exact match first
     if (
       this.nameToCb.has(name) ||
+      this.internalTools.has(name) ||
       this.hiddenTools.has(name) ||
-      this.composedTools.has(name) ||
-      this.internalTools.has(name)
+      this.composedTools.has(name)
     ) {
       return name;
     }
@@ -69,9 +62,9 @@ export class ComposableMCPServer extends Server {
     if (
       mappedName &&
       (this.nameToCb.has(mappedName) ||
+        this.internalTools.has(mappedName) ||
         this.hiddenTools.has(mappedName) ||
-        this.composedTools.has(mappedName) ||
-        this.internalTools.has(mappedName))
+        this.composedTools.has(mappedName))
     ) {
       return mappedName;
     }
@@ -96,12 +89,8 @@ export class ComposableMCPServer extends Server {
       this.tools = [...this.tools, newTool];
       this.nameToCb.set(name, cb as ToolCallback);
     } else {
-      // Register as internal tool if not actionable
-      this.internalTools.set(name, {
-        callback: cb as ToolCallback,
-        description,
-        inputSchema: paramsSchema.jsonSchema as Tool["inputSchema"],
-      });
+      // Register as internal tool - not visible in public list
+      this.internalTools.set(name, cb as ToolCallback);
     }
 
     this.setRequestHandler(ListToolsRequestSchema, () => {
@@ -125,11 +114,11 @@ export class ComposableMCPServer extends Server {
         return callback(processedArgs, extra) as CallToolResult;
       }
 
-      // Check hidden tools
-      const hiddenCallback = this.hiddenTools.get(n);
-      if (hiddenCallback) {
+      // Check internal tools
+      const internalCallback = this.internalTools.get(n);
+      if (internalCallback) {
         const processedArgs = override?.args ? override.args(args) : args;
-        return hiddenCallback(processedArgs, extra) as CallToolResult;
+        return internalCallback(processedArgs, extra) as CallToolResult;
       }
 
       throw new Error(`Tool ${n} not found`);
@@ -139,14 +128,10 @@ export class ComposableMCPServer extends Server {
   /**
    * Register a tool override with description, hide, args transformation, and/or custom handler
    */
-  registerToolOverride(name: string, options: ToolOverrideOptions) {
-    this.toolOverrides.set(name, options);
-  }
-
   /**
-   * Call an internal tool directly, regardless of whether it's hidden
+   * Call any registered tool directly, whether it's public or internal
    */
-  async callInternalTool(name: string, args: unknown): Promise<unknown> {
+  async callTool(name: string, args: unknown): Promise<unknown> {
     const resolvedName = this.resolveToolName(name);
     if (!resolvedName) {
       throw new Error(`Tool ${name} not found`);
@@ -154,13 +139,11 @@ export class ComposableMCPServer extends Server {
 
     const callback =
       this.nameToCb.get(resolvedName) ||
+      this.internalTools.get(resolvedName) ||
       this.hiddenTools.get(resolvedName) ||
       this.composedTools.get(resolvedName);
 
-    const internalTool = this.internalTools.get(resolvedName);
-    const finalCallback = callback || internalTool?.callback;
-
-    if (!finalCallback) {
+    if (!callback) {
       throw new Error(`Tool ${name} not found`);
     }
 
@@ -169,16 +152,26 @@ export class ComposableMCPServer extends Server {
       this.toolOverrides.get(name) || this.toolOverrides.get(resolvedName);
     const processedArgs = override?.args ? override.args(args) : args;
 
-    return await finalCallback(processedArgs);
+    return await callback(processedArgs);
   }
 
   /**
-   * Get all available tool names (including hidden but not internal)
+   * @deprecated Use callTool() instead. This method will be removed in a future version.
+   */
+  callInternalTool(name: string, args: unknown): Promise<unknown> {
+    console.warn(`callInternalTool() is deprecated. Use callTool() instead for: ${name}`);
+    return this.callTool(name, args);
+  }
+
+  /**
+   * Get all available tool names (including internal tools)
    */
   getAllToolNames(): string[] {
     return [
       ...Array.from(this.nameToCb.keys()),
+      ...Array.from(this.internalTools.keys()),
       ...Array.from(this.hiddenTools.keys()),
+      ...Array.from(this.composedTools.keys()),
     ];
   }
 
@@ -190,54 +183,14 @@ export class ComposableMCPServer extends Server {
   }
 
   /**
-   * Check if a tool exists (visible, hidden, or internal)
+   * Check if a tool exists (visible or internal)
    */
   hasToolNamed(name: string): boolean {
     return (
       this.nameToCb.has(name) ||
-      this.hiddenTools.has(name) ||
-      this.internalTools.has(name)
+      this.internalTools.has(name) ||
+      this.hiddenTools.has(name)
     );
-  }
-
-  /**
-   * Register a hidden tool that won't appear in the tools list but can be called internally
-   */
-  hiddenTool<T>(
-    name: string,
-    _description: string,
-    _paramsSchema: Schema<T>,
-    cb: (args: T, extra?: unknown) => unknown
-  ) {
-    this.hiddenTools.set(name, cb as ToolCallback);
-
-    // Update the call handler to include hidden tools
-    this.setRequestHandler(CallToolRequestSchema, (request, extra) => {
-      const { name: n, arguments: args } = request.params;
-
-      // Check if there's an override with custom handler
-      const override = this.toolOverrides.get(n);
-      if (override?.handler) {
-        const processedArgs = override.args ? override.args(args) : args;
-        return override.handler(processedArgs, extra) as CallToolResult;
-      }
-
-      // Check regular tools
-      const callback = this.nameToCb.get(n);
-      if (callback) {
-        const processedArgs = override?.args ? override.args(args) : args;
-        return callback(processedArgs, extra) as CallToolResult;
-      }
-
-      // Check hidden tools
-      const hiddenCallback = this.hiddenTools.get(n);
-      if (hiddenCallback) {
-        const processedArgs = override?.args ? override.args(args) : args;
-        return hiddenCallback(processedArgs, extra) as CallToolResult;
-      }
-
-      throw new Error(`Tool ${n} not found`);
-    });
   }
 
   async compose(
@@ -255,7 +208,7 @@ export class ComposableMCPServer extends Server {
       const isHidden = toolEl.attribs.hide !== undefined;
 
       if (toolName && (toolDescription || isHidden)) {
-        this.registerToolOverride(toolName, {
+        this.toolOverrides.set(toolName, {
           description: toolDescription,
           hide: isHidden,
         });
@@ -334,21 +287,12 @@ export class ComposableMCPServer extends Server {
           tool.execute = override.handler;
         }
         if (override.hide) {
-          // Move to hidden tools instead of exposing
+          // Move to hidden tools instead of internal tools
           const finalHandler = override.handler || tool.execute;
           this.hiddenTools.set(toolId, finalHandler);
           delete tools[toolId];
         }
       }
-    });
-
-    // Add internal tools to the tools object
-    this.internalTools.forEach((toolInfo, name) => {
-      tools[name] = {
-        description: toolInfo.description,
-        inputSchema: toolInfo.inputSchema,
-        execute: toolInfo.callback,
-      };
     });
 
     // Store composed tools for callInternalTool access
@@ -357,8 +301,12 @@ export class ComposableMCPServer extends Server {
     });
 
     const toolNameToDetailList = Object.entries(tools);
-    const allToolNames = toolNameToDetailList.map(([name]) => name);
-    console.log(`[${name}][composed tools] ${Object.keys(tools)}`);
+    const externalToolNames = toolNameToDetailList.map(([name]) => name);
+    const internalToolNames = this.getInternalToolNames();
+    
+    // For agentic interface: external tools (non-hidden) + internal tools
+    const allToolNames = [...externalToolNames, ...internalToolNames];
+    console.log(`[${name}][composed tools] external: ${externalToolNames.join(', ')} | internal: ${internalToolNames.join(', ')}`);
 
     const depGroups: Record<string, unknown> = {};
     toolNameToDetailList.forEach(([toolName, tool]) => {
@@ -393,6 +341,20 @@ export class ComposableMCPServer extends Server {
         properties: updatedProperties,
         required: [...baseRequired],
         additionalProperties: false,
+      };
+    });
+
+    // Add internal tools to depGroups
+    internalToolNames.forEach((toolName) => {
+      // For internal tools, we need to get their schema from the tools list
+      // Since internal tools are registered with schemas, we should be able to access them
+      // For now, we'll use a generic schema - this could be improved later
+      depGroups[toolName] = {
+        type: "object",
+        description: `Internal tool: ${toolName}`,
+        properties: {},
+        required: [],
+        additionalProperties: true, // Allow any properties for internal tools
       };
     });
 
