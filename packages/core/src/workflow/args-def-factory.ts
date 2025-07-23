@@ -1,6 +1,7 @@
 import { pick } from "@es-toolkit/es-toolkit";
 import type { MCPCStep, WorkflowState } from "../utils/state.ts";
 import type { JSONSchema, ArgsDefCreator } from "../types.ts";
+import { CompiledPrompts, PromptUtils } from "../prompts/index.ts";
 
 export function createArgsDefFactory(
   name: string,
@@ -116,7 +117,8 @@ Workflow step definitions - provide ONLY on initial call.
 
       stepDependencies["proceed"] = this.proceed();
 
-      return this.common(stepDependencies, ["proceed"]);
+      // Make proceed required when workflow is in progress and needs user decision
+      return this.common(stepDependencies);
     },
 
     forNextState: function (state: WorkflowState): JSONSchema {
@@ -138,6 +140,7 @@ Workflow step definitions - provide ONLY on initial call.
 
       stepDependencies["proceed"] = this.proceed();
 
+      // Make proceed required for next state transitions
       return this.common(stepDependencies);
     },
 
@@ -146,43 +149,29 @@ Workflow step definitions - provide ONLY on initial call.
       state: WorkflowState
     ): string {
       const enforceToolArgs = this.forCurrentState(state);
-      const title = predefinedSteps
+      const initTitle = predefinedSteps
         ? `**YOU MUST execute this tool with following tool arguments to init the workflow**
 NOTE: The \`steps\` has been predefined`
         : `**You MUST execute this tool with following tool arguments to plan and init the workflow**`;
 
-      return `${description}
-${title}
-${JSON.stringify(enforceToolArgs, null, 2)}`;
+      return CompiledPrompts.workflowToolDescription({
+        description: description,
+        initTitle: initTitle,
+        schemaDefinition: JSON.stringify(enforceToolArgs, null, 2)
+      });
     },
 
     forInitialStepDescription: function (
       steps: MCPCStep[],
       state: WorkflowState
     ): string {
-      return (
-        `Workflow initialized with ${
-          steps.length
-        } steps. You MUST start the workflow with the first step to \`${
-          state.getCurrentStep()?.description
-        }\`. 
-              
-## EXECUTE tool \`${name}\` with following new tool arguments
-
-${JSON.stringify(this.forCurrentState(state), null, 2)}
-
-## Important Instructions
-- **Include 'steps' parameter ONLY when restarting workflow (with 'init: true')**
-- **Do NOT include 'steps' parameter during normal step execution**
-- **MUST Use the provided JSON schema definition above for parameter generation and validation**
-- **ADVANCE STEP: Set 'proceed' to true to advance to next step**
-- **RETRY STEP: Set 'proceed' to false or omit it to re-execute current step**
-- **⚠️ CRITICAL: When retrying failed steps, NEVER set 'proceed' to true**
-` +
-        (predefinedSteps
-          ? `## Workflow Steps\n${JSON.stringify(steps, null, 2)}`
-          : "")
-      );
+      return CompiledPrompts.workflowInit({
+        stepCount: steps.length.toString(),
+        currentStepDescription: state.getCurrentStep()?.description || '',
+        toolName: name,
+        schemaDefinition: JSON.stringify(this.forCurrentState(state), null, 2),
+        workflowSteps: PromptUtils.formatWorkflowSteps(predefinedSteps || steps)
+      });
     },
   };
 }

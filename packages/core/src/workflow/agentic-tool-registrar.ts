@@ -6,6 +6,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { RegisterToolParams } from "../types.ts";
 import { createGoogleCompatibleJSONSchema } from "../utils/common/provider.ts";
 import { ComposableMCPServer } from "../compose.ts";
+import { CompiledPrompts } from "../prompts/index.ts";
 
 interface MCPServer {
   tool: <T>(name: string, description: string, schema: Schema<T>, callback: (args: T) => unknown) => void;
@@ -31,20 +32,10 @@ export function registerAgenticTool(
     toolNameToDetailList,
   }: RegisterToolParams
 ) {
-  description = `Autonomous MCP execution tool \`${name}\` that processes user instructions through iterative self-invocation.
-
-<instructions>${description}</instructions>
-
-## Action Execution Protocol
-
-**🎯 Each Iteration:**
-1. **Identify Current Action:** Select the single most appropriate action based on context and goals
-2. **Plan Next Action:** Anticipate the likely next step needed (if any)
-
-**⚡ Key Rules:**
-- Execute ONE action per iteration
-- Use structured protocol - no direct tool calls
-- Always analyze results before proceeding`;
+  description = CompiledPrompts.autonomousExecution({
+    toolName: name,
+    description: description
+  });
 
   // Get all tools that should be available as actions (non-hidden external tools + internal tools)
   const externalToolNames = toolNameToDetailList.map(([name]) => name);
@@ -112,7 +103,9 @@ export function registerAgenticTool(
           content: [
             {
               type: "text",
-              text: `Tool/Function argument validation failed: ${errors.message}`,
+              text: CompiledPrompts.errorResponse({
+                errorMessage: errors.message
+              }),
             },
           ],
           isError: true,
@@ -136,12 +129,18 @@ export function registerAgenticTool(
         if (args[nextAction]) {
           currentResult?.content?.unshift({
             type: "text",
-            text: `# You WILL call this tool(\`${name}\`) AGAIN using the \`${nextAction}\` action, after evaluating the result from previous action(${actionName}):`,
+            text: CompiledPrompts.toolSuccess({
+              toolName: name,
+              nextAction: nextAction,
+              currentAction: actionName
+            }),
           });
         } else {
           currentResult?.content?.unshift({
             type: "text",
-            text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action(${actionName}):`,
+            text: CompiledPrompts.planningPrompt({
+              currentAction: actionName
+            }),
           });
         }
 
@@ -163,19 +162,23 @@ export function registerAgenticTool(
             ]
           };
 
-          if (nextAction && availableActionNames.includes(nextAction)) {
-            callToolResult.content.unshift({
-              type: "text",
-              text: `# You WILL call this tool(\`${name}\`) AGAIN using the \`${nextAction}\` action, after evaluating the result from previous action(${actionName}):`,
-            });
-          } else {
-            callToolResult.content.unshift({
-              type: "text",
-              text: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action(${actionName}):`,
-            });
-          }
-
-          return callToolResult;
+        if (nextAction && availableActionNames.includes(nextAction)) {
+          callToolResult.content.unshift({
+            type: "text",
+            text: CompiledPrompts.toolSuccess({
+              toolName: name,
+              nextAction: nextAction,
+              currentAction: actionName
+            }),
+          });
+        } else {
+          callToolResult.content.unshift({
+            type: "text",
+            text: CompiledPrompts.planningPrompt({
+              currentAction: actionName
+            }),
+          });
+        }          return callToolResult;
         } catch (error) {
           return {
             content: [
@@ -194,7 +197,7 @@ export function registerAgenticTool(
         content: [
           {
             type: "text",
-            text: `Completed, no dependent tools to execute`,
+            text: CompiledPrompts.completionMessage(),
           },
         ],
       };

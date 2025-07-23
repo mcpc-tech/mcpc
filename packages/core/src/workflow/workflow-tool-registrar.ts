@@ -5,6 +5,7 @@ import { createGoogleCompatibleJSONSchema } from "../utils/common/provider.ts";
 import { WorkflowExecutor } from "./workflow-executor.ts";
 import { createArgsDefFactory } from "./args-def-factory.ts";
 import type { ComposableMCPServer } from "../compose.ts";
+import { CompiledPrompts } from "../prompts/index.ts";
 
 export function registerAgenticWorkflowTool(
   server: ComposableMCPServer,
@@ -21,24 +22,15 @@ export function registerAgenticWorkflowTool(
   const executor = new WorkflowExecutor(name, allToolNames, toolNameToDetailList, createArgsDef, server, predefinedSteps);
   const workflowState = new WorkflowState();
 
-  const toolDescription = `Autonomous workflow execution tool \`${name}\` that processes user requests through structured multi-step workflows.
+  const planningInstructions = predefinedSteps 
+    ? '- Set `init: true` (steps are predefined)'
+    : '- Set `init: true` and define complete `steps` array';
 
-<instructions>${description}</instructions>
-
-## Workflow Execution Protocol
-
-**🎯 FIRST CALL (Planning):**
-${predefinedSteps ? '- Set \`init: true\` (steps are predefined)' : '- Set \`init: true\` and define complete \`steps\` array'}
-
-**⚡ SUBSEQUENT CALLS (Execution):**
-- Provide ONLY current step parameters
-- **ADVANCE STEP**: Set \`proceed: true\` to move to next step  
-- **RETRY STEP**: Set \`proceed: false\` (or omit) to retry current step
-- Use \`reasoning\` action for thinking/analysis
-
-**🚫 Do NOT include \`steps\` parameter during normal execution**
-**✅ Include \`steps\` parameter ONLY when restarting workflow with \`init: true\`**
-**⚠️ CRITICAL: When retrying failed steps, NEVER use \`proceed: true\`**`;
+  const toolDescription = CompiledPrompts.workflowExecution({
+    toolName: name,
+    description: description,
+    planningInstructions: planningInstructions
+  });
 
   server.tool(
     name,
