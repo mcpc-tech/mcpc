@@ -5,6 +5,7 @@ import addFormats from "ajv-formats";
 import type { MCPCStep, WorkflowState } from "../utils/state.ts";
 import type { ArgsDefCreator } from "../types.ts";
 import type { ComposableMCPServer } from "../compose.ts";
+import { CompiledPrompts, WorkflowPrompts, PromptUtils } from "../prompts/index.ts";
 
 const ajv = new Ajv({
   allErrors: true,
@@ -23,6 +24,12 @@ export class WorkflowExecutor {
     private predefinedSteps?: MCPCStep[]
   ) {}
 
+  // Helper method to format workflow progress
+  private formatProgress(state: WorkflowState): string {
+    const progressData = state.getProgressData();
+    return PromptUtils.formatWorkflowProgress(progressData);
+  }
+
   async execute(
     args: Record<string, unknown>,
     state: WorkflowState
@@ -36,8 +43,8 @@ export class WorkflowExecutor {
             {
               type: "text",
               text: this.predefinedSteps
-                ? "Error: Workflow not initialized. Please provide 'init' parameter to start a new workflow."
-                : `"Error: Workflow not initialized. Please provide 'init' and 'steps' parameter to start a new workflow."`,
+                ? WorkflowPrompts.ERRORS.NOT_INITIALIZED.WITH_PREDEFINED
+                : WorkflowPrompts.ERRORS.NOT_INITIALIZED.WITHOUT_PREDEFINED,
             },
           ],
           isError: true,
@@ -45,26 +52,56 @@ export class WorkflowExecutor {
       }
 
       if (args.proceed === true) {
+        // Allow proceeding to completion even when at the last step
+        if (
+          !state.hasNextStep() &&
+          state.isAtLastStep() &&
+          state.isWorkflowStarted()
+        ) {
+          // Mark the workflow as completed and provide completion message
+          state.markCompleted();
+          return {
+            content: [
+              {
+                type: "text",
+                text: `## Workflow Completed!\n\n${this.formatProgress(state)}\n\n${CompiledPrompts.workflowCompleted({
+                  totalSteps: state.getSteps().length,
+                  toolName: this.name,
+                  newWorkflowInstructions: this.predefinedSteps ? "" : " and new `steps` array"
+                })}`,
+              },
+            ],
+            isError: false,
+          };
+        }
+
         if (!state.hasNextStep() && !state.isAtLastStep()) {
           return {
             content: [
               {
                 type: "text",
-                text: "Error: Cannot proceed, you are already at the final step.",
+                text: WorkflowPrompts.ERRORS.ALREADY_AT_FINAL,
               },
             ],
             isError: true,
           };
         }
+
+        // Move to next step when proceeding
         if (state.isWorkflowStarted()) {
           state.moveToNextStep();
         } else {
           state.start();
         }
       }
+      // When proceed: false, stay at current step (retry)
     }
 
+    // Validate arguments based on current state
+    // - If proceed: true, validate against the new step after moving
+    // - If proceed: false, validate against current step
     const validationSchema = this.createArgsDef.forCurrentState(state);
+    
     const validate = ajv.compile(validationSchema);
     if (!validate(args)) {
       const errors = new AggregateAjvError(validate.errors!);
@@ -90,11 +127,12 @@ export class WorkflowExecutor {
     args: Record<string, unknown>,
     state: WorkflowState
   ): CallToolResult {
-    const steps = (this.predefinedSteps ?? args.steps) as Array<MCPCStep>;
+    // Allow step redefinition when args.steps is provided, even with predefined steps
+    const steps = (args.steps as Array<MCPCStep>) ?? this.predefinedSteps;
 
     if (!steps || steps.length === 0) {
       return {
-        content: [{ type: "text", text: "Error: No steps provided" }],
+        content: [{ type: "text", text: WorkflowPrompts.ERRORS.NO_STEPS_PROVIDED }],
         isError: true,
       };
     }
@@ -106,10 +144,7 @@ export class WorkflowExecutor {
       content: [
         {
           type: "text",
-          text: this.createArgsDef.forInitialStepDescription(
-            this.predefinedSteps ?? (args.steps as MCPCStep[]),
-            state
-          ),
+          text: `## Workflow Initialized\n\n${this.formatProgress(state)}\n\n${this.createArgsDef.forInitialStepDescription(steps, state)}`,
         },
       ],
       isError: false,
@@ -123,10 +158,13 @@ export class WorkflowExecutor {
     const currentStep = state.getCurrentStep();
     if (!currentStep) {
       return {
-        content: [{ type: "text", text: "Error: No current step to execute" }],
+        content: [{ type: "text", text: WorkflowPrompts.ERRORS.NO_CURRENT_STEP }],
         isError: true,
       };
     }
+
+    // Mark current step as running
+    state.markCurrentStepRunning();
 
     const results: CallToolResult = {
       content: [],
@@ -146,18 +184,19 @@ export class WorkflowExecutor {
           results.isError = actionResult.isError;
         }
 
+        // Extract text content from action result using prompt utility
+        const extractedText = PromptUtils.extractActionResultText(actionResult);
+
         results.content.push({
           type: "text",
-          text: `Action \`${action}\` excuted with result: `,
-        });
-        results.content.push({
-          type: "text",
-          text: `${JSON.stringify(actionResult, null, 2)}`,
+          text: `Action \`${action}\` executed ${
+            actionResult.isError ? "❌ **FAILED**" : "✅ **SUCCESS**"
+          }:\n${extractedText}`,
         });
       } catch (error) {
         results.content.push({
           type: "text",
-          text: `Action \`${action}\` failed with error: `,
+          text: `Action \`${action}\` ❌ **FAILED** with error: `,
         });
         results.content.push({
           type: "text",
@@ -167,42 +206,53 @@ export class WorkflowExecutor {
       }
     }
 
+    // Mark step completion status
+    if (results.isError) {
+      state.markCurrentStepFailed("Step execution failed");
+    } else {
+      state.markCurrentStepCompleted("Step completed successfully");
+    }
+
     if (state.hasNextStep()) {
       const nextStepArgsDef = this.createArgsDef.forNextState(state);
       results.content.push({
         type: "text",
-        text: `**Next Step Decision Required**
-
-Previous step completed. Choose your action:
-
-**🔄 RETRY Current Step:** 
-- Call \`${this.name}\` with current parameters
-- ⚠️ CRITICAL: Set \`proceed: false\` OR omit \`proceed\` parameter
-
-**▶️ PROCEED to Next Step:** 
-- Call \`${this.name}\` with parameters below
-- Set \`proceed: true\`
-
-Next step: \`${state.getNextStep()?.description}\`
-
-${JSON.stringify(nextStepArgsDef, null, 2)}
-
-**Important:** Exclude \`steps\` key from your parameters`,
+        text: CompiledPrompts.nextStepDecision({
+          toolName: this.name,
+          nextStepDescription: state.getNextStep()?.description || "Unknown step",
+          nextStepSchema: JSON.stringify(nextStepArgsDef, null, 2)
+        }),
       });
     } else {
-      results.content.push({
-        type: "text",
-        text: `**Workflow Complete** ✅
-
-All steps executed successfully. Choose your next action:
-
-**1. ✅ Finish:** Provide final summary to user (don't call this tool)
-**2. 🔄 Retry Final Step:** Call \`${this.name}\` with final step parameters  
-**3. 🆕 New Workflow:** Call \`${this.name}\` with \`init: true\`${
-          this.predefinedSteps ? "" : " and new \`steps\` array"
-        }`,
-      });
+      // Auto-complete workflow when final step is reached
+      if (!results.isError) {
+        results.content.push({
+          type: "text",
+          text: CompiledPrompts.workflowCompleted({
+            totalSteps: state.getSteps().length,
+            toolName: this.name,
+            newWorkflowInstructions: this.predefinedSteps ? "" : " and new `steps` array"
+          }),
+        });
+      } else {
+        // Show completion prompt only if there were errors
+        results.content.push({
+          type: "text",
+          text: CompiledPrompts.finalStepCompletion({
+            statusIcon: '❌',
+            statusText: 'with errors',
+            toolName: this.name,
+            newWorkflowInstructions: this.predefinedSteps ? "" : " and new `steps` array"
+          }),
+        });
+      }
     }
+
+    // Add final progress display
+    results.content.push({
+      type: "text",
+      text: `\n## Workflow Progress\n\n${this.formatProgress(state)}`,
+    });
 
     return results;
   }

@@ -6,7 +6,7 @@ import { MCPSetting } from "./service/tools.ts";
 
 export const INCOMING_MSG_ROUTE_PATH = "/core/messages";
 
-export interface ComposeDefination {
+export interface ComposeDefinition {
   name: string;
   description: string;
   deps?: MCPSetting;
@@ -31,12 +31,12 @@ export interface ComposeDefination {
 }
 
 export interface ComposibleMCPConfig {
-  [key: string]: ComposeDefination[];
+  [key: string]: ComposeDefinition[];
 }
 
 export function parseMcpcConfigs(
-  conf?: ComposeDefination[]
-): ComposeDefination[] {
+  conf?: ComposeDefinition[]
+): ComposeDefinition[] {
   const mcpcConfigRaw =
     minimist(process.argv.slice(2))?.["mcpc-config"] ?? process.env.MCPC_CONFIG;
   const mcpcConfigs = conf ?? JSON.parse(mcpcConfigRaw);
@@ -61,7 +61,7 @@ export function parseMcpcConfigs(
 
 export async function mcpc(
   serverConf: ConstructorParameters<typeof ComposableMCPServer>,
-  composeConf?: ComposeDefination[],
+  composeConf?: ComposeDefinition[],
   setupCallback?: (server: ComposableMCPServer) => void | Promise<void>
 ): Promise<InstanceType<typeof ComposableMCPServer>> {
   const server = new ComposableMCPServer(...serverConf);

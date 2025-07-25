@@ -10,7 +10,7 @@ export const coreHandler = (app: OpenAPIHono) => {
     info: {
       title: "tencentcloudapi openapi spec",
       version: "1.0.0",
-      description: "openapi defination of tencentcloudapi",
+      description: "openapi definition of tencentcloudapi",
     },
   });
 };

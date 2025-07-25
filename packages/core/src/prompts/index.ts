@@ -1,6 +1,6 @@
 /**
  * MCPC Prompt Management System
- * 
+ *
  * Centralized management for all prompts and templates used across MCPC.
  * Supports dynamic content replacement and template variables.
  */
@@ -25,7 +25,6 @@ export const SystemPrompts = {
 2. **Plan Next Action:** Anticipate the likely next step needed (if any)
 
 **⚡ Key Rules:**
-- Execute ONE action per iteration
 - Use structured protocol - no direct tool calls
 - Always analyze results before proceeding`,
 
@@ -44,7 +43,7 @@ export const SystemPrompts = {
 **⚡ SUBSEQUENT CALLS (Execution):**
 - Provide ONLY current step parameters
 - **ADVANCE STEP**: Set \`proceed: true\` to move to next step  
-- **RETRY STEP**: Set \`proceed: false\` (or omit) to retry current step
+- **RETRY STEP**: Set \`proceed: false\`
 - Use \`reasoning\` action for thinking/analysis
 
 **🚫 Do NOT include \`steps\` parameter during normal execution**
@@ -83,7 +82,7 @@ export const WorkflowPrompts = {
    */
   WORKFLOW_INIT: `Workflow initialized with {stepCount} steps. You MUST start the workflow with the first step to \`{currentStepDescription}\`. 
               
-## EXECUTE tool \`{toolName}\` with following new tool arguments
+## EXECUTE tool \`{toolName}\` with the following new parameter definition
 
 {schemaDefinition}
 
@@ -92,8 +91,9 @@ export const WorkflowPrompts = {
 - **Do NOT include 'steps' parameter during normal step execution**
 - **MUST Use the provided JSON schema definition above for parameter generation and validation**
 - **ADVANCE STEP: Set 'proceed' to true to advance to next step**
-- **RETRY STEP: Set 'proceed' to false or omit it to re-execute current step**
-- **⚠️ CRITICAL: When retrying failed steps, NEVER set 'proceed' to true**
+- **RETRY STEP: Set 'proceed' to false to re-execute current step**
+- **⚠️ CRITICAL: When retrying failed steps, MUST set 'proceed' to false**
+
 {workflowSteps}`,
 
   /**
@@ -112,6 +112,69 @@ export const WorkflowPrompts = {
    * Planning instructions for dynamic workflows
    */
   DYNAMIC_WORKFLOW_PLANNING: `- Set \`init: true\` and define complete \`steps\` array`,
+
+  /**
+   * Next step decision prompt
+   */
+  NEXT_STEP_DECISION: `**Next Step Decision Required**
+
+Previous step completed. Choose your action:
+
+**🔄 RETRY Current Step:** 
+- Call \`{toolName}\` with current parameters
+- ⚠️ CRITICAL: Set \`proceed: false\`
+
+**▶️ PROCEED to Next Step:** 
+- Call \`{toolName}\` with parameters below
+- Set \`proceed: true\`
+
+Next step: \`{nextStepDescription}\`
+
+{nextStepSchema}
+
+**Important:** Exclude \`steps\` key from your parameters`,
+
+  /**
+   * Final step completion prompt
+   */
+  FINAL_STEP_COMPLETION: `**Step Complete - Workflow Ending** {statusIcon}
+
+Current step executed {statusText}. Choose your next action:
+
+**1. ▶️ Complete Workflow:** Call \`{toolName}\` with \`proceed: true\` to finish
+**2. 🔄 Retry Final Step:** Call \`{toolName}\` with final step parameters  
+**3. 🆕 New Workflow:** Call \`{toolName}\` with \`init: true\`{newWorkflowInstructions}
+
+**Note:** Use \`proceed: true\` to officially complete the workflow.`,
+
+  /**
+   * Workflow completion success message
+   */
+  WORKFLOW_COMPLETED: `**Workflow Completed Successfully** ✅
+
+All workflow steps have been executed and the workflow is now complete.
+
+**Summary:**
+- Total steps: {totalSteps}
+- All steps executed successfully
+
+You can now start a new workflow if needed by calling \`{toolName}\` with \`init: true\`{newWorkflowInstructions}.`,
+
+  /**
+   * Error messages
+   */
+  ERRORS: {
+    NOT_INITIALIZED: {
+      WITH_PREDEFINED:
+        "Error: Workflow not initialized. Please provide 'init' parameter to start a new workflow.",
+      WITHOUT_PREDEFINED:
+        "Error: Workflow not initialized. Please provide 'init' and 'steps' parameter to start a new workflow.",
+    },
+    ALREADY_AT_FINAL:
+      "Error: Cannot proceed, you are already at the final step.",
+    NO_STEPS_PROVIDED: "Error: No steps provided",
+    NO_CURRENT_STEP: "Error: No current step to execute",
+  },
 };
 
 /**
@@ -119,9 +182,9 @@ export const WorkflowPrompts = {
  */
 export const ResponseTemplates = {
   /**
-   * Success response for tool execution
+   * Success response for action execution
    */
-  TOOL_SUCCESS: `# You WILL call this tool(\`{toolName}\`) AGAIN using the \`{nextAction}\` action, after evaluating the result from previous action({currentAction}):`,
+  ACTION_SUCCESS: `# You WILL call this tool(\`{toolName}\`) AGAIN using the \`{nextAction}\` action, after evaluating the result from previous action({currentAction}):`,
 
   /**
    * Planning prompt when no next action is specified
@@ -131,12 +194,12 @@ export const ResponseTemplates = {
   /**
    * Error response template
    */
-  ERROR_RESPONSE: `Tool/Function argument validation failed: {errorMessage}`,
+  ERROR_RESPONSE: `Action/Function argument validation failed: {errorMessage}`,
 
   /**
    * Completion message
    */
-  COMPLETION_MESSAGE: `Completed, no dependent tools to execute`,
+  COMPLETION_MESSAGE: `Completed, no dependent actions to execute`,
 
   /**
    * Security validation messages
@@ -183,7 +246,10 @@ export const CompiledPrompts = {
   toolUsageInstructions: p(SystemPrompts.TOOL_USAGE_INSTRUCTIONS),
   workflowInit: p(WorkflowPrompts.WORKFLOW_INIT),
   workflowToolDescription: p(WorkflowPrompts.WORKFLOW_TOOL_DESCRIPTION),
-  toolSuccess: p(ResponseTemplates.TOOL_SUCCESS),
+  nextStepDecision: p(WorkflowPrompts.NEXT_STEP_DECISION),
+  finalStepCompletion: p(WorkflowPrompts.FINAL_STEP_COMPLETION),
+  workflowCompleted: p(WorkflowPrompts.WORKFLOW_COMPLETED),
+  actionSuccess: p(ResponseTemplates.ACTION_SUCCESS),
   planningPrompt: p(ResponseTemplates.PLANNING_PROMPT),
   errorResponse: p(ResponseTemplates.ERROR_RESPONSE),
   securityPassed: p(ResponseTemplates.SECURITY_VALIDATION.PASSED),
@@ -199,11 +265,18 @@ export const PromptUtils = {
   /**
    * Generate tool list for descriptions
    */
-  generateToolList: (tools: Array<{ name: string; description?: string; hide?: boolean }>) => {
+  generateToolList: (
+    tools: Array<{ name: string; description?: string; hide?: boolean }>
+  ) => {
     return tools
-      .filter(tool => !tool.hide)
-      .map(tool => `<tool name="${tool.name}"${tool.description ? ` description="${tool.description}"` : ''}/>`)
-      .join('\n');
+      .filter((tool) => !tool.hide)
+      .map(
+        (tool) =>
+          `<tool name="${tool.name}"${
+            tool.description ? ` description="${tool.description}"` : ""
+          }/>`
+      )
+      .join("\n");
   },
 
   /**
@@ -211,24 +284,58 @@ export const PromptUtils = {
    */
   generateHiddenToolList: (tools: Array<{ name: string; hide?: boolean }>) => {
     return tools
-      .filter(tool => tool.hide)
-      .map(tool => `<tool name="${tool.name}" hide/>`)
-      .join('\n');
+      .filter((tool) => tool.hide)
+      .map((tool) => `<tool name="${tool.name}" hide/>`)
+      .join("\n");
   },
 
   /**
    * Format workflow steps for display
    */
-  formatWorkflowSteps: (steps: Array<{ description: string; actions: string[] }>) => {
-    if (!steps.length) return '';
+  formatWorkflowSteps: (
+    steps: Array<{ description: string; actions: string[] }>
+  ) => {
+    if (!steps.length) return "";
     return `## Workflow Steps\n${JSON.stringify(steps, null, 2)}`;
+  },
+
+  /**
+   * Format workflow progress display with status icons
+   */
+  formatWorkflowProgress: (progressData: {
+    steps: Array<{ description: string; actions: string[] }>;
+    statuses: Array<string>;
+    currentStepIndex: number;
+  }) => {
+    const statusIcons = {
+      pending: "⏳",
+      running: "🔄",
+      completed: "✅",
+      failed: "❌",
+    };
+
+    return progressData.steps
+      .map((step, index) => {
+        const status = progressData.statuses[index] || "pending";
+        const icon = statusIcons[status as keyof typeof statusIcons] || "⏳";
+        const current =
+          index === progressData.currentStepIndex ? " **[CURRENT]**" : "";
+        const actions =
+          step.actions.length > 0
+            ? ` | Action: ${step.actions.join(", ")}`
+            : "";
+        return `${icon} **Step ${index + 1}:** ${
+          step.description
+        }${actions}${current}`;
+      })
+      .join("\n");
   },
 
   /**
    * Generate user info for audit logs
    */
   formatUserInfo: (user?: string) => {
-    return user ? ` by ${user}` : '';
+    return user ? ` by ${user}` : "";
   },
 
   /**
@@ -236,6 +343,20 @@ export const PromptUtils = {
    */
   formatTimestamp: () => {
     return new Date().toISOString();
+  },
+
+  /**
+   * Extract and format text content from CallToolResult
+   */
+  extractActionResultText: (actionResult: {
+    content?: Array<{ type: string; text?: string }>;
+  }) => {
+    return (
+      actionResult.content
+        ?.filter((item) => item.type === "text")
+        ?.map((item) => item.text)
+        ?.join("\n") || "No text content"
+    );
   },
 };
 

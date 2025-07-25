@@ -1,7 +1,7 @@
 import { pick } from "@es-toolkit/es-toolkit";
 import type { MCPCStep, WorkflowState } from "../utils/state.ts";
 import type { JSONSchema, ArgsDefCreator } from "../types.ts";
-import { CompiledPrompts, PromptUtils } from "../prompts/index.ts";
+import { CompiledPrompts } from "../prompts/index.ts";
 
 export function createArgsDefFactory(
   name: string,
@@ -52,13 +52,13 @@ Workflow step definitions - provide ONLY on initial call.
           },
           actions: {
             type: "array",
-            description: `Array of action names that execute concurrently in this step.`,
+            description: `Array of action names for this step. **CURRENT LIMITATION: Only 1 action per step is allowed.** Action names must match available tool names exactly.`,
             items: {
               ...{
                 enum: allToolNames,
               },
               type: "string",
-              description: `Individual action name from available actions`,
+              description: `Individual action name from available tools. Must be exactly one of the allowed tool names.`,
             },
             uniqueItems: true,
             minItems: 0,
@@ -170,7 +170,7 @@ NOTE: The \`steps\` has been predefined`
         currentStepDescription: state.getCurrentStep()?.description || '',
         toolName: name,
         schemaDefinition: JSON.stringify(this.forCurrentState(state), null, 2),
-        workflowSteps: PromptUtils.formatWorkflowSteps(predefinedSteps || steps)
+        workflowSteps: "" // Remove redundant workflow steps display
       });
     },
   };

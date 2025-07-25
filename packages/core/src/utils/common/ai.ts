@@ -151,8 +151,8 @@ export async function composeMcpDepTools(
   const allTools: Record<string, any> = {};
 
   // Process each MCP definition sequentially
-  for (const [name, defination] of Object.entries(mcpConfig.mcpServers)) {
-    const def = defination as z.infer<typeof ServerConfigSchema>;
+  for (const [name, definition] of Object.entries(mcpConfig.mcpServers)) {
+    const def = definition as z.infer<typeof ServerConfigSchema>;
 
     if (def.disabled) {
       continue;

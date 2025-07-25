@@ -13,7 +13,7 @@ import {
 } from "@modelcontextprotocol/sdk/server/index.js";
 import type z from "zod";
 import { composeMcpDepTools, parseTags } from "../mod.ts";
-import type { ComposeDefination } from "./set-up-mcp-compose.ts";
+import type { ComposeDefinition } from "./set-up-mcp-compose.ts";
 import { updateRefPaths } from "./utils/common/schema.ts";
 import type { ToolCallback, JSONSchema } from "./types.ts";
 import { registerAgenticTool } from "./workflow/agentic-tool-registrar.ts";
@@ -215,7 +215,7 @@ export class ComposableMCPServer extends Server {
     name: string,
     description: string,
     depsConfig: z.infer<typeof McpSettingsSchema> = { mcpServers: {} },
-    options: ComposeDefination["options"] = { mode: "agentic" }
+    options: ComposeDefinition["options"] = { mode: "agentic" }
   ) {
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
 

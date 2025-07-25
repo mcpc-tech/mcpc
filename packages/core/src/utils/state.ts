@@ -3,9 +3,20 @@ export type MCPCStep = {
   actions: Array<string>;
 };
 
+export type StepStatus = "pending" | "running" | "completed" | "failed";
+
+export type StepWithStatus = MCPCStep & {
+  status: StepStatus;
+  result?: string;
+  error?: string;
+};
+
 export class WorkflowState {
   private currentStepIndex: number = -1;
   private steps: Array<MCPCStep> = [];
+  private stepStatuses: Array<StepStatus> = [];
+  private stepResults: Array<string> = [];
+  private stepErrors: Array<string> = [];
   private isInitialized: boolean = false;
   private isStarted: boolean = false;
 
@@ -71,13 +82,73 @@ export class WorkflowState {
   }
 
   isCompleted(): boolean {
-    return this.isInitialized && this.currentStepIndex >= this.steps.length - 1;
+    return this.isInitialized && this.currentStepIndex > this.steps.length - 1;
+  }
+
+  // Mark workflow as completed by moving beyond the last step
+  markCompleted(): void {
+    if (this.isInitialized) {
+      this.currentStepIndex = this.steps.length;
+    }
   }
 
   initialize(steps: Array<MCPCStep>): void {
     this.steps = steps;
+    this.stepStatuses = new Array(steps.length).fill("pending");
+    this.stepResults = new Array(steps.length).fill("");
+    this.stepErrors = new Array(steps.length).fill("");
     this.currentStepIndex = 0;
     this.isInitialized = true;
+    this.isStarted = false; // Reset started state when initializing
+  }
+
+  // Mark current step as running
+  markCurrentStepRunning(): void {
+    if (this.isInitialized && this.currentStepIndex >= 0 && this.currentStepIndex < this.steps.length) {
+      this.stepStatuses[this.currentStepIndex] = "running";
+    }
+  }
+
+  // Mark current step as completed
+  markCurrentStepCompleted(result?: string): void {
+    if (this.isInitialized && this.currentStepIndex >= 0 && this.currentStepIndex < this.steps.length) {
+      this.stepStatuses[this.currentStepIndex] = "completed";
+      if (result) {
+        this.stepResults[this.currentStepIndex] = result;
+      }
+    }
+  }
+
+  // Mark current step as failed
+  markCurrentStepFailed(error?: string): void {
+    if (this.isInitialized && this.currentStepIndex >= 0 && this.currentStepIndex < this.steps.length) {
+      this.stepStatuses[this.currentStepIndex] = "failed";
+      if (error) {
+        this.stepErrors[this.currentStepIndex] = error;
+      }
+    }
+  }
+
+  // Get steps with their status
+  getStepsWithStatus(): Array<StepWithStatus> {
+    return this.steps.map((step, index) => ({
+      ...step,
+      status: this.stepStatuses[index] || "pending",
+      result: this.stepResults[index] || undefined,
+      error: this.stepErrors[index] || undefined,
+    }));
+  }
+
+  // Get basic workflow progress data for template rendering
+  getProgressData() {
+    return {
+      steps: this.steps,
+      statuses: this.stepStatuses,
+      results: this.stepResults,
+      errors: this.stepErrors,
+      currentStepIndex: this.currentStepIndex,
+      totalSteps: this.steps.length
+    };
   }
 
   start() {
@@ -117,10 +188,23 @@ export class WorkflowState {
   reset(): void {
     this.currentStepIndex = -1;
     this.steps = [];
+    this.stepStatuses = [];
+    this.stepResults = [];
+    this.stepErrors = [];
     this.isInitialized = false;
+    this.isStarted = false; // Reset started state when resetting
   }
 
-  getDebugInfo(): any {
+  getDebugInfo(): {
+    currentStepIndex: number;
+    totalSteps: number;
+    isInitialized: boolean;
+    currentStep: string | undefined;
+    nextStep: string | undefined;
+    previousStep: string | undefined;
+    isAtFirstStep: boolean;
+    hasPreviousStep: boolean;
+  } {
     return {
       currentStepIndex: this.currentStepIndex,
       totalSteps: this.steps.length,

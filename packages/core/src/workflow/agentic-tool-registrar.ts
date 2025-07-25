@@ -9,7 +9,12 @@ import { ComposableMCPServer } from "../compose.ts";
 import { CompiledPrompts } from "../prompts/index.ts";
 
 interface MCPServer {
-  tool: <T>(name: string, description: string, schema: Schema<T>, callback: (args: T) => unknown) => void;
+  tool: <T>(
+    name: string,
+    description: string,
+    schema: Schema<T>,
+    callback: (args: T) => unknown
+  ) => void;
 }
 
 const NEXT_ACTION_KEY = "nextAction";
@@ -34,7 +39,7 @@ export function registerAgenticTool(
 ) {
   description = CompiledPrompts.autonomousExecution({
     toolName: name,
-    description: description
+    description: description,
   });
 
   // Get all tools that should be available as actions (non-hidden external tools + internal tools)
@@ -42,17 +47,19 @@ export function registerAgenticTool(
   const internalToolNames = server.getInternalToolNames();
   const availableActionNames = [...externalToolNames, ...internalToolNames];
 
-  const allOf = toolNameToDetailList.map(([toolName, _toolDetail]: [string, unknown]) => {
-    return {
-      if: {
-        properties: { [ACTION_KEY]: { const: toolName } },
-        required: [ACTION_KEY],
-      },
-      then: {
-        required: [toolName],
-      },
-    };
-  });
+  const allOf = toolNameToDetailList.map(
+    ([toolName, _toolDetail]: [string, unknown]) => {
+      return {
+        if: {
+          properties: { [ACTION_KEY]: { const: toolName } },
+          required: [ACTION_KEY],
+        },
+        then: {
+          required: [toolName],
+        },
+      };
+    }
+  );
 
   // Add internal tools to allOf array
   internalToolNames.forEach((toolName) => {
@@ -89,13 +96,17 @@ export function registerAgenticTool(
     required: [ACTION_KEY],
   };
   const schema =
-    availableActionNames.length > 0 ? argsDef : { type: "object", properties: {} };
+    availableActionNames.length > 0
+      ? argsDef
+      : { type: "object", properties: {} };
   const validate = ajv.compile(schema);
 
   server.tool(
     name,
     description,
-    jsonSchema<Record<string, unknown>>(createGoogleCompatibleJSONSchema(schema as Record<string, unknown>)),
+    jsonSchema<Record<string, unknown>>(
+      createGoogleCompatibleJSONSchema(schema as Record<string, unknown>)
+    ),
     async (args: Record<string, unknown>) => {
       if (!validate(args)) {
         const errors = new AggregateAjvError(validate.errors!);
@@ -104,7 +115,7 @@ export function registerAgenticTool(
             {
               type: "text",
               text: CompiledPrompts.errorResponse({
-                errorMessage: errors.message
+                errorMessage: errors.message,
               }),
             },
           ],
@@ -113,11 +124,13 @@ export function registerAgenticTool(
       }
 
       const actionName = args[ACTION_KEY] as string;
-      
+
       // First check external tools
       const currentTool = toolNameToDetailList.find(
         ([name, _detail]: [string, unknown]) => name === actionName
-      )?.[1] as { execute: (args: unknown) => Promise<CallToolResult> } | undefined;
+      )?.[1] as
+        | { execute: (args: unknown) => Promise<CallToolResult> }
+        | undefined;
 
       if (currentTool) {
         // Execute external tool
@@ -129,17 +142,17 @@ export function registerAgenticTool(
         if (args[nextAction]) {
           currentResult?.content?.unshift({
             type: "text",
-            text: CompiledPrompts.toolSuccess({
+            text: CompiledPrompts.actionSuccess({
               toolName: name,
               nextAction: nextAction,
-              currentAction: actionName
+              currentAction: actionName,
             }),
           });
         } else {
           currentResult?.content?.unshift({
             type: "text",
             text: CompiledPrompts.planningPrompt({
-              currentAction: actionName
+              currentAction: actionName,
             }),
           });
         }
@@ -150,41 +163,50 @@ export function registerAgenticTool(
       // If not found in external tools, check internal tools
       if (internalToolNames.includes(actionName)) {
         try {
-          const result = await server.callTool(actionName, args[actionName] as Record<string, unknown>);
-          
+          const result = await server.callTool(
+            actionName,
+            args[actionName] as Record<string, unknown>
+          );
+
           const nextAction = args[NEXT_ACTION_KEY] as string;
           const callToolResult = {
             content: [
               {
                 type: "text" as const,
-                text: typeof result === 'string' ? result : JSON.stringify(result, null, 2)
-              }
-            ]
+                text:
+                  typeof result === "string"
+                    ? result
+                    : JSON.stringify(result, null, 2),
+              },
+            ],
           };
 
-        if (nextAction && availableActionNames.includes(nextAction)) {
-          callToolResult.content.unshift({
-            type: "text",
-            text: CompiledPrompts.toolSuccess({
-              toolName: name,
-              nextAction: nextAction,
-              currentAction: actionName
-            }),
-          });
-        } else {
-          callToolResult.content.unshift({
-            type: "text",
-            text: CompiledPrompts.planningPrompt({
-              currentAction: actionName
-            }),
-          });
-        }          return callToolResult;
+          if (nextAction && availableActionNames.includes(nextAction)) {
+            callToolResult.content.unshift({
+              type: "text",
+              text: CompiledPrompts.actionSuccess({
+                toolName: name,
+                nextAction: nextAction,
+                currentAction: actionName,
+              }),
+            });
+          } else {
+            callToolResult.content.unshift({
+              type: "text",
+              text: CompiledPrompts.planningPrompt({
+                currentAction: actionName,
+              }),
+            });
+          }
+          return callToolResult;
         } catch (error) {
           return {
             content: [
               {
                 type: "text",
-                text: `Error executing internal tool ${actionName}: ${error instanceof Error ? error.message : String(error)}`,
+                text: `Error executing internal tool ${actionName}: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
               },
             ],
             isError: true,
