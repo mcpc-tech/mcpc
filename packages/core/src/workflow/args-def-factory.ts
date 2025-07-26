@@ -1,21 +1,21 @@
 import { pick } from "@es-toolkit/es-toolkit";
 import type { MCPCStep, WorkflowState } from "../utils/state.ts";
-import type { JSONSchema, ArgsDefCreator } from "../types.ts";
+import type { ArgsDefCreator, JSONSchema } from "../types.ts";
 import { CompiledPrompts } from "../prompts/index.ts";
 
 export function createArgsDefFactory(
   name: string,
   allToolNames: string[],
   depGroups: Record<string, unknown>,
-  predefinedSteps?: MCPCStep[]
+  predefinedSteps?: MCPCStep[],
 ): ArgsDefCreator {
   return {
     common: (
       extra: { [n: string]: JSONSchema },
-      optionalFields: string[] = []
+      optionalFields: string[] = [],
     ): JSONSchema => {
       const requiredFields = Object.keys(extra).filter(
-        (key) => !optionalFields.includes(key)
+        (key) => !optionalFields.includes(key),
       );
       return {
         type: "object",
@@ -44,21 +44,25 @@ Workflow step definitions - provide ONLY on initial call.
 - Clear step descriptions with input/output context`,
       items: {
         type: "object",
-        description: `A single step containing actions that execute concurrently. All actions in this step run simultaneously with no guaranteed order.`,
+        description:
+          `A single step containing actions that execute concurrently. All actions in this step run simultaneously with no guaranteed order.`,
         properties: {
           description: {
             type: "string",
-            description: `**Step purpose, required inputs, and expected outputs**`,
+            description:
+              `**Step purpose, required inputs, and expected outputs**`,
           },
           actions: {
             type: "array",
-            description: `Array of action names for this step. **CURRENT LIMITATION: Only 1 action per step is allowed.** Action names must match available tool names exactly.`,
+            description:
+              `Array of action names for this step. **CURRENT LIMITATION: Only 1 action per step is allowed.** Action names must match available tool names exactly.`,
             items: {
               ...{
                 enum: allToolNames,
               },
               type: "string",
-              description: `Individual action name from available tools. Must be exactly one of the allowed tool names.`,
+              description:
+                `Individual action name from available tools. Must be exactly one of the allowed tool names.`,
             },
             uniqueItems: true,
             minItems: 0,
@@ -105,9 +109,11 @@ Workflow step definitions - provide ONLY on initial call.
       const currentStep = state.getCurrentStep();
       if (!currentStep) {
         throw new Error(
-          `Invalid workflow state: no current step, ${JSON.stringify(
-            state.getDebugInfo()
-          )}`
+          `Invalid workflow state: no current step, ${
+            JSON.stringify(
+              state.getDebugInfo(),
+            )
+          }`,
         );
       }
 
@@ -146,7 +152,7 @@ Workflow step definitions - provide ONLY on initial call.
 
     forToolDescription: function (
       description: string,
-      state: WorkflowState
+      state: WorkflowState,
     ): string {
       const enforceToolArgs = this.forCurrentState(state);
       const initTitle = predefinedSteps
@@ -157,20 +163,20 @@ NOTE: The \`steps\` has been predefined`
       return CompiledPrompts.workflowToolDescription({
         description: description,
         initTitle: initTitle,
-        schemaDefinition: JSON.stringify(enforceToolArgs, null, 2)
+        schemaDefinition: JSON.stringify(enforceToolArgs, null, 2),
       });
     },
 
     forInitialStepDescription: function (
       steps: MCPCStep[],
-      state: WorkflowState
+      state: WorkflowState,
     ): string {
       return CompiledPrompts.workflowInit({
         stepCount: steps.length.toString(),
-        currentStepDescription: state.getCurrentStep()?.description || '',
+        currentStepDescription: state.getCurrentStep()?.description || "",
         toolName: name,
         schemaDefinition: JSON.stringify(this.forCurrentState(state), null, 2),
-        workflowSteps: "" // Remove redundant workflow steps display
+        workflowSteps: "", // Remove redundant workflow steps display
       });
     },
   };

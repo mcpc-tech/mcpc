@@ -6,7 +6,7 @@ export const toolNameToSchema = (actions: Record<string, Tool>) => {
     Object.entries(actions).map(([key, tool]) => [
       key,
       tool.parameters.jsonSchema,
-    ])
+    ]),
   );
 };
 

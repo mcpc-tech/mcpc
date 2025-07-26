@@ -54,9 +54,9 @@ export const McpSettingsSchema: z.ZodObject<{
 const configStr = readFileSync(
   new URL(
     `../../../../${isProdEnv() ? "mcp.json" : "mcp.local.json"}`,
-    import.meta.url
+    import.meta.url,
   ),
-  "utf-8"
+  "utf-8",
 );
 
 export type McpServerConfig = z.infer<typeof ServerConfigSchema>;
@@ -69,26 +69,25 @@ const mcpEnabledConfigs = Object.entries(mcpSettings.mcpServers).filter(
       return false;
     }
     return true;
-  }
+  },
 );
 
 export async function getMcpClient(
-  serverConfig: [string, z.infer<typeof ServerConfigSchema>]
+  serverConfig: [string, z.infer<typeof ServerConfigSchema>],
 ) {
   const [_mcpName, mcpConfig] = serverConfig;
-  const transport: any =
-    mcpConfig.transportType === "sse"
-      ? {
-          type: "sse",
-          url: mcpConfig.url,
-          headers: {},
-        }
-      : {
-          type: "stdio",
-          command: mcpConfig.command!,
-          args: mcpConfig.args || [],
-          env: mcpConfig.env || {},
-        };
+  const transport: any = mcpConfig.transportType === "sse"
+    ? {
+      type: "sse",
+      url: mcpConfig.url,
+      headers: {},
+    }
+    : {
+      type: "stdio",
+      command: mcpConfig.command!,
+      args: mcpConfig.args || [],
+      env: mcpConfig.env || {},
+    };
   const client = await experimental_createMCPClient({
     transport,
   });

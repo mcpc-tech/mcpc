@@ -8,15 +8,11 @@
  * The server runs on port 9000 by default (configurable via PORT env var)
  * and binds to all interfaces (0.0.0.0) for accessibility.
  *
- *
  * # Set custom port
  * PORT=8080 deno run --allow-net --allow-env packages/core/src/server.ts
  *
- *
- *
  * // The server automatically mounts the core app at /core route
  * // Access OpenAPI docs at: http://localhost:9000/core/docs
- *
  *
  * @module
  */
@@ -36,5 +32,5 @@ Deno.serve(
     port,
     hostname,
   },
-  app.fetch
+  app.fetch,
 );

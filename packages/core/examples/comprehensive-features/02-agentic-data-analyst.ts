@@ -1,9 +1,9 @@
 /**
  * MCPC Example 02: Agentic Data Analyst
- * 
+ *
  * Demonstrates the agentic execution mode where the agent has complete
  * autonomy to orchestrate actions in any order based on the situation.
- * 
+ *
  * Features:
  * - Fully autonomous agentic mode
  * - Self-directed workflow based on context
@@ -25,13 +25,14 @@ export const server = await mcpc(
   [
     {
       name: "data-analyst",
-      
+
       // Agentic mode for complete autonomy
       options: {
-        mode: "agentic"
+        mode: "agentic",
       },
-      
-      description: `I am an autonomous data analyst that can perform comprehensive data analysis with complete freedom to orchestrate my actions.
+
+      description:
+        `I am an autonomous data analyst that can perform comprehensive data analysis with complete freedom to orchestrate my actions.
 
 Available tools:
 <tool name="code-runner.python-code-runner"/>
@@ -58,7 +59,7 @@ I decide the order of operations dynamically based on:
 - User preferences and goals
 
 My autonomous approach ensures thorough analysis tailored to each unique dataset.`,
-      
+
       deps: {
         mcpServers: {
           "code-runner": {
@@ -72,7 +73,7 @@ My autonomous approach ensures thorough analysis tailored to each unique dataset
         },
       },
     },
-  ]
+  ],
 );
 
 const transport = new StdioServerTransport();
@@ -80,31 +81,31 @@ await server.connect(transport);
 
 /**
  * Key Features of Agentic Mode:
- * 
+ *
  * 1. **Complete Autonomy:**
  *    - Agent decides the sequence of actions
  *    - No predefined workflow steps
  *    - Adapts approach based on context
- * 
+ *
  * 2. **Dynamic Decision Making:**
  *    - Evaluates data structure first
  *    - Chooses appropriate analysis techniques
  *    - Adjusts strategy based on findings
- * 
+ *
  * 3. **Flexible Tool Usage:**
  *    - Uses tools in any order as needed
  *    - Can repeat or skip steps dynamically
  *    - Optimizes workflow for efficiency
- * 
+ *
  * 4. **Intelligent Analysis:**
  *    - Detects data types and patterns automatically
  *    - Suggests appropriate visualizations
  *    - Identifies potential issues and solutions
- * 
+ *
  * Example Usage:
- * 
+ *
  * User: "Analyze the sales data in /data/sales.csv"
- * 
+ *
  * Agent autonomously:
  * 1. Explores the data structure and quality
  * 2. Performs cleaning and preprocessing as needed
@@ -112,7 +113,7 @@ await server.connect(transport);
  * 4. Creates relevant visualizations
  * 5. Generates insights and recommendations
  * 6. Saves results and reports
- * 
+ *
  * Claude Desktop Configuration:
  * ```json
  * {

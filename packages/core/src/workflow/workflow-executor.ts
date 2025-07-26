@@ -5,7 +5,11 @@ import addFormats from "ajv-formats";
 import type { MCPCStep, WorkflowState } from "../utils/state.ts";
 import type { ArgsDefCreator } from "../types.ts";
 import type { ComposableMCPServer } from "../compose.ts";
-import { CompiledPrompts, WorkflowPrompts, PromptUtils } from "../prompts/index.ts";
+import {
+  CompiledPrompts,
+  PromptUtils,
+  WorkflowPrompts,
+} from "../prompts/index.ts";
 
 const ajv = new Ajv({
   allErrors: true,
@@ -21,7 +25,7 @@ export class WorkflowExecutor {
     private toolNameToDetailList: [string, unknown][],
     private createArgsDef: ArgsDefCreator,
     private server: ComposableMCPServer,
-    private predefinedSteps?: MCPCStep[]
+    private predefinedSteps?: MCPCStep[],
   ) {}
 
   // Helper method to format workflow progress
@@ -32,7 +36,7 @@ export class WorkflowExecutor {
 
   async execute(
     args: Record<string, unknown>,
-    state: WorkflowState
+    state: WorkflowState,
   ): Promise<CallToolResult> {
     if (args.init) {
       state.reset();
@@ -64,11 +68,17 @@ export class WorkflowExecutor {
             content: [
               {
                 type: "text",
-                text: `## Workflow Completed!\n\n${this.formatProgress(state)}\n\n${CompiledPrompts.workflowCompleted({
-                  totalSteps: state.getSteps().length,
-                  toolName: this.name,
-                  newWorkflowInstructions: this.predefinedSteps ? "" : " and new `steps` array"
-                })}`,
+                text: `## Workflow Completed!\n\n${
+                  this.formatProgress(state)
+                }\n\n${
+                  CompiledPrompts.workflowCompleted({
+                    totalSteps: state.getSteps().length,
+                    toolName: this.name,
+                    newWorkflowInstructions: this.predefinedSteps
+                      ? ""
+                      : " and new `steps` array",
+                  })
+                }`,
               },
             ],
             isError: false,
@@ -101,7 +111,7 @@ export class WorkflowExecutor {
     // - If proceed: true, validate against the new step after moving
     // - If proceed: false, validate against current step
     const validationSchema = this.createArgsDef.forCurrentState(state);
-    
+
     const validate = ajv.compile(validationSchema);
     if (!validate(args)) {
       const errors = new AggregateAjvError(validate.errors!);
@@ -125,14 +135,17 @@ export class WorkflowExecutor {
 
   initialize(
     args: Record<string, unknown>,
-    state: WorkflowState
+    state: WorkflowState,
   ): CallToolResult {
     // Allow step redefinition when args.steps is provided, even with predefined steps
     const steps = (args.steps as Array<MCPCStep>) ?? this.predefinedSteps;
 
     if (!steps || steps.length === 0) {
       return {
-        content: [{ type: "text", text: WorkflowPrompts.ERRORS.NO_STEPS_PROVIDED }],
+        content: [{
+          type: "text",
+          text: WorkflowPrompts.ERRORS.NO_STEPS_PROVIDED,
+        }],
         isError: true,
       };
     }
@@ -144,7 +157,9 @@ export class WorkflowExecutor {
       content: [
         {
           type: "text",
-          text: `## Workflow Initialized\n\n${this.formatProgress(state)}\n\n${this.createArgsDef.forInitialStepDescription(steps, state)}`,
+          text: `## Workflow Initialized\n\n${this.formatProgress(state)}\n\n${
+            this.createArgsDef.forInitialStepDescription(steps, state)
+          }`,
         },
       ],
       isError: false,
@@ -153,12 +168,15 @@ export class WorkflowExecutor {
 
   async executeStep(
     args: Record<string, unknown>,
-    state: WorkflowState
+    state: WorkflowState,
   ): Promise<CallToolResult> {
     const currentStep = state.getCurrentStep();
     if (!currentStep) {
       return {
-        content: [{ type: "text", text: WorkflowPrompts.ERRORS.NO_CURRENT_STEP }],
+        content: [{
+          type: "text",
+          text: WorkflowPrompts.ERRORS.NO_CURRENT_STEP,
+        }],
         isError: true,
       };
     }
@@ -177,7 +195,7 @@ export class WorkflowExecutor {
         const actionArgs = args[action] || {};
         const actionResult = (await this.server.callTool(
           action,
-          actionArgs
+          actionArgs,
         )) as CallToolResult;
 
         if (!results.isError) {
@@ -219,8 +237,9 @@ export class WorkflowExecutor {
         type: "text",
         text: CompiledPrompts.nextStepDecision({
           toolName: this.name,
-          nextStepDescription: state.getNextStep()?.description || "Unknown step",
-          nextStepSchema: JSON.stringify(nextStepArgsDef, null, 2)
+          nextStepDescription: state.getNextStep()?.description ||
+            "Unknown step",
+          nextStepSchema: JSON.stringify(nextStepArgsDef, null, 2),
         }),
       });
     } else {
@@ -231,7 +250,9 @@ export class WorkflowExecutor {
           text: CompiledPrompts.workflowCompleted({
             totalSteps: state.getSteps().length,
             toolName: this.name,
-            newWorkflowInstructions: this.predefinedSteps ? "" : " and new `steps` array"
+            newWorkflowInstructions: this.predefinedSteps
+              ? ""
+              : " and new `steps` array",
           }),
         });
       } else {
@@ -239,10 +260,12 @@ export class WorkflowExecutor {
         results.content.push({
           type: "text",
           text: CompiledPrompts.finalStepCompletion({
-            statusIcon: '❌',
-            statusText: 'with errors',
+            statusIcon: "❌",
+            statusText: "with errors",
             toolName: this.name,
-            newWorkflowInstructions: this.predefinedSteps ? "" : " and new `steps` array"
+            newWorkflowInstructions: this.predefinedSteps
+              ? ""
+              : " and new `steps` array",
           }),
         });
       }

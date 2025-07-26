@@ -16,27 +16,39 @@ export function registerAgenticWorkflowTool(
     depGroups,
     toolNameToDetailList,
     predefinedSteps,
-  }: RegisterWorkflowToolParams
+  }: RegisterWorkflowToolParams,
 ) {
-  const createArgsDef = createArgsDefFactory(name, allToolNames, depGroups, predefinedSteps);
-  const executor = new WorkflowExecutor(name, allToolNames, toolNameToDetailList, createArgsDef, server, predefinedSteps);
+  const createArgsDef = createArgsDefFactory(
+    name,
+    allToolNames,
+    depGroups,
+    predefinedSteps,
+  );
+  const executor = new WorkflowExecutor(
+    name,
+    allToolNames,
+    toolNameToDetailList,
+    createArgsDef,
+    server,
+    predefinedSteps,
+  );
   const workflowState = new WorkflowState();
 
-  const planningInstructions = predefinedSteps 
-    ? '- Set `init: true` (steps are predefined)'
-    : '- Set `init: true` and define complete `steps` array';
+  const planningInstructions = predefinedSteps
+    ? "- Set `init: true` (steps are predefined)"
+    : "- Set `init: true` and define complete `steps` array";
 
   const toolDescription = CompiledPrompts.workflowExecution({
     toolName: name,
     description: description,
-    planningInstructions: planningInstructions
+    planningInstructions: planningInstructions,
   });
 
   server.tool(
     name,
     createArgsDef.forToolDescription(toolDescription, workflowState),
     jsonSchema<Record<string, unknown>>(
-      createGoogleCompatibleJSONSchema(createArgsDef.forTool())
+      createGoogleCompatibleJSONSchema(createArgsDef.forTool()),
     ),
     async (args: Record<string, unknown>) => {
       try {
@@ -53,6 +65,6 @@ export function registerAgenticWorkflowTool(
           isError: true,
         };
       }
-    }
+    },
   );
 }

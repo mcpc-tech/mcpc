@@ -33,7 +33,7 @@ export const sseHandler = (app: OpenAPIHono) =>
       const response = await handleConnecting(
         c.req.raw,
         server,
-        INCOMING_MSG_ROUTE_PATH
+        INCOMING_MSG_ROUTE_PATH,
       );
       return response;
     },
@@ -44,8 +44,8 @@ export const sseHandler = (app: OpenAPIHono) =>
             code: 400,
             message: result.error.message,
           },
-          400
+          400,
         );
       }
-    }
+    },
   );

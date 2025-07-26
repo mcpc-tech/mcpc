@@ -1,10 +1,10 @@
 /**
  * MCPC Example 08: Thinking Middleware Agent
- * 
+ *
  * Demonstrates the thinking middleware that captures and formats
  * AI reasoning processes, providing transparency into decision-making
  * and problem-solving approaches.
- * 
+ *
  * Features:
  * - AI thinking and reasoning capture
  * - Transparent decision-making process
@@ -26,12 +26,13 @@ export const server = await mcpc(
   [
     {
       name: "reasoning-analyst",
-      
+
       options: {
-        mode: "agentic"
+        mode: "agentic",
       },
-      
-      description: `I am an advanced reasoning analyst that demonstrates transparent decision-making processes through structured thinking and analysis.
+
+      description:
+        `I am an advanced reasoning analyst that demonstrates transparent decision-making processes through structured thinking and analysis.
 
 **Analysis Tools:**
 <tool name="code-runner.python-code-runner"/>
@@ -81,7 +82,7 @@ I employ systematic thinking patterns including:
 6. **Reflection:** Consider lessons learned and areas for improvement
 
 My thinking processes are made visible through structured reasoning blocks that show how I arrive at conclusions, helping users understand not just what I recommend, but why I recommend it.`,
-      
+
       deps: {
         mcpServers: {
           "code-runner": {
@@ -95,7 +96,7 @@ My thinking processes are made visible through structured reasoning blocks that 
         },
       },
     },
-  ]
+  ],
 );
 
 const transport = new StdioServerTransport();

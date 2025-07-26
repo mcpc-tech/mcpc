@@ -17,7 +17,7 @@ export const ToolNameRegex = /^[a-zA-Z0-9_-]{1,64}$/;
  * @see https://ai.google.dev/api/caching#Schema
  */
 export const createGoogleJSONSchema = (
-  additionalProperties: boolean | Record<string, unknown>
+  additionalProperties: boolean | Record<string, unknown>,
 ): Record<string, unknown> => {
   return optionalObject({ additionalProperties }, !GEMINI_PREFERRED_FORMAT);
 };
@@ -31,7 +31,7 @@ export const createGoogleJSONSchema = (
  * @see https://ai.google.dev/api/caching#Schema
  */
 export const createGoogleCompatibleJSONSchema = (
-  schema: Record<string, unknown>
+  schema: Record<string, unknown>,
 ): Record<string, unknown> => {
   if (!GEMINI_PREFERRED_FORMAT) {
     return schema;

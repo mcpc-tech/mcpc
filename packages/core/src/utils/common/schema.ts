@@ -23,7 +23,7 @@ export function updateRefPaths(schema: any, wrapperPath: string): any {
         parentJsonPtr,
         parentKeyword,
         parentSchema,
-        keyIndex
+        keyIndex,
       ) {
         // Check if current node has $ref property
         if (schemaNode && typeof schemaNode === "object" && schemaNode.$ref) {
@@ -32,9 +32,9 @@ export function updateRefPaths(schema: any, wrapperPath: string): any {
           // Handle relative path references
           if (ref.startsWith("#/properties/")) {
             const relativePath = ref.substring(13); // Remove "#/properties/"
-            schemaNode.$ref = `#/properties/${wrapperPath}/properties/${relativePath}`;
-          }
-          // Handle root references
+            schemaNode.$ref =
+              `#/properties/${wrapperPath}/properties/${relativePath}`;
+          } // Handle root references
           else if (ref === "#") {
             schemaNode.$ref = `#/properties/${wrapperPath}`;
           }
@@ -53,7 +53,7 @@ export function updateRefPaths(schema: any, wrapperPath: string): any {
 // Optional: Add batch processing function
 export function updateMultipleSchemas(
   schemas: Record<string, any>,
-  pathPrefix: string = ""
+  pathPrefix: string = "",
 ): Record<string, any> {
   const result: Record<string, any> = {};
 

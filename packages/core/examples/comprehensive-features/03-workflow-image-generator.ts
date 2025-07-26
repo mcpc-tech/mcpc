@@ -1,9 +1,9 @@
 /**
  * MCPC Example 03: Workflow Image Generator
- * 
+ *
  * Demonstrates agentic workflow mode with predefined steps for creating
  * images by rendering HTML/CSS designs through browser automation.
- * 
+ *
  * Features:
  * - Structured workflow with predefined steps
  * - Step-by-step execution with state tracking
@@ -25,35 +25,41 @@ export const server = await mcpc(
   [
     {
       name: "image-generator",
-      
+
       options: {
         mode: "agentic_workflow",
         // Predefined workflow steps for predictable execution
         steps: [
           {
-            description: "Analyze the user's image generation request and create a detailed design plan including layout, colors, style requirements, and technical specifications.",
-            actions: ["reasoning"]
+            description:
+              "Analyze the user's image generation request and create a detailed design plan including layout, colors, style requirements, and technical specifications.",
+            actions: ["reasoning"],
           },
           {
-            description: "Generate complete HTML and CSS code for the image design using modern web technologies, responsive design principles, and accessibility best practices.",
-            actions: ["@wonderwhy-er/desktop-commander.write_file"]
+            description:
+              "Generate complete HTML and CSS code for the image design using modern web technologies, responsive design principles, and accessibility best practices.",
+            actions: ["@wonderwhy-er/desktop-commander.write_file"],
           },
           {
-            description: "Open a browser instance and navigate to the generated HTML file to render the design in a controlled environment.",
-            actions: ["@microsoft/playwright-mcp.browser_navigate"]
+            description:
+              "Open a browser instance and navigate to the generated HTML file to render the design in a controlled environment.",
+            actions: ["@microsoft/playwright-mcp.browser_navigate"],
           },
           {
-            description: "Capture a high-quality screenshot of the rendered design with proper dimensions and formatting for the intended use case.",
-            actions: ["@microsoft/playwright-mcp.browser_take_screenshot"]
+            description:
+              "Capture a high-quality screenshot of the rendered design with proper dimensions and formatting for the intended use case.",
+            actions: ["@microsoft/playwright-mcp.browser_take_screenshot"],
           },
           {
-            description: "Clean up browser resources, validate the generated image quality, and present the final result to the user with file location.",
-            actions: ["@microsoft/playwright-mcp.browser_close"]
-          }
-        ]
+            description:
+              "Clean up browser resources, validate the generated image quality, and present the final result to the user with file location.",
+            actions: ["@microsoft/playwright-mcp.browser_close"],
+          },
+        ],
       },
-      
-      description: `**Objective:** Generate high-quality images by creating and rendering HTML/CSS designs through a structured workflow.
+
+      description:
+        `**Objective:** Generate high-quality images by creating and rendering HTML/CSS designs through a structured workflow.
 
 **Design Capabilities:**
 - Modern CSS layouts with Flexbox and Grid
@@ -95,7 +101,7 @@ export const server = await mcpc(
 - Reproducible results
 
 Present final images using ![image](path) syntax and provide file locations.`,
-      
+
       deps: {
         mcpServers: {
           "@wonderwhy-er/desktop-commander": {
@@ -109,7 +115,7 @@ Present final images using ![image](path) syntax and provide file locations.`,
         },
       },
     },
-  ]
+  ],
 );
 
 const transport = new StdioServerTransport();
@@ -117,40 +123,40 @@ await server.connect(transport);
 
 /**
  * Key Features of Agentic Workflow Mode:
- * 
+ *
  * 1. **Predefined Steps:**
  *    - Clear sequence of operations
  *    - Predictable and repeatable execution
  *    - Strong governance and compliance
- * 
+ *
  * 2. **State Management:**
  *    - Automatic step progression tracking
  *    - Built-in error handling and recovery
  *    - Progress monitoring and debugging
- * 
+ *
  * 3. **Structured Execution:**
  *    - Each step has defined actions and purpose
  *    - Validation between steps
  *    - Consistent output quality
- * 
+ *
  * 4. **Professional Workflow:**
  *    - Design → Code → Render → Capture → Present
  *    - Quality assurance at each stage
  *    - Resource management and cleanup
- * 
+ *
  * Example Usage:
- * 
+ *
  * User: "Create an Instagram post about coffee with a modern, minimalist design"
- * 
+ *
  * Workflow execution:
  * [Step 1] Planning modern minimalist coffee post design...
  * [Step 2] Generating HTML/CSS code with clean typography...
  * [Step 3] Opening browser and loading the design...
  * [Step 4] Capturing high-quality screenshot...
  * [Step 5] Cleaning up and presenting final image...
- * 
+ *
  * Result: ![image](/tmp/coffee-post.png)
- * 
+ *
  * Claude Desktop Configuration:
  * ```json
  * {

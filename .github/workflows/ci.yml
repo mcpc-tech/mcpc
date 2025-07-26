@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'packages/core/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'packages/core/**'
+      - '.github/workflows/**'
+
+jobs:
+  test:
+    name: Test with Deno ${{ matrix.deno-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        deno-version: ['2.4.x', '2.x']
+        os: [ubuntu-latest, macos-latest, windows-latest]
+      fail-fast: false
+
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Deno ${{ matrix.deno-version }}
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ matrix.deno-version }}
+
+      - name: Show Deno Version
+        run: deno --version
+
+      - name: Cache Dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/deno
+          key: deno-${{ runner.os }}-${{ matrix.deno-version }}-${{ hashFiles('packages/core/deno.lock') }}
+
+      - name: Install Dependencies
+        working-directory: packages/core
+        run: deno cache mod.ts
+
+      - name: Run Linter
+        working-directory: packages/core
+        run: deno lint
+
+      - name: Check Formatting
+        working-directory: packages/core
+        run: deno fmt --check
+
+      - name: Type Check
+        working-directory: packages/core
+        run: deno check mod.ts
+
+      - name: Run Tests
+        working-directory: packages/core
+        run: deno task test
+
+  coverage:
+    name: Generate Coverage Report
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.x
+
+      - name: Run Tests with Coverage
+        working-directory: packages/core
+        run: deno test --allow-env --allow-read --coverage=coverage tests/
+
+      - name: Generate Coverage Report
+        working-directory: packages/core
+        run: deno coverage coverage --lcov --output=coverage.lcov
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        continue-on-error: true
+        with:
+          file: ./packages/core/coverage.lcov
+          flags: mcpc-core
+
+  security:
+    name: Security Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.x
+
+      - name: Check Dependencies
+        working-directory: packages/core
+        run: |
+          echo "=== Dependency Info ==="
+          deno info mod.ts
+          echo "=== Checking for HTTP imports ==="
+          ! grep -r "http://" . --include="*.ts" || (echo "Found insecure HTTP imports" && exit 1)

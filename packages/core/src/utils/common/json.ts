@@ -11,7 +11,7 @@ export function parseJSON<T>(text: string): T | null {
     try {
       const repairedText = jsonrepair(text);
       console.warn(
-        `Failed to parse JSON, attempting to repair, result: ${text}`
+        `Failed to parse JSON, attempting to repair, result: ${text}`,
       );
       return JSON.parse(repairedText) as T;
     } catch {

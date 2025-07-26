@@ -13,7 +13,7 @@ interface MCPServer {
     name: string,
     description: string,
     schema: Schema<T>,
-    callback: (args: T) => unknown
+    callback: (args: T) => unknown,
   ) => void;
 }
 
@@ -35,7 +35,7 @@ export function registerAgenticTool(
     allToolNames: _allToolNames, // Prefix with underscore to indicate it's intentionally unused
     depGroups,
     toolNameToDetailList,
-  }: RegisterToolParams
+  }: RegisterToolParams,
 ) {
   description = CompiledPrompts.autonomousExecution({
     toolName: name,
@@ -58,7 +58,7 @@ export function registerAgenticTool(
           required: [toolName],
         },
       };
-    }
+    },
   );
 
   // Add internal tools to allOf array
@@ -95,17 +95,16 @@ export function registerAgenticTool(
     },
     required: [ACTION_KEY],
   };
-  const schema =
-    availableActionNames.length > 0
-      ? argsDef
-      : { type: "object", properties: {} };
+  const schema = availableActionNames.length > 0
+    ? argsDef
+    : { type: "object", properties: {} };
   const validate = ajv.compile(schema);
 
   server.tool(
     name,
     description,
     jsonSchema<Record<string, unknown>>(
-      createGoogleCompatibleJSONSchema(schema as Record<string, unknown>)
+      createGoogleCompatibleJSONSchema(schema as Record<string, unknown>),
     ),
     async (args: Record<string, unknown>) => {
       if (!validate(args)) {
@@ -127,7 +126,7 @@ export function registerAgenticTool(
 
       // First check external tools
       const currentTool = toolNameToDetailList.find(
-        ([name, _detail]: [string, unknown]) => name === actionName
+        ([name, _detail]: [string, unknown]) => name === actionName,
       )?.[1] as
         | { execute: (args: unknown) => Promise<CallToolResult> }
         | undefined;
@@ -165,7 +164,7 @@ export function registerAgenticTool(
         try {
           const result = await server.callTool(
             actionName,
-            args[actionName] as Record<string, unknown>
+            args[actionName] as Record<string, unknown>,
           );
 
           const nextAction = args[NEXT_ACTION_KEY] as string;
@@ -173,10 +172,9 @@ export function registerAgenticTool(
             content: [
               {
                 type: "text" as const,
-                text:
-                  typeof result === "string"
-                    ? result
-                    : JSON.stringify(result, null, 2),
+                text: typeof result === "string"
+                  ? result
+                  : JSON.stringify(result, null, 2),
               },
             ],
           };
@@ -223,6 +221,6 @@ export function registerAgenticTool(
           },
         ],
       };
-    }
+    },
   );
 }

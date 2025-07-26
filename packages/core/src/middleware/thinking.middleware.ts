@@ -24,7 +24,7 @@ const DEFAULT_REASONING_FORMAT = ReasoningFormatConfig.parse({});
  * @param formatConfig Optional custom formatting configuration
  */
 export function parseThinkingEventsMiddleware(
-  formatConfig: Partial<ReasoningFormatConfig> = {}
+  formatConfig: Partial<ReasoningFormatConfig> = {},
 ): LanguageModelV1Middleware {
   const config = { ...DEFAULT_REASONING_FORMAT, ...formatConfig };
 
@@ -99,7 +99,7 @@ export function parseThinkingEventsMiddleware(
                 textDelta: chunk.textDelta.replace(/\n/g, config.linePrefix),
               });
             },
-          })
+          }),
         ),
         ...rest,
       };

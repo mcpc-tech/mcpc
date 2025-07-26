@@ -25,7 +25,7 @@ export enum ImitateToolCallTagForQwen {
 
 export const toolCallPattern: RegExp = new RegExp(
   `${ImitateToolCallTagForQwen.StartTag}([\\s\\S]*?)${ImitateToolCallTagForQwen.EndTag}`,
-  "g"
+  "g",
 );
 
 // System prompt to guide the model to use the tool call format
@@ -52,7 +52,7 @@ Use tools by outputting this exact format (no extra formatting):
 
 export const processBuffer = (
   buffer: string,
-  isFlushing = false
+  isFlushing = false,
 ): {
   isTool?: boolean;
   emitContent?: Array<{
@@ -107,7 +107,7 @@ export const processBuffer = (
   // Check for a complete tool call
   const closeTagPos = buffer.indexOf(
     ImitateToolCallTagForQwen.EndTag,
-    openTagPos + ImitateToolCallTagForQwen.StartTag.length
+    openTagPos + ImitateToolCallTagForQwen.StartTag.length,
   );
 
   if (closeTagPos === -1) {
@@ -118,7 +118,7 @@ export const processBuffer = (
   const toolCallContent = buffer
     .substring(
       openTagPos + ImitateToolCallTagForQwen.StartTag.length,
-      closeTagPos
+      closeTagPos,
     )
     .trim();
 
@@ -126,7 +126,7 @@ export const processBuffer = (
   result.emitContent.push({
     type: "tool",
     content: p(
-      "{ImitateToolCallTag.StartTag}{toolCallContent}{ImitateToolCallTag.EndTag}"
+      "{ImitateToolCallTag.StartTag}{toolCallContent}{ImitateToolCallTag.EndTag}",
     )({
       "ImitateToolCallTag.EndTag": ImitateToolCallTagForQwen.EndTag,
       "ImitateToolCallTag.StartTag": ImitateToolCallTagForQwen.StartTag,
@@ -146,7 +146,7 @@ export const processBuffer = (
       .includes(ImitateToolCallTagForQwen.StartTag)
   ) {
     const remainingBuffer = buffer.substring(
-      closeTagPos + ImitateToolCallTagForQwen.EndTag.length
+      closeTagPos + ImitateToolCallTagForQwen.EndTag.length,
     );
     const nextResult = processBuffer(remainingBuffer, isFlushing);
 
@@ -154,10 +154,10 @@ export const processBuffer = (
     if (nextResult.emitContent) {
       for (const item of nextResult.emitContent) {
         if (item.position) {
-          item.position.start +=
-            closeTagPos + ImitateToolCallTagForQwen.EndTag.length;
-          item.position.end +=
-            closeTagPos + ImitateToolCallTagForQwen.EndTag.length;
+          item.position.start += closeTagPos +
+            ImitateToolCallTagForQwen.EndTag.length;
+          item.position.end += closeTagPos +
+            ImitateToolCallTagForQwen.EndTag.length;
         }
       }
     }
@@ -180,7 +180,7 @@ export const processBuffer = (
  */
 function processToolCall(
   toolCallContent: string,
-  controller: TransformStreamDefaultController<LanguageModelV1StreamPart>
+  controller: TransformStreamDefaultController<LanguageModelV1StreamPart>,
 ) {
   try {
     // Parse the JSON from the tool call
@@ -202,7 +202,7 @@ function processToolCall(
     controller.enqueue({
       type: "text-delta",
       textDelta: p(
-        "{ImitateToolCallTag.StartTag}{toolCallContent}{ImitateToolCallTag.EndTag}"
+        "{ImitateToolCallTag.StartTag}{toolCallContent}{ImitateToolCallTag.EndTag}",
       )({
         "ImitateToolCallTag.EndTag": ImitateToolCallTagForQwen.EndTag,
         "ImitateToolCallTag.StartTag": ImitateToolCallTagForQwen.StartTag,
@@ -212,12 +212,13 @@ function processToolCall(
   } catch (e) {
     // Handle parsing errors
     console.error(
-      `Failed to parse tool call JSON: ${e}. Content: '${toolCallContent}'`
+      `Failed to parse tool call JSON: ${e}. Content: '${toolCallContent}'`,
     );
 
     controller.enqueue({
       type: "text-delta",
-      textDelta: `[parse error] ${e} \n\`\`\`json\n${toolCallContent}\n\`\`\`\n`,
+      textDelta:
+        `[parse error] ${e} \n\`\`\`json\n${toolCallContent}\n\`\`\`\n`,
     });
   }
 }
@@ -230,7 +231,7 @@ function createToolCallTransformer() {
   return {
     transform: (
       chunk: LanguageModelV1StreamPart,
-      controller: TransformStreamDefaultController<LanguageModelV1StreamPart>
+      controller: TransformStreamDefaultController<LanguageModelV1StreamPart>,
     ) => {
       // Only process text-delta chunks
       if (chunk.type !== "text-delta") {
@@ -255,8 +256,7 @@ function createToolCallTransformer() {
 
             // Remove the processed content from the buffer
             if (item.position) {
-              buffer =
-                buffer.substring(0, item.position.start) +
+              buffer = buffer.substring(0, item.position.start) +
                 buffer.substring(item.position.end);
             }
           } else if (item.type === "tool" && item.toolCallContent) {
@@ -265,8 +265,7 @@ function createToolCallTransformer() {
 
             // Remove the processed tool call from the buffer
             if (item.position) {
-              buffer =
-                buffer.substring(0, item.position.start) +
+              buffer = buffer.substring(0, item.position.start) +
                 buffer.substring(item.position.end);
             }
           }
@@ -275,7 +274,7 @@ function createToolCallTransformer() {
     },
 
     flush: (
-      controller: TransformStreamDefaultController<LanguageModelV1StreamPart>
+      controller: TransformStreamDefaultController<LanguageModelV1StreamPart>,
     ) => {
       // Check for any remaining complete tool calls
       const result = processBuffer(buffer, true);
@@ -310,16 +309,15 @@ function createToolCallTransformer() {
  * Middleware that imitates tool use functionality for models that don't natively support it
  */
 export function imitateToolUseMiddleware(
-  params?: Record<string, string>
+  params?: Record<string, string>,
 ): LanguageModelV1Middleware {
   return {
     transformParams: async ({ params: originalParams }) => {
       const { prompt } = originalParams;
 
-      const tools =
-        originalParams.mode.type === "regular"
-          ? originalParams.mode.tools ?? []
-          : [];
+      const tools = originalParams.mode.type === "regular"
+        ? originalParams.mode.tools ?? []
+        : [];
 
       if (tools.length === 0) {
         return originalParams;
@@ -335,7 +333,7 @@ export function imitateToolUseMiddleware(
           tool_definitions: toolDefinitions.join("\n"),
           "ImitateToolCallTag.StartTag": ImitateToolCallTagForQwen.StartTag,
           "ImitateToolCallTag.EndTag": ImitateToolCallTagForQwen.EndTag,
-        }
+        },
       );
 
       // Enhance system prompt with tool instructions
@@ -353,8 +351,7 @@ export function imitateToolUseMiddleware(
               ) {
                 return {
                   ...content,
-                  text:
-                    (content as { text: string }).text +
+                  text: (content as { text: string }).text +
                     "\n\n" +
                     imitateToolCallPromptDefined,
                 };
@@ -370,10 +367,9 @@ export function imitateToolUseMiddleware(
         toolSystemPrompt = [
           {
             role: "system",
-            content:
-              typeof prompt[0].content === "string"
-                ? prompt[0].content + "\n\n" + imitateToolCallPromptDefined
-                : imitateToolCallPromptDefined,
+            content: typeof prompt[0].content === "string"
+              ? prompt[0].content + "\n\n" + imitateToolCallPromptDefined
+              : imitateToolCallPromptDefined,
           },
           ...prompt.slice(1),
         ];
@@ -396,7 +392,7 @@ export function imitateToolUseMiddleware(
         new TransformStream<
           LanguageModelV1StreamPart,
           LanguageModelV1StreamPart
-        >(transformer)
+        >(transformer),
       );
 
       return {

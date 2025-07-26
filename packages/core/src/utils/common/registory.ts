@@ -25,11 +25,11 @@ export function connectToSmitheryServer(smitheryConfig: SmitheryConfig) {
   // btoa() converts the JSON string to base64 for safe URL transmission
   serverUrl.searchParams.set(
     "config",
-    btoa(JSON.stringify(smitheryConfig.config))
+    btoa(JSON.stringify(smitheryConfig.config)),
   );
   serverUrl.searchParams.set(
     "api_key",
-    smitheryConfig?.smitheryApiKey ?? smitheryConfig?.config?.smitheryApiKey
+    smitheryConfig?.smitheryApiKey ?? smitheryConfig?.config?.smitheryApiKey,
   );
 
   return { url: serverUrl.toString() } as z.infer<typeof StreamableHTTPSchema>;

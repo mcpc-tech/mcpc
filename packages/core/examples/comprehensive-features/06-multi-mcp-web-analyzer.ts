@@ -1,10 +1,10 @@
 /**
  * MCPC Example 06: Multi-MCP Web Analyzer
- * 
+ *
  * Demonstrates integration of multiple MCP servers for complex web
  * analysis workflows combining browser automation, code execution,
  * and file operations.
- * 
+ *
  * Features:
  * - Multi-MCP server integration
  * - Complex workflow orchestration
@@ -26,12 +26,13 @@ export const server = await mcpc(
   [
     {
       name: "web-analyzer",
-      
+
       options: {
-        mode: "agentic"
+        mode: "agentic",
       },
-      
-      description: `I am a comprehensive web analyzer that combines multiple MCP servers to perform sophisticated web content analysis and reporting.
+
+      description:
+        `I am a comprehensive web analyzer that combines multiple MCP servers to perform sophisticated web content analysis and reporting.
 
 **Browser Automation Tools:**
 <tool name="@microsoft/playwright-mcp.browser_navigate"/>
@@ -81,7 +82,7 @@ I intelligently coordinate between browser automation, data processing, and file
 - CSV files for spreadsheet analysis
 - PDF reports for sharing and presentation
 - Screenshots and visual documentation`,
-      
+
       deps: {
         mcpServers: {
           "@microsoft/playwright-mcp": {
@@ -102,7 +103,7 @@ I intelligently coordinate between browser automation, data processing, and file
         },
       },
     },
-  ]
+  ],
 );
 
 const transport = new StdioServerTransport();
@@ -110,31 +111,31 @@ await server.connect(transport);
 
 /**
  * Key Multi-MCP Integration Features:
- * 
+ *
  * 1. **Seamless Tool Coordination:**
  *    - Browser automation for data collection
  *    - Code execution for data processing
  *    - File operations for data persistence
- * 
+ *
  * 2. **Intelligent Workflow Orchestration:**
  *    - Automatically sequences operations across MCPs
  *    - Handles data flow between different tool types
  *    - Optimizes resource usage and performance
- * 
+ *
  * 3. **Comprehensive Analysis Pipeline:**
  *    - Multi-stage data collection and processing
  *    - Advanced analytics using Python libraries
  *    - Professional reporting and visualization
- * 
+ *
  * 4. **Enterprise-Grade Features:**
  *    - Error handling across multiple systems
  *    - Resource cleanup and management
  *    - Scalable analysis workflows
- * 
+ *
  * Example Analysis Workflow:
- * 
+ *
  * User: "Analyze the SEO and performance of https://example.com"
- * 
+ *
  * Autonomous execution:
  * 1. Navigate to the website with browser automation
  * 2. Take screenshots for visual documentation
@@ -143,14 +144,14 @@ await server.connect(transport);
  * 5. Generate comprehensive reports with visualizations
  * 6. Save results in multiple formats for different uses
  * 7. Clean up browser resources
- * 
+ *
  * Output:
  * - SEO analysis report with recommendations
  * - Performance metrics and optimization suggestions
  * - Accessibility compliance assessment
  * - Visual screenshots and documentation
  * - Raw data exports for further analysis
- * 
+ *
  * Use Cases:
  * - Website audits and optimization
  * - Competitor analysis and benchmarking
@@ -158,7 +159,7 @@ await server.connect(transport);
  * - Technical SEO assessments
  * - User experience evaluations
  * - Brand monitoring and analysis
- * 
+ *
  * Claude Desktop Configuration:
  * ```json
  * {

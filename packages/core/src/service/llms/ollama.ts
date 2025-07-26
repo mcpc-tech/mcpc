@@ -23,10 +23,10 @@ export const _ollama: OpenAIProvider = createOpenAI({
 
 export const ollama: (
   model: string,
-  params: Record<string, string>
+  params: Record<string, string>,
 ) => Promise<LanguageModelV1> = async (
   model: string,
-  params: Record<string, string>
+  params: Record<string, string>,
 ) => {
   const baseModel = _ollama(model);
 

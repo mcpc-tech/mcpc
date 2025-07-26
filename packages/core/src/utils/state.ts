@@ -104,14 +104,20 @@ export class WorkflowState {
 
   // Mark current step as running
   markCurrentStepRunning(): void {
-    if (this.isInitialized && this.currentStepIndex >= 0 && this.currentStepIndex < this.steps.length) {
+    if (
+      this.isInitialized && this.currentStepIndex >= 0 &&
+      this.currentStepIndex < this.steps.length
+    ) {
       this.stepStatuses[this.currentStepIndex] = "running";
     }
   }
 
   // Mark current step as completed
   markCurrentStepCompleted(result?: string): void {
-    if (this.isInitialized && this.currentStepIndex >= 0 && this.currentStepIndex < this.steps.length) {
+    if (
+      this.isInitialized && this.currentStepIndex >= 0 &&
+      this.currentStepIndex < this.steps.length
+    ) {
       this.stepStatuses[this.currentStepIndex] = "completed";
       if (result) {
         this.stepResults[this.currentStepIndex] = result;
@@ -121,7 +127,10 @@ export class WorkflowState {
 
   // Mark current step as failed
   markCurrentStepFailed(error?: string): void {
-    if (this.isInitialized && this.currentStepIndex >= 0 && this.currentStepIndex < this.steps.length) {
+    if (
+      this.isInitialized && this.currentStepIndex >= 0 &&
+      this.currentStepIndex < this.steps.length
+    ) {
       this.stepStatuses[this.currentStepIndex] = "failed";
       if (error) {
         this.stepErrors[this.currentStepIndex] = error;
@@ -147,7 +156,7 @@ export class WorkflowState {
       results: this.stepResults,
       errors: this.stepErrors,
       currentStepIndex: this.currentStepIndex,
-      totalSteps: this.steps.length
+      totalSteps: this.steps.length,
     };
   }
 

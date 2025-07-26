@@ -14,7 +14,8 @@ export const SystemPrompts = {
   /**
    * Base system prompt for autonomous MCP execution
    */
-  AUTONOMOUS_EXECUTION: `Agentic MCP tool \`{toolName}\` that processes instructions through iterative self-invocation.
+  AUTONOMOUS_EXECUTION:
+    `Agentic MCP tool \`{toolName}\` that processes instructions through iterative self-invocation.
 
 <instructions>{description}</instructions>
 
@@ -31,7 +32,8 @@ export const SystemPrompts = {
   /**
    * Workflow execution system prompt
    */
-  WORKFLOW_EXECUTION: `Agentic workflow execution tool \`{toolName}\` that processes requests through structured multi-step workflows.
+  WORKFLOW_EXECUTION:
+    `Agentic workflow execution tool \`{toolName}\` that processes requests through structured multi-step workflows.
 
 <instructions>{description}</instructions>
 
@@ -80,7 +82,8 @@ export const WorkflowPrompts = {
   /**
    * Workflow initialization instructions
    */
-  WORKFLOW_INIT: `Workflow initialized with {stepCount} steps. You MUST start the workflow with the first step to \`{currentStepDescription}\`. 
+  WORKFLOW_INIT:
+    `Workflow initialized with {stepCount} steps. You MUST start the workflow with the first step to \`{currentStepDescription}\`. 
               
 ## EXECUTE tool \`{toolName}\` with the following new parameter definition
 
@@ -111,7 +114,8 @@ export const WorkflowPrompts = {
   /**
    * Planning instructions for dynamic workflows
    */
-  DYNAMIC_WORKFLOW_PLANNING: `- Set \`init: true\` and define complete \`steps\` array`,
+  DYNAMIC_WORKFLOW_PLANNING:
+    `- Set \`init: true\` and define complete \`steps\` array`,
 
   /**
    * Next step decision prompt
@@ -184,12 +188,14 @@ export const ResponseTemplates = {
   /**
    * Success response for action execution
    */
-  ACTION_SUCCESS: `# You WILL call this tool(\`{toolName}\`) AGAIN using the \`{nextAction}\` action, after evaluating the result from previous action({currentAction}):`,
+  ACTION_SUCCESS:
+    `# You WILL call this tool(\`{toolName}\`) AGAIN using the \`{nextAction}\` action, after evaluating the result from previous action({currentAction}):`,
 
   /**
    * Planning prompt when no next action is specified
    */
-  PLANNING_PROMPT: `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action({currentAction}):`,
+  PLANNING_PROMPT:
+    `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action({currentAction}):`,
 
   /**
    * Error response template
@@ -212,7 +218,8 @@ export const ResponseTemplates = {
   /**
    * Audit log messages
    */
-  AUDIT_LOG: `Audit log entry created: [{timestamp}] {level}: {action} on {resource}{userInfo}`,
+  AUDIT_LOG:
+    `Audit log entry created: [{timestamp}] {level}: {action} on {resource}{userInfo}`,
 };
 
 /**
@@ -266,7 +273,7 @@ export const PromptUtils = {
    * Generate tool list for descriptions
    */
   generateToolList: (
-    tools: Array<{ name: string; description?: string; hide?: boolean }>
+    tools: Array<{ name: string; description?: string; hide?: boolean }>,
   ) => {
     return tools
       .filter((tool) => !tool.hide)
@@ -274,7 +281,7 @@ export const PromptUtils = {
         (tool) =>
           `<tool name="${tool.name}"${
             tool.description ? ` description="${tool.description}"` : ""
-          }/>`
+          }/>`,
       )
       .join("\n");
   },
@@ -293,7 +300,7 @@ export const PromptUtils = {
    * Format workflow steps for display
    */
   formatWorkflowSteps: (
-    steps: Array<{ description: string; actions: string[] }>
+    steps: Array<{ description: string; actions: string[] }>,
   ) => {
     if (!steps.length) return "";
     return `## Workflow Steps\n${JSON.stringify(steps, null, 2)}`;
@@ -318,15 +325,15 @@ export const PromptUtils = {
       .map((step, index) => {
         const status = progressData.statuses[index] || "pending";
         const icon = statusIcons[status as keyof typeof statusIcons] || "⏳";
-        const current =
-          index === progressData.currentStepIndex ? " **[CURRENT]**" : "";
-        const actions =
-          step.actions.length > 0
-            ? ` | Action: ${step.actions.join(", ")}`
-            : "";
-        return `${icon} **Step ${index + 1}:** ${
-          step.description
-        }${actions}${current}`;
+        const current = index === progressData.currentStepIndex
+          ? " **[CURRENT]**"
+          : "";
+        const actions = step.actions.length > 0
+          ? ` | Action: ${step.actions.join(", ")}`
+          : "";
+        return `${icon} **Step ${
+          index + 1
+        }:** ${step.description}${actions}${current}`;
       })
       .join("\n");
   },

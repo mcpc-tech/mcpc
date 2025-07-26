@@ -29,7 +29,7 @@ export interface WorkflowStep {
 /**
  * Execution mode types
  */
-export type ExecutionMode = 'agentic' | 'agentic_workflow';
+export type ExecutionMode = "agentic" | "agentic_workflow";
 
 /**
  * Prompt template configuration
@@ -55,7 +55,7 @@ export interface SecurityValidationResult {
  */
 export interface AuditLogEntry {
   timestamp: string;
-  level: 'info' | 'warn' | 'error';
+  level: "info" | "warn" | "error";
   action: string;
   resource: string;
   user?: string;
@@ -66,7 +66,7 @@ export interface AuditLogEntry {
  */
 export interface ToolResponse {
   content: Array<{
-    type: 'text';
+    type: "text";
     text: string;
   }>;
   isError?: boolean;

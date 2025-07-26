@@ -1,12 +1,12 @@
 /**
  * MCPC Example 01: Basic File Manager
- * 
+ *
  * Demonstrates the fundamental MCPC features:
  * - Basic server creation and composition
  * - Dependency management with external MCP servers
  * - Simple tool orchestration with file operations
  * - Tool selection using <tool> tags
- * 
+ *
  * This creates a smart file organizer that can manage files efficiently.
  */
 
@@ -19,18 +19,19 @@ export const server = await mcpc(
       name: "basic-file-manager",
       version: "1.0.0",
     },
-    { 
-      capabilities: { 
-        tools: { 
-          listChanged: true 
-        } 
-      } 
+    {
+      capabilities: {
+        tools: {
+          listChanged: true,
+        },
+      },
     },
   ],
   [
     {
       name: "file-organizer",
-      description: `I am a smart file organizer that helps users manage their files efficiently.
+      description:
+        `I am a smart file organizer that helps users manage their files efficiently.
 
 Available tools:
 <tool name="@wonderwhy-er/desktop-commander.list_directory"/>
@@ -49,7 +50,7 @@ I can:
 6. Create new files or modify existing ones
 
 I always ask for confirmation before making destructive changes and provide clear explanations of what I'm doing.`,
-      
+
       deps: {
         mcpServers: {
           "@wonderwhy-er/desktop-commander": {
@@ -60,7 +61,7 @@ I always ask for confirmation before making destructive changes and provide clea
         },
       },
     },
-  ]
+  ],
 );
 
 const transport = new StdioServerTransport();

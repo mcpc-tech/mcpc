@@ -25,7 +25,7 @@ const transports = new Map<string, SSEServerTransport>();
 export async function handleConnecting(
   request: Request,
   server: McpServer | ComposableMCPServer,
-  incomingMsgRoutePath: string
+  incomingMsgRoutePath: string,
 ): Promise<Response> {
   // Check if a session ID is provided in the request
   const url = new URL(request.url);
@@ -129,7 +129,7 @@ export class SSEServerTransport implements Transport {
       },
     }).pipeThrough(
       // Support standard sse stream chunk syntax
-      new ServerSentEventStream()
+      new ServerSentEventStream(),
     );
   }
 
@@ -141,7 +141,7 @@ export class SSEServerTransport implements Transport {
   async start() {
     if (this.#sseResponse) {
       throw new Error(
-        "SSEServerTransport already started! If using Server class, note that connect() calls start() automatically."
+        "SSEServerTransport already started! If using Server class, note that connect() calls start() automatically.",
       );
     }
 

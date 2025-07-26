@@ -86,7 +86,7 @@ I can execute code safely with additional logging, timeout protection, and safet
           {
             code,
             language: "python",
-          }
+          },
         );
 
         if (enableLogging) {
@@ -123,7 +123,7 @@ except Exception as e:
           "code-runner.python-code-runner",
           {
             code: wrappedCode,
-          }
+          },
         );
 
         return {
@@ -142,7 +142,7 @@ ${JSON.stringify(executionResult, null, 2)}`,
           ],
         };
       },
-      true
+      true,
     );
 
     // Code safety validator
@@ -184,19 +184,19 @@ ${JSON.stringify(executionResult, null, 2)}`,
                 isValid ? "✅ SAFE" : "❌ UNSAFE"
               }
 ${
-  issues.length > 0
-    ? "\nIssues:\n" + issues.map((i) => `- ${i}`).join("\n")
-    : "No issues found."
-}`,
+                issues.length > 0
+                  ? "\nIssues:\n" + issues.map((i) => `- ${i}`).join("\n")
+                  : "No issues found."
+              }`,
             },
           ],
         };
       },
-      true
+      true,
     );
 
     console.log("✅ Internal tool wrappers registered!");
-  }
+  },
 );
 
 const mcpTransport = new StdioServerTransport();

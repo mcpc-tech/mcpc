@@ -1,12 +1,12 @@
 /**
  * MCPC Example 05: Tool Override Manager
- * 
+ *
  * Demonstrates advanced tool management features including:
  * - Tool description overrides
  * - Internal tools for internal operations
  * - Tool selection with wildcards
  * - Internal tool invocation
- * 
+ *
  * This example shows how to create sophisticated tool management
  * with security and customization features.
  */
@@ -17,11 +17,12 @@ import { ComposableMCPServer } from "../../src/compose.ts";
 // Create a server instance for advanced tool management
 const server = new ComposableMCPServer(
   { name: "tool-override-manager", version: "1.0.0" },
-  { capabilities: { tools: { listChanged: true } } }
+  { capabilities: { tools: { listChanged: true } } },
 );
 
 // Define the description with tool overrides
-const description = `I am an advanced file management system with sophisticated tool management and security features.
+const description =
+  `I am an advanced file management system with sophisticated tool management and security features.
 
 **Public Tools with Enhanced Descriptions:**
 <tool name="@wonderwhy-er/desktop-commander.list_directory" description="List directory contents with enhanced metadata, filtering capabilities, and security analysis"/>
@@ -67,7 +68,7 @@ await server.compose(
       },
     },
   },
-  { mode: "agentic" }
+  { mode: "agentic" },
 );
 
 // Add internal tools for internal security operations
@@ -76,94 +77,99 @@ import { jsonSchema } from "ai";
 server.tool(
   "audit-logger",
   "Internal audit logging for security and compliance tracking",
-  jsonSchema<{ 
-    action: string; 
-    user?: string; 
-    resource: string; 
-    level: "info" | "warn" | "error" 
+  jsonSchema<{
+    action: string;
+    user?: string;
+    resource: string;
+    level: "info" | "warn" | "error";
   }>({
     type: "object",
     properties: {
-      action: { 
-        type: "string", 
-        description: "The action being performed" 
+      action: {
+        type: "string",
+        description: "The action being performed",
       },
-      user: { 
-        type: "string", 
-        description: "User performing the action" 
+      user: {
+        type: "string",
+        description: "User performing the action",
       },
-      resource: { 
-        type: "string", 
-        description: "Resource being accessed" 
+      resource: {
+        type: "string",
+        description: "Resource being accessed",
       },
-      level: { 
-        type: "string", 
+      level: {
+        type: "string",
         enum: ["info", "warn", "error"],
-        description: "Log level"
-      }
+        description: "Log level",
+      },
     },
-    required: ["action", "resource", "level"]
+    required: ["action", "resource", "level"],
   }),
   (args) => {
     const timestamp = new Date().toISOString();
-    const logEntry = `[${timestamp}] ${args.level.toUpperCase()}: ${args.action} on ${args.resource}${args.user ? ` by ${args.user}` : ''}`;
-    
+    const logEntry =
+      `[${timestamp}] ${args.level.toUpperCase()}: ${args.action} on ${args.resource}${
+        args.user ? ` by ${args.user}` : ""
+      }`;
+
     console.log("AUDIT LOG:", logEntry);
-    
+
     return {
       content: [
         {
           type: "text",
-          text: `Audit log entry created: ${logEntry}`
-        }
-      ]
+          text: `Audit log entry created: ${logEntry}`,
+        },
+      ],
     };
   },
-  true // internal tool
+  true, // internal tool
 );
 
 server.tool(
   "security-validator",
   "Internal security validation for sensitive file operations",
-  jsonSchema<{ 
-    operation: string; 
-    path: string; 
-    checkType: "permission" | "policy" | "integrity" 
+  jsonSchema<{
+    operation: string;
+    path: string;
+    checkType: "permission" | "policy" | "integrity";
   }>({
     type: "object",
     properties: {
-      operation: { 
-        type: "string", 
-        description: "Operation to validate" 
+      operation: {
+        type: "string",
+        description: "Operation to validate",
       },
-      path: { 
-        type: "string", 
-        description: "File or directory path" 
+      path: {
+        type: "string",
+        description: "File or directory path",
       },
-      checkType: { 
-        type: "string", 
+      checkType: {
+        type: "string",
         enum: ["permission", "policy", "integrity"],
-        description: "Type of security check"
-      }
+        description: "Type of security check",
+      },
     },
-    required: ["operation", "path", "checkType"]
+    required: ["operation", "path", "checkType"],
   }),
   (args) => {
     // Mock security validation logic
-    const isValid = !args.path.includes("/system") && 
-                   !args.path.includes("/etc") &&
-                   !(args.operation === "delete" && args.path.includes(".config"));
-    
+    const isValid = !args.path.includes("/system") &&
+      !args.path.includes("/etc") &&
+      !(args.operation === "delete" && args.path.includes(".config"));
+
     return {
       content: [
         {
           type: "text",
-          text: `Security validation ${isValid ? 'PASSED' : 'FAILED'} for ${args.operation} on ${args.path}`
-        }
-      ]
+          text: `Security validation ${
+            isValid ? "PASSED" : "FAILED"
+          } for ${args.operation} on ${args.path}`,
+        },
+      ],
     };
   },
-  true // internal tool
+  true, // internal tool
 );
 
 // Add a public tool that uses internal tools internally
@@ -173,21 +179,21 @@ server.tool(
   jsonSchema<{ path: string; user?: string; createBackup?: boolean }>({
     type: "object",
     properties: {
-      path: { 
-        type: "string", 
-        description: "Path to file to delete" 
+      path: {
+        type: "string",
+        description: "Path to file to delete",
       },
-      user: { 
-        type: "string", 
-        description: "User requesting deletion" 
+      user: {
+        type: "string",
+        description: "User requesting deletion",
       },
       createBackup: {
         type: "boolean",
         description: "Whether to create a backup before deletion",
-        default: true
-      }
+        default: true,
+      },
     },
-    required: ["path"]
+    required: ["path"],
   }),
   async (args) => {
     try {
@@ -195,7 +201,7 @@ server.tool(
       const _validationResult = await server.callTool("security-validator", {
         operation: "delete",
         path: args.path,
-        checkType: "permission"
+        checkType: "permission",
       });
 
       // Step 2: Audit logging using hidden tool
@@ -203,7 +209,7 @@ server.tool(
         action: "secure_file_delete_initiated",
         user: args.user || "system",
         resource: args.path,
-        level: "info"
+        level: "info",
       });
 
       // Step 3: Create backup if requested (using hidden read tool)
@@ -212,7 +218,7 @@ server.tool(
           action: "backup_creation_started",
           user: args.user || "system",
           resource: args.path,
-          level: "info"
+          level: "info",
         });
       }
 
@@ -226,16 +232,19 @@ server.tool(
         action: "secure_file_delete_completed",
         user: args.user || "system",
         resource: args.path,
-        level: "info"
+        level: "info",
       });
 
       return {
         content: [
           {
             type: "text",
-            text: `✅ File ${args.path} has been securely deleted with full audit trail.${args.createBackup ? ' Backup created successfully.' : ''}`
-          }
-        ]
+            text:
+              `✅ File ${args.path} has been securely deleted with full audit trail.${
+                args.createBackup ? " Backup created successfully." : ""
+              }`,
+          },
+        ],
       };
     } catch (error) {
       // Error audit logging
@@ -243,20 +252,22 @@ server.tool(
         action: "secure_file_delete_failed",
         user: args.user || "system",
         resource: args.path,
-        level: "error"
+        level: "error",
       });
 
       return {
         content: [
           {
             type: "text",
-            text: `❌ Failed to delete ${args.path}: ${(error as Error).message}`
-          }
+            text: `❌ Failed to delete ${args.path}: ${
+              (error as Error).message
+            }`,
+          },
         ],
-        isError: true
+        isError: true,
       };
     }
-  }
+  },
 );
 
 // Connect the server
@@ -265,46 +276,46 @@ await server.connect(transport);
 
 /**
  * Key Tool Management Features:
- * 
+ *
  * 1. **Tool Overrides:**
  *    - <tool name="..." description="..."/> customizes descriptions
  *    - <tool name="..." hide/> hides tools from public interface
  *    - Enhanced descriptions provide better user guidance
- * 
+ *
  * 2. **Internal Tools:**
  *    - Created with server.tool(..., true)
  *    - Not visible in list_tools responses
  *    - Available for internal operations only
  *    - Perfect for security, logging, and validation
- * 
+ *
  * 3. **Internal Tool Invocation:**
  *    - server.callTool() calls any tool (public or internal)
  *    - Enables complex internal workflows
  *    - Maintains clean public interfaces
- * 
+ *
  * 4. **Wildcard Selection:**
  *    - __ALL__ selects all tools from an MCP server
  *    - Simplifies tool inclusion
  *    - Automatic namespace management
- * 
+ *
  * 5. **Security Benefits:**
  *    - Hide dangerous operations behind safe wrappers
  *    - Implement audit trails and validation
  *    - Provide user-friendly interfaces for complex operations
- * 
+ *
  * Example Usage:
- * 
+ *
  * User: "Delete the file /tmp/test.txt"
- * 
+ *
  * Internal workflow:
  * 1. Validates security permissions
  * 2. Logs deletion attempt
  * 3. Creates backup copy
  * 4. Performs deletion
  * 5. Logs completion
- * 
+ *
  * Result: Secure deletion with full audit trail
- * 
+ *
  * Claude Desktop Configuration:
  * ```json
  * {

@@ -34,7 +34,6 @@
  * await server.connect(transport);
  * ```
  *
- *
  * @module
  */
 
