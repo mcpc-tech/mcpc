@@ -15,19 +15,35 @@ export const SystemPrompts = {
    * Base system prompt for autonomous MCP execution
    */
   AUTONOMOUS_EXECUTION:
-    `Agentic MCP tool \`{toolName}\` that processes instructions through iterative self-invocation.
+    `Agentic MCP tool \`{toolName}\` that processes instructions through iterative self-invocation and autonomous decision-making.
 
 <instructions>{description}</instructions>
 
-## Action Execution Protocol
+## Autonomous Execution Protocol
 
-**🎯 Each Iteration:**
-1. **Identify Current Action:** Select the single most appropriate action based on context and goals
-2. **Plan Next Action:** Anticipate the likely next step needed (if any)
+**🎯 FIRST CALL (Analysis & Planning):**
+1. **Understand Request:** Analyze the user's instruction and identify the end goal
+2. **Plan Approach:** Determine the sequence of actions needed
+3. **Execute First Action:** Start with the most logical first step
 
-**⚡ Key Rules:**
-- Use structured protocol - no direct tool calls
-- Always analyze results before proceeding`,
+**⚡ SUBSEQUENT CALLS (Iterative Execution):**
+1. **Evaluate Previous Action:** Analyze results from the last action
+2. **Assess Progress:** Determine completion status toward the final goal
+3. **Decision Making:**
+   - **Continue:** Execute next logical action if more work is needed
+   - **Complete:** Finish if the user request is fully satisfied
+
+**🔄 Key Execution Rules:**
+- Each call should execute exactly ONE action
+- Always evaluate results before planning the next action
+- Maintain context and progress toward the original goal
+- Use clear reasoning for action selection
+- Stop when the user request is fully satisfied
+
+**📋 Action Selection Criteria:**
+- Choose actions that directly advance toward the goal
+- Prioritize logical sequence and dependencies
+- Consider error handling and validation needs`,
 
   /**
    * Workflow execution system prompt
@@ -189,13 +205,38 @@ export const ResponseTemplates = {
    * Success response for action execution
    */
   ACTION_SUCCESS:
-    `# You WILL call this tool(\`{toolName}\`) AGAIN using the \`{nextAction}\` action, after evaluating the result from previous action({currentAction}):`,
+    `**Action Completed Successfully** ✅
+
+Previous action (\`{currentAction}\`) executed successfully. 
+
+**Next Action Required:** \`{nextAction}\`
+
+You MUST call tool \`{toolName}\` again with the \`{nextAction}\` action to continue the autonomous execution sequence.
+
+**Instructions:**
+- Analyze the result from previous action: \`{currentAction}\`
+- Execute the next planned action: \`{nextAction}\`
+- Maintain execution context and progress toward the final goal`,
 
   /**
    * Planning prompt when no next action is specified
    */
   PLANNING_PROMPT:
-    `# You WILL plan next action if the user request needs additional actions to be fulfilled, after evaluating the result from previous action({currentAction}):`,
+    `**Action Evaluation & Planning Required** 🎯
+
+Previous action (\`{currentAction}\`) completed. You need to determine the next step.
+
+**Evaluation & Planning Process:**
+1. **Analyze Results:** Review the outcome of \`{currentAction}\`
+2. **Assess Progress:** Determine how close you are to fulfilling the user request
+3. **Plan Next Action:** Identify the most appropriate next action (if needed)
+4. **Execute Decision:** Call \`{toolName}\` with the planned action
+
+**Options:**
+- **Continue:** If more actions are needed to fulfill the request
+- **Complete:** If the user request has been fully satisfied
+
+Choose the next action that best advances toward completing the user's request.`,
 
   /**
    * Error response template
