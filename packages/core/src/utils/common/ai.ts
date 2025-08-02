@@ -15,11 +15,12 @@ import { cwd } from "node:process";
  * Helper type to extract variable names (inside {}) from a template string literal.
  * e.g., ExtractVariables<"Hello {name}! You are {age}."> -> "name" | "age"
  */
-type ExtractVariables<S extends string> = S extends
-  `${string}{${infer Var}}${infer Rest}` ? Var extends `${infer ActualVar}}` // Handle potential extra '}' if no Rest or adjacent braces
-    ? ActualVar | ExtractVariables<Rest>
-  : Var | ExtractVariables<Rest> // Standard case {var}
-  : never;
+type ExtractVariables<S extends string> =
+  S extends `${string}{${infer Var}}${infer Rest}`
+    ? Var extends `${infer ActualVar}}` // Handle potential extra '}' if no Rest or adjacent braces
+      ? ActualVar | ExtractVariables<Rest>
+      : Var | ExtractVariables<Rest> // Standard case {var}
+    : never;
 
 /**
  * Type for the input object required by the formatting function.
@@ -51,8 +52,8 @@ interface NativePromptOptions {
  */
 export const p = <T extends string>(
   template: T,
-  options: NativePromptOptions = {},
-): (input: PromptInput<T>) => string => {
+  options: NativePromptOptions = {}
+): ((input: PromptInput<T>) => string) => {
   const { missingVariableHandling = "warn" } = options;
 
   // Pre-compute variable names (at runtime) for the formatting function closure
@@ -64,7 +65,7 @@ export const p = <T extends string>(
     variableNames.add(match[1]);
   }
   const requiredVariables = Array.from(
-    variableNames,
+    variableNames
   ) as (keyof PromptInput<T>)[]; // Runtime list
 
   // Return the formatting function
@@ -85,11 +86,9 @@ export const p = <T extends string>(
         switch (missingVariableHandling) {
           case "error": {
             throw new Error(
-              `Missing variable "${
-                String(
-                  variableName,
-                )
-              }" in input for template.`,
+              `Missing variable "${String(
+                variableName
+              )}" in input for template.`
             );
           }
           case "warn": {
@@ -105,7 +104,7 @@ export const p = <T extends string>(
           case "empty": {
             const replaceRegex = new RegExp(
               `\\{${String(variableName)}\\}`,
-              "g",
+              "g"
             );
             result = result.replace(replaceRegex, "");
             break;
@@ -123,7 +122,7 @@ export const p = <T extends string>(
 };
 export function parseTags(
   htmlString: string,
-  tags: Array<string>,
+  tags: Array<string>
 ): { tagToResults: Record<string, any[]>; $: CheerioAPI } {
   const $ = load(htmlString, { xml: { decodeEntities: false } });
 
@@ -147,9 +146,10 @@ export async function composeMcpDepTools(
     toolNameWithScope: string;
     internalToolName: string;
     toolId: string;
-  }) => boolean,
+  }) => boolean
 ): Promise<Record<string, any>> {
   const allTools: Record<string, any> = {};
+  const allClients: Record<string, Client> = {};
 
   // Process each MCP definition sequentially
   for (const [name, definition] of Object.entries(mcpConfig.mcpServers)) {
@@ -188,6 +188,7 @@ export async function composeMcpDepTools(
     try {
       // Create the MCP client
       await client.connect(transport, { timeout: 60_000 * 10 });
+      allClients[serverId] = client;
 
       // Get the tools from the client
       const { tools } = await client.listTools();
@@ -221,5 +222,13 @@ export async function composeMcpDepTools(
     }
   }
 
-  return allTools;
+  const cleanupClients = async () => {
+    await Promise.all(
+      Object.values(allClients).map(async (client) => {
+        await client.close();
+      })
+    );
+  };
+
+  return { tools: allTools, clients: allClients, cleanupClients };
 }
