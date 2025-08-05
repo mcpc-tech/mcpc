@@ -12,7 +12,7 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ComposableMCPServer } from "../../src/compose.ts";
+import { ComposableMCPServer } from "../src/compose.ts";
 
 // Create a server instance for advanced tool management
 const server = new ComposableMCPServer(

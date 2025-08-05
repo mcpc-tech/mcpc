@@ -8,10 +8,12 @@ export interface RegisterToolParams {
   allToolNames: string[];
   depGroups: Record<string, unknown>;
   toolNameToDetailList: [string, unknown][];
+  sampling?: boolean;
 }
 
 export interface RegisterWorkflowToolParams extends RegisterToolParams {
   predefinedSteps?: import("./utils/state.ts").MCPCStep[];
+  sampling?: boolean;
 }
 
 export interface ArgsDefCreator {
@@ -27,6 +29,13 @@ export interface ArgsDefCreator {
     state: import("./utils/state.ts").WorkflowState,
   ) => JSONSchema;
   forNextState: (state: import("./utils/state.ts").WorkflowState) => JSONSchema;
+  forSampling: () => JSONSchema;
+  forAgentic: (
+    toolNameToDetailList: [string, unknown][],
+    sampling?: boolean,
+    ACTION_KEY?: string,
+    NEXT_ACTION_KEY?: string,
+  ) => JSONSchema;
   forToolDescription: (
     description: string,
     state: import("./utils/state.ts").WorkflowState,

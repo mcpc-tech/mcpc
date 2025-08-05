@@ -21,6 +21,13 @@ export interface ComposeDefinition {
     mode?: "agentic" | "agentic_workflow";
 
     /**
+     * Enable MCP sampling-based autonomous execution capability
+     * When enabled, adds sampling tools that can execute tasks autonomously
+     * @default false
+     */
+    sampling?: boolean;
+
+    /**
      * Optional predefined workflow steps for agentic_workflow mode
      * - If provided: Uses these predefined steps in agentic_workflow mode
      * - If empty/undefined: Generates workflow steps dynamically at runtime in agentic_workflow mode

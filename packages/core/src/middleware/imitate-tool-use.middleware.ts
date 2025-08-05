@@ -9,7 +9,7 @@ import {
 import { p } from "../utils/common/ai.ts";
 
 import { parseJSON } from "../utils/common/json.ts";
-import { Tool } from "@modelcontextprotocol/sdk";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 export enum ImitateToolCallTagForLlama {
   StartTag = "<tool_call>",

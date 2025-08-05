@@ -24,7 +24,7 @@
     "hono": "npm:hono@^4.7.5",
     "htmlparser2": "npm:htmlparser2@^10.0.0",
     "json-schema-to-zod": "npm:json-schema-to-zod@^2.6.1",
-    "jsonrepair": "npm:jsonrepair@^3.12.0",
+    "jsonrepair": "npm:jsonrepair@^3.13.0",
     "minimist": "npm:minimist@^1.2.8",
     "remeda": "npm:remeda@^2.21.2",
     "zod": "npm:zod@^3.24.2",

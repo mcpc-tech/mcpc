@@ -50,6 +50,7 @@
     "npm:json-schema-to-zod@^2.6.1": "2.6.1",
     "npm:json-schema-traverse@1": "1.0.0",
     "npm:jsonrepair@^3.12.0": "3.12.0",
+    "npm:jsonrepair@^3.13.0": "3.13.0",
     "npm:minimist@^1.2.8": "1.2.8",
     "npm:pyodide@~0.27.5": "0.27.5",
     "npm:remeda@^2.21.2": "2.21.3",
@@ -94,7 +95,7 @@
         "npm:@modelcontextprotocol/sdk",
         "npm:ai@^4.3.4",
         "npm:dayjs",
-        "npm:jsonrepair",
+        "npm:jsonrepair@^3.12.0",
         "npm:zod"
       ]
     },
@@ -819,6 +820,10 @@
       "integrity": "sha512-SWfjz8SuQ0wZjwsxtSJ3Zy8vvLg6aO/kxcp9TWNPGwJKgTZVfhNEQBMk/vPOpYCDFWRxD6QWuI6IHR1t615f0w==",
       "bin": true
     },
+    "jsonrepair@3.13.0": {
+      "integrity": "sha512-5YRzlAQ7tuzV1nAJu3LvDlrKtBFIALHN2+a+I1MGJCt3ldRDBF/bZuvIPzae8Epot6KBXd0awRZZcuoeAsZ/mw==",
+      "bin": true
+    },
     "math-intrinsics@1.1.0": {
       "integrity": "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g=="
     },
@@ -1314,7 +1319,7 @@
           "npm:hono@^4.7.5",
           "npm:htmlparser2@10",
           "npm:json-schema-to-zod@^2.6.1",
-          "npm:jsonrepair@^3.12.0",
+          "npm:jsonrepair@^3.13.0",
           "npm:minimist@^1.2.8",
           "npm:remeda@^2.21.2",
           "npm:zod-to-json-schema@^3.24.5",

@@ -12,7 +12,7 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { mcpc } from "../../mod.ts";
+import { mcpc } from "../mod.ts";
 
 export const server = await mcpc(
   [
