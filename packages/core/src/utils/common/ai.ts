@@ -212,10 +212,30 @@ export async function composeMcpDepTools(
         ) {
           return;
         }
-        const execute = (args: any) =>
-          client.callTool({ name: internalToolName, arguments: args });
-        tool.execute = execute;
-        allTools[toolId] = tool;
+        // Store client reference in a way that can be cleaned up
+        const clientRef = { current: client as Client | null };
+
+        const execute = (args: Record<string, unknown>) => {
+          if (!clientRef.current) {
+            throw new Error(`Client for tool ${toolId} has been disposed`);
+          }
+          return clientRef.current.callTool({
+            name: internalToolName,
+            arguments: args,
+          });
+        };
+
+        // Create a new tool object to avoid modifying the original
+        const toolWithExecute = {
+          ...tool,
+          execute,
+          // Store cleanup function for this specific tool
+          _cleanup: () => {
+            clientRef.current = null;
+          },
+        };
+
+        allTools[toolId] = toolWithExecute;
       });
     } catch (error) {
       console.error(`Error creating MCP client for ${name}:`, error);
@@ -223,11 +243,26 @@ export async function composeMcpDepTools(
   }
 
   const cleanupClients = async () => {
+    // Cleanup individual tool references
+    Object.values(allTools).forEach((tool: { _cleanup?: () => void }) => {
+      if (tool._cleanup && typeof tool._cleanup === "function") {
+        tool._cleanup();
+      }
+    });
+
     await Promise.all(
       Object.values(allClients).map(async (client) => {
-        await client.close();
+        try {
+          await client.close();
+        } catch (error) {
+          console.error("Error closing MCP client:", error);
+        }
       })
     );
+
+    // Clear references to help GC
+    Object.keys(allTools).forEach((key) => delete allTools[key]);
+    Object.keys(allClients).forEach((key) => delete allClients[key]);
   };
 
   return { tools: allTools, clients: allClients, cleanupClients };
