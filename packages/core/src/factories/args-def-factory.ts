@@ -101,27 +101,14 @@ Workflow step definitions - provide ONLY on initial call.
     },
 
     forCurrentState: function (state: WorkflowState): JSONSchema {
-      if (!state.isWorkflowInitialized()) {
-        if (predefinedSteps) {
-          return this.common({
-            init: this.init(),
-          });
-        }
-        return this.common({
-          steps: this.steps(),
-          init: this.init(),
-        });
-      }
-
       const currentStep = state.getCurrentStep();
-      if (!currentStep) {
-        throw new Error(
-          `Invalid workflow state: no current step, ${
-            JSON.stringify(
-              state.getDebugInfo(),
-            )
-          }`,
-        );
+      if (!state.isWorkflowInitialized() || !currentStep) {
+        state.reset();
+        const initSchema: Record<string, JSONSchema> = { init: this.init() };
+        if (!predefinedSteps) {
+          initSchema.steps = this.steps();
+        }
+        return this.common(initSchema);
       }
 
       const stepDependencies = {

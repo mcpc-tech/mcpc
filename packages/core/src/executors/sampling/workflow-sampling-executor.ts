@@ -86,10 +86,6 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
 
     const toolCallData = parsedData as Record<string, unknown>;
 
-    if (toolCallData.userRequest) {
-      workflowState.reset();
-    }
-
     if (toolCallData.action === "complete") {
       const reasoning = (toolCallData.reasoning as string) || "Task completed";
       return this.createCompletionResult(reasoning);

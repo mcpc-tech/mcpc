@@ -86,7 +86,6 @@ export function registerAgenticWorkflowTool(
       try {
         // Use appropriate executor based on mode
         if (sampling) {
-          workflowState.reset();
           return await workflowSamplingExecutor.executeWorkflowSampling(
             args as Record<string, unknown>,
             argsDef as Record<string, unknown>,
