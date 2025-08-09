@@ -13,7 +13,7 @@ import {
   JSONRPCMessageSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { ServerSentEventStream } from "@std/http/server-sent-event-stream";
-import { ComposableMCPServer } from "../../mod.ts";
+import type { ComposableMCPServer } from "../../mod.ts";
 
 /**
  * Session Manager: Map of session IDs to SSE server transports
@@ -22,7 +22,7 @@ import { ComposableMCPServer } from "../../mod.ts";
  */
 const transports = new Map<string, SSEServerTransport>();
 
-export async function handleConnecting(
+export function handleConnecting(
   request: Request,
   server: McpServer | ComposableMCPServer,
   incomingMsgRoutePath: string,
@@ -39,10 +39,12 @@ export async function handleConnecting(
     if (transports.has(sessionId)) {
       // If the session exists, use the existing transport
       const transport = transports.get(sessionId)!;
-      return transport.sseResponse;
+      return Promise.resolve(transport.sseResponse);
     } else {
       // Return error if session ID is not found
-      return new Response("Invalid or expired sessionId", { status: 404 });
+      return Promise.resolve(
+        new Response("Invalid or expired sessionId", { status: 404 }),
+      );
     }
   }
 
@@ -53,7 +55,7 @@ export async function handleConnecting(
   server.connect(transport);
   console.log(`Created new SSE transport with sessionId: ${newSessionId}`);
 
-  return transport.sseResponse;
+  return Promise.resolve(transport.sseResponse);
 }
 /**
  * Handles POST messages for all SSE transports

@@ -1,6 +1,7 @@
 import axios from "npm:axios";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import process from "node:process";
 
 interface ServerListResponse {
   servers: Array<{
@@ -35,10 +36,12 @@ interface ServerDetailsResponse {
   security: {
     scanPassed: boolean;
   } | null;
-  tools: Array<{
-    name: string;
-    description: string | null;
-  }> | null;
+  tools:
+    | Array<{
+      name: string;
+      description: string | null;
+    }>
+    | null;
 }
 
 async function generateMCPTypes(apiToken: string): Promise<void> {
@@ -74,7 +77,7 @@ async function generateMCPTypes(apiToken: string): Promise<void> {
       console.log(`Fetching details for ${server.qualifiedName}...`);
       try {
         const detailsResponse = await api.get<ServerDetailsResponse>(
-          `/servers/${server.qualifiedName}`
+          `/servers/${server.qualifiedName}`,
         );
         const details = detailsResponse.data;
         serverDetails[server.qualifiedName] = details;
@@ -89,13 +92,13 @@ async function generateMCPTypes(apiToken: string): Promise<void> {
       } catch (error) {
         console.error(
           `Error fetching details for ${server.qualifiedName}:`,
-          error
+          error,
         );
       }
     }
 
     // Generate TypeScript types
-    let typesContent = `/**
+    const typesContent = `/**
  * AUTO-GENERATED MCP Types
  * Generated on: ${new Date().toISOString()}
  * 
@@ -107,36 +110,42 @@ async function generateMCPTypes(apiToken: string): Promise<void> {
  * All available MCP tools organized by server
  */
 export const MCP_TOOLS = {
-${Object.entries(serverDetails)
-  .sort(([a], [b]) => a.localeCompare(b))
-  .map(([serverName, details]) => {
-    const serverKey = serverName.replace(/-/g, "_");
-    const toolsObj = details.tools
-      ? `{
-    ${details.tools
-      .map((tool) => {
-        // Add JSDoc comment with description if available
-        const description = tool.description
-          ? `/**\n     * ${tool.description}\n     */\n    `
-          : "";
-        return `${description}"${tool.name}": "${tool.name}"`;
-      })
-      .join(",\n    ")}
+${
+      Object.entries(serverDetails)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([serverName, details]) => {
+          const serverKey = serverName.replace(/-/g, "_");
+          const toolsObj = details.tools
+            ? `{
+    ${
+              details.tools
+                .map((tool) => {
+                  // Add JSDoc comment with description if available
+                  const description = tool.description
+                    ? `/**\n     * ${tool.description}\n     */\n    `
+                    : "";
+                  return `${description}"${tool.name}": "${tool.name}"`;
+                })
+                .join(",\n    ")
+            }
   }`
-      : "{}";
-    return `  "${serverKey}": ${toolsObj}`;
-  })
-  .join(",\n")}
+            : "{}";
+          return `  "${serverKey}": ${toolsObj}`;
+        })
+        .join(",\n")
+    }
 } as const;
 
 /**
  * All available tool names across all servers
  */
 export const ALL_MCP_TOOLS = {
-${Array.from(allTools)
-  .sort()
-  .map((tool) => `  ${tool}: "${tool}"`)
-  .join(",\n")}
+${
+      Array.from(allTools)
+        .sort()
+        .map((tool) => `  ${tool}: "${tool}"`)
+        .join(",\n")
+    }
 } as const;
 
 export type MCPToolName = typeof ALL_MCP_TOOLS[keyof typeof ALL_MCP_TOOLS];
@@ -153,10 +162,12 @@ export interface MCPTool {
  * All available MCP servers
  */
 export const MCP_SERVERS = {
-${Object.keys(serverDetails)
-  .sort()
-  .map((name) => `  "${name.replace(/-/g, "_")}": "${name}"`)
-  .join(",\n")}
+${
+      Object.keys(serverDetails)
+        .sort()
+        .map((name) => `  "${name.replace(/-/g, "_")}": "${name}"`)
+        .join(",\n")
+    }
 } as const;
 
 export type MCPServerName = typeof MCP_SERVERS[keyof typeof MCP_SERVERS];
@@ -165,14 +176,19 @@ export type MCPServerName = typeof MCP_SERVERS[keyof typeof MCP_SERVERS];
  * Server details with their available tools
  */
 export const MCP_SERVER_TOOLS: Record<MCPServerName, MCPToolName[]> = {
-${Object.entries(serverDetails)
-  .sort(([a], [b]) => a.localeCompare(b))
-  .map(([name, details]) => {
-    const toolNames =
-      details.tools?.map((t) => `ALL_MCP_TOOLS["${t.name}"]`).join(", ") || "";
-    return `  [MCP_SERVERS["${name.replace(/-/g, "_")}"]]: [${toolNames}]`;
-  })
-  .join(",\n")}
+${
+      Object.entries(serverDetails)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, details]) => {
+          const toolNames = details.tools?.map((t) =>
+            `ALL_MCP_TOOLS["${t.name}"]`
+          ).join(", ") || "";
+          return `  [MCP_SERVERS["${
+            name.replace(/-/g, "_")
+          }"]]: [${toolNames}]`;
+        })
+        .join(",\n")
+    }
 };
 
 /**

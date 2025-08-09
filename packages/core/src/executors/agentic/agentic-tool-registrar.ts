@@ -5,7 +5,7 @@ import type { ComposableMCPServer } from "../../compose.ts";
 import { CompiledPrompts } from "../../prompts/index.ts";
 import { AgenticExecutor } from "./agentic-executor.ts";
 import { SamplingExecutor } from "../sampling/agentic-sampling-executor.ts";
-import { type ExternalTool } from "../sampling/base-sampling-executor.ts";
+import type { ExternalTool } from "../sampling/base-sampling-executor.ts";
 import { createArgsDefFactory } from "../../factories/args-def-factory.ts";
 
 interface MCPServer {

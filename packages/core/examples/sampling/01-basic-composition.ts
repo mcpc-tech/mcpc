@@ -12,7 +12,7 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { mcpc } from "../../mod.ts";
-import { ComposeDefinition } from "../../src/set-up-mcp-compose.ts";
+import type { ComposeDefinition } from "../../src/set-up-mcp-compose.ts";
 
 export const toolDefinitions: ComposeDefinition[] = [
   {

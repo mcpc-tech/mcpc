@@ -18,12 +18,12 @@ export function updateRefPaths(schema: any, wrapperPath: string): any {
       allKeys: true,
       cb: function (
         schemaNode,
-        jsonPtr,
-        rootSchema,
-        parentJsonPtr,
-        parentKeyword,
-        parentSchema,
-        keyIndex,
+        _jsonPtr,
+        _rootSchema,
+        _parentJsonPtr,
+        _parentKeyword,
+        _parentSchema,
+        _keyIndex,
       ) {
         // Check if current node has $ref property
         if (schemaNode && typeof schemaNode === "object" && schemaNode.$ref) {

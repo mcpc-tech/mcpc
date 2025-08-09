@@ -1,5 +1,5 @@
-import { createOpenAI, OpenAIProvider } from "@ai-sdk/openai";
-import { LanguageModelV1, wrapLanguageModel } from "ai";
+import { createOpenAI, type OpenAIProvider } from "@ai-sdk/openai";
+import { type LanguageModelV1, wrapLanguageModel } from "ai";
 import { imitateToolUseMiddleware } from "../../middleware/imitate-tool-use.middleware.ts";
 import { parseThinkingEventsMiddleware } from "../../middleware/thinking.middleware.ts";
 import process from "node:process";
@@ -28,6 +28,7 @@ export const ollama: (
   model: string,
   params: Record<string, string>,
 ) => {
+  await Promise.resolve(); // Satisfy async requirement
   const baseModel = _ollama(model);
 
   // Create the wrapped model with middleware

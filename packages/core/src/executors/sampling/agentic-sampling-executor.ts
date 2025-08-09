@@ -18,7 +18,7 @@ export class SamplingExecutor extends BaseSamplingExecutor {
     allToolNames: string[],
     toolNameToDetailList: [string, ExternalTool][],
     server: ComposableMCPServer,
-    config?: SamplingConfig
+    config?: SamplingConfig,
   ) {
     super(
       name,
@@ -26,7 +26,7 @@ export class SamplingExecutor extends BaseSamplingExecutor {
       allToolNames,
       toolNameToDetailList,
       server,
-      config
+      config,
     );
 
     // Create AgenticExecutor for tool execution
@@ -34,7 +34,7 @@ export class SamplingExecutor extends BaseSamplingExecutor {
       name,
       allToolNames,
       toolNameToDetailList as [string, unknown][],
-      server
+      server,
     );
   }
 
@@ -65,7 +65,7 @@ export class SamplingExecutor extends BaseSamplingExecutor {
 
   executeSampling(
     args: Record<string, unknown>,
-    schema: Record<string, unknown>
+    schema: Record<string, unknown>,
   ) {
     const validationResult = this.validateSchema(args, schema);
     if (!validationResult.valid) {
@@ -85,24 +85,24 @@ export class SamplingExecutor extends BaseSamplingExecutor {
     const createArgsDef = createArgsDefFactory(
       this.name,
       this.allToolNames,
-      this.buildDepGroups()
+      this.buildDepGroups(),
     );
 
     const agenticSchema = createArgsDef.forAgentic(
       this.toolNameToDetailList as [string, unknown][],
-      true
+      true,
     );
 
     const systemPrompt = this.buildSystemPrompt(
       args.userRequest as string,
-      agenticSchema
+      agenticSchema,
     );
     return this.runSamplingLoop(() => systemPrompt, agenticSchema);
   }
 
   protected async processAction(
     parsedData: Record<string, unknown>,
-    schema: Record<string, unknown>
+    schema: Record<string, unknown>,
   ): Promise<CallToolResult> {
     // Define the expected tool call data structure
     const toolCallData = parsedData;
@@ -118,15 +118,14 @@ export class SamplingExecutor extends BaseSamplingExecutor {
 
       const toolResult = await this.agenticExecutor.execute(
         toolCallData,
-        schema
+        schema,
       );
 
       // Extract result text
-      const resultText =
-        toolResult.content
-          ?.filter((content) => content.type === "text")
-          ?.map((content) => content.text)
-          ?.join("\n") || "No result";
+      const resultText = toolResult.content
+        ?.filter((content) => content.type === "text")
+        ?.map((content) => content.text)
+        ?.join("\n") || "No result";
 
       // Add conversation history updates
       this.conversationHistory.push({
@@ -146,12 +145,12 @@ export class SamplingExecutor extends BaseSamplingExecutor {
 
   private buildSystemPrompt(
     userRequest: string,
-    agenticSchema: Record<string, unknown>
+    agenticSchema: Record<string, unknown>,
   ): string {
     const toolList = this.allToolNames
       .map((name) => {
         const tool = this.toolNameToDetailList.find(
-          ([toolName]) => toolName === name
+          ([toolName]) => toolName === name,
         );
         const toolSchema = this.server.getInternalToolSchema(name);
 

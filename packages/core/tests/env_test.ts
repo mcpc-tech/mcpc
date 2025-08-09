@@ -1,7 +1,4 @@
-import {
-  assertEquals,
-  assertExists,
-} from "https://deno.land/std@0.201.0/testing/asserts.ts";
+import { assertEquals } from "https://deno.land/std@0.201.0/testing/asserts.ts";
 import { isProdEnv, isSCF } from "../src/utils/common/env.ts";
 
 Deno.test("Environment utilities - isProdEnv with production environment", () => {

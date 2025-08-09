@@ -13,7 +13,7 @@ export const server = await mcpc([
 
 export const createApp = () => {
   const app = new OpenAPIHono();
-  
+
   // Register routes
   registerAgent(app);
 

@@ -14,7 +14,8 @@ export const SystemPrompts = {
   /**
    * Base system prompt for autonomous MCP execution
    */
-  AUTONOMOUS_EXECUTION: `Agentic MCP tool \`{toolName}\` that processes instructions through iterative self-invocation and autonomous decision-making.
+  AUTONOMOUS_EXECUTION:
+    `Agentic MCP tool \`{toolName}\` that processes instructions through iterative self-invocation and autonomous decision-making.
 
 <instructions>{description}</instructions>
 
@@ -47,7 +48,8 @@ export const SystemPrompts = {
   /**
    * Workflow execution system prompt
    */
-  WORKFLOW_EXECUTION: `Agentic workflow execution tool \`{toolName}\` that processes requests through structured multi-step workflows.
+  WORKFLOW_EXECUTION:
+    `Agentic workflow execution tool \`{toolName}\` that processes requests through structured multi-step workflows.
 
 <instructions>{description}</instructions>
 
@@ -69,7 +71,8 @@ export const SystemPrompts = {
   /**
    * Sampling execution system prompt with JSON output constraints
    */
-  SAMPLING_EXECUTION: `You are an autonomous AI Agent named \`{toolName}\` that processes instructions through iterative sampling execution and autonomous decision-making.
+  SAMPLING_EXECUTION:
+    `You are an autonomous AI Agent named \`{toolName}\` that processes instructions through iterative sampling execution and autonomous decision-making.
 
 <instructions>{description}</instructions>
 
@@ -106,7 +109,8 @@ You MUST respond with a JSON object that demonstrates your autonomous decision:
   /**
    * Sampling workflow execution system prompt combining sampling with workflow capabilities
    */
-  SAMPLING_WORKFLOW_EXECUTION: `You are an autonomous AI Agent named \`{toolName}\` that processes instructions through iterative sampling execution within structured workflows.
+  SAMPLING_WORKFLOW_EXECUTION:
+    `You are an autonomous AI Agent named \`{toolName}\` that processes instructions through iterative sampling execution within structured workflows.
 
 <instructions>{description}</instructions>
 
@@ -160,7 +164,8 @@ export const WorkflowPrompts = {
   /**
    * Workflow initialization instructions
    */
-  WORKFLOW_INIT: `Workflow initialized with {stepCount} steps. Agent MUST start the workflow with the first step to \`{currentStepDescription}\`. 
+  WORKFLOW_INIT:
+    `Workflow initialized with {stepCount} steps. Agent MUST start the workflow with the first step to \`{currentStepDescription}\`. 
               
 ## EXECUTE tool \`{toolName}\` with the following new parameter definition
 
@@ -191,7 +196,8 @@ export const WorkflowPrompts = {
   /**
    * Planning instructions for dynamic workflows
    */
-  DYNAMIC_WORKFLOW_PLANNING: `- Set \`init: true\` and define complete \`steps\` array`,
+  DYNAMIC_WORKFLOW_PLANNING:
+    `- Set \`init: true\` and define complete \`steps\` array`,
 
   /**
    * Next step decision prompt
@@ -316,7 +322,8 @@ Choose the next action that best advances toward completing the user's request.`
   /**
    * Audit log messages
    */
-  AUDIT_LOG: `Audit log entry created: [{timestamp}] {level}: {action} on {resource}{userInfo}`,
+  AUDIT_LOG:
+    `Audit log entry created: [{timestamp}] {level}: {action} on {resource}{userInfo}`,
 };
 
 /**
@@ -371,7 +378,7 @@ export const PromptUtils = {
    * Generate tool list for descriptions
    */
   generateToolList: (
-    tools: Array<{ name: string; description?: string; hide?: boolean }>
+    tools: Array<{ name: string; description?: string; hide?: boolean }>,
   ) => {
     return tools
       .filter((tool) => !tool.hide)
@@ -379,7 +386,7 @@ export const PromptUtils = {
         (tool) =>
           `<tool name="${tool.name}"${
             tool.description ? ` description="${tool.description}"` : ""
-          }/>`
+          }/>`,
       )
       .join("\n");
   },
@@ -398,7 +405,7 @@ export const PromptUtils = {
    * Format workflow steps for display
    */
   formatWorkflowSteps: (
-    steps: Array<{ description: string; actions: string[] }>
+    steps: Array<{ description: string; actions: string[] }>,
   ) => {
     if (!steps.length) return "";
     return `## Workflow Steps\n${JSON.stringify(steps, null, 2)}`;
@@ -423,15 +430,15 @@ export const PromptUtils = {
       .map((step, index) => {
         const status = progressData.statuses[index] || "pending";
         const icon = statusIcons[status as keyof typeof statusIcons] || "⏳";
-        const current =
-          index === progressData.currentStepIndex ? " **[CURRENT]**" : "";
-        const actions =
-          step.actions.length > 0
-            ? ` | Action: ${step.actions.join(", ")}`
-            : "";
-        return `${icon} **Step ${index + 1}:** ${
-          step.description
-        }${actions}${current}`;
+        const current = index === progressData.currentStepIndex
+          ? " **[CURRENT]**"
+          : "";
+        const actions = step.actions.length > 0
+          ? ` | Action: ${step.actions.join(", ")}`
+          : "";
+        return `${icon} **Step ${
+          index + 1
+        }:** ${step.description}${actions}${current}`;
       })
       .join("\n");
   },

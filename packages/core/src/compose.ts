@@ -250,7 +250,7 @@ export class ComposableMCPServer extends Server {
       ({ mcpName, toolNameWithScope, toolId }) => {
         // Store the mapping for later use in tag processing
         toolNameToIdMapping.set(toolNameWithScope, toolId);
-        
+
         const matchingStep = options.steps?.find((step) =>
           step.actions.includes(toolNameWithScope)
         );

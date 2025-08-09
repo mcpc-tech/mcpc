@@ -53,7 +53,4 @@ export * from "./src/transport/sse.ts";
 export * from "./src/service/llms/ollama.ts";
 export * from "./src/service/llms/qwen.ts";
 
-export * from "./src/middleware/imitate-tool-use.middleware.ts";
-export * from "./src/middleware/thinking.middleware.ts";
-
 export * from "./src/set-up-mcp-compose.ts";

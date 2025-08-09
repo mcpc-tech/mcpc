@@ -118,7 +118,8 @@ export class WorkflowExecutor {
         content: [
           {
             type: "text",
-            text: `Tool call arguments validation failed: ${validationResult.error}`,
+            text:
+              `Tool call arguments validation failed: ${validationResult.error}`,
           },
         ],
         isError: true,

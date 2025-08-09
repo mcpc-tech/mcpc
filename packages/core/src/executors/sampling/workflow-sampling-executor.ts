@@ -1,10 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ComposableMCPServer } from "../../compose.ts";
-import {
-  CompiledPrompts,
-  PromptUtils,
-  WorkflowPrompts,
-} from "../../prompts/index.ts";
+import { CompiledPrompts } from "../../prompts/index.ts";
 import { WorkflowExecutor } from "../workflow/workflow-executor.ts";
 import type { MCPCStep, WorkflowState } from "../../utils/state.ts";
 import type { ArgsDefCreator } from "../../types.ts";
@@ -67,7 +63,7 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
       };
     }
 
-    return this.runSamplingLoop(
+    return await this.runSamplingLoop(
       () => this.buildWorkflowSystemPrompt(args, state),
       schema,
       state,

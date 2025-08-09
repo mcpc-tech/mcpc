@@ -1,4 +1,4 @@
-import { createOpenAI, OpenAIProvider } from "@ai-sdk/openai";
+import { createOpenAI, type OpenAIProvider } from "@ai-sdk/openai";
 import process from "node:process";
 
 /**

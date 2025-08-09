@@ -38,7 +38,8 @@ export const createGoogleCompatibleJSONSchema = (
   }
 
   // Remove top-level composition keywords
-  const { oneOf, allOf, anyOf, ...cleanSchema } = schema;
+  const { oneOf: _oneOf, allOf: _allOf, anyOf: _anyOf, ...cleanSchema } =
+    schema;
 
   // Recursively remove additionalProperties at all levels
   const removeAdditionalProperties = (obj: any): any => {

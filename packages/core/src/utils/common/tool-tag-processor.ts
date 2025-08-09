@@ -36,14 +36,13 @@ export function processToolTags({
   toolOverrides,
   toolNameMapping,
 }: ProcessToolTagsParams): string {
-  // deno-lint-ignore no-explicit-any
   tagToResults.tool.forEach((toolEl: any) => {
     const toolName = toolEl.attribs.name;
     if (toolName && !toolName.includes(ALL_TOOLS_PLACEHOLDER)) {
       // Check if this tool is marked as hidden
       const override = toolOverrides.get(toolName);
       const isHidden = override?.hide;
-      
+
       if (isHidden) {
         // Remove the tag completely for hidden tools
         description = description.replace(
@@ -54,16 +53,16 @@ export function processToolTags({
         // Find the corresponding toolId for this toolName
         // First try the mapping from composeMcpDepTools
         let toolId = toolNameMapping?.get(toolName);
-        
+
         // If not found in mapping, try the original matching logic
         if (!toolId) {
-          toolId = Object.keys(tools).find(id => {
+          toolId = Object.keys(tools).find((id) => {
             // Handle both dot notation and underscore notation
             const dotNotation = id.replace(/_/g, ".");
             return toolName === id || toolName === dotNotation;
           });
         }
-        
+
         if (toolId) {
           description = description.replace(
             $(toolEl).prop("outerHTML")!,
@@ -73,6 +72,6 @@ export function processToolTags({
       }
     }
   });
-  
+
   return description;
 }

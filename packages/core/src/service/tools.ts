@@ -63,8 +63,8 @@ export type McpServerConfig = z.infer<typeof ServerConfigSchema>;
 export type MCPSetting = z.infer<typeof McpSettingsSchema>;
 
 const mcpSettings = McpSettingsSchema.parse(JSON.parse(configStr));
-const mcpEnabledConfigs = Object.entries(mcpSettings.mcpServers).filter(
-  ([name, config]) => {
+const _mcpEnabledConfigs = Object.entries(mcpSettings.mcpServers).filter(
+  ([_name, config]) => {
     if (config.disabled) {
       return false;
     }
