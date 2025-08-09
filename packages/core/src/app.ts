@@ -13,10 +13,7 @@ export const server = await mcpc([
 
 export const createApp = () => {
   const app = new OpenAPIHono();
-  // Register middleware
-  // TODO: fix this, after enable it, will return none text/stream
-  // app.use(loggingMiddleware());
-
+  
   // Register routes
   registerAgent(app);
 

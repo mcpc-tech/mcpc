@@ -19,15 +19,15 @@ export function registerAgenticWorkflowTool(
     toolNameToDetailList,
     predefinedSteps,
     sampling = false,
-  }: RegisterWorkflowToolParams,
+  }: RegisterWorkflowToolParams
 ) {
   const createArgsDef = createArgsDefFactory(
     name,
     allToolNames,
     depGroups,
-    predefinedSteps,
+    predefinedSteps
   );
-  
+
   // Create executors
   const workflowExecutor = new WorkflowExecutor(
     name,
@@ -35,7 +35,7 @@ export function registerAgenticWorkflowTool(
     toolNameToDetailList,
     createArgsDef,
     server,
-    predefinedSteps,
+    predefinedSteps
   );
 
   const workflowSamplingExecutor = new WorkflowSamplingExecutor(
@@ -45,10 +45,14 @@ export function registerAgenticWorkflowTool(
     toolNameToDetailList as [string, ExternalTool][],
     createArgsDef,
     server,
-    predefinedSteps,
+    predefinedSteps
   );
-  
+
   const workflowState = new WorkflowState();
+
+  const planningInstructions = predefinedSteps
+    ? "- Set `init: true` (steps are predefined)"
+    : "- Set `init: true` and define complete `steps` array";
 
   // Generate description based on mode
   const baseDescription = sampling
@@ -60,6 +64,7 @@ export function registerAgenticWorkflowTool(
     : CompiledPrompts.workflowExecution({
         toolName: name,
         description: description,
+        planningInstructions,
       });
 
   // Generate schema based on mode
@@ -75,7 +80,7 @@ export function registerAgenticWorkflowTool(
     name,
     toolDescription,
     jsonSchema<Record<string, unknown>>(
-      createGoogleCompatibleJSONSchema(argsDef),
+      createGoogleCompatibleJSONSchema(argsDef)
     ),
     async (args: Record<string, unknown>) => {
       try {
@@ -84,7 +89,7 @@ export function registerAgenticWorkflowTool(
           return await workflowSamplingExecutor.executeWorkflowSampling(
             args as Record<string, unknown>,
             argsDef as Record<string, unknown>,
-            workflowState,
+            workflowState
           );
         } else {
           return await workflowExecutor.execute(args, workflowState);
@@ -101,6 +106,6 @@ export function registerAgenticWorkflowTool(
           isError: true,
         };
       }
-    },
+    }
   );
 }
