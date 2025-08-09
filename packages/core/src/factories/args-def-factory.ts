@@ -89,6 +89,13 @@ Workflow step definitions - provide ONLY on initial call.
         "**Step execution control. Set \`true\` to advance, \`false\`/omit to retry. ⚠️ CRITICAL: For failed steps, NEVER use \`true\`**",
     }),
 
+    action: (sampling?: boolean): JSONSchema => ({
+      type: "string",
+      description: "Define the current workflow action to be performed",
+      enum: allToolNames.concat(sampling ? ["complete"] : []),
+      required: ["action"],
+    }),
+
     forTool: function (): JSONSchema {
       return this.common({});
     },
@@ -122,6 +129,7 @@ Workflow step definitions - provide ONLY on initial call.
       } as Record<string, JSONSchema>;
 
       stepDependencies["proceed"] = this.proceed();
+      stepDependencies["action"] = this.action();
 
       // Make proceed required when workflow is in progress and needs user decision
       return this.common(stepDependencies);
@@ -130,13 +138,12 @@ Workflow step definitions - provide ONLY on initial call.
     forSampling: function (): JSONSchema {
       return {
         type: "object",
-        description:
-          "Agentic sampling mode - provide user request for autonomous tool execution with self-directed decision making",
+        description: "Provide user request for autonomous tool execution",
         properties: {
           userRequest: {
             type: "string",
             description:
-              "The task or request that should be completed autonomously by the agentic system using available tools through iterative sampling and self-directed execution",
+              "The task or request that should be completed autonomously by the agentic system using available tools",
           },
         },
         required: ["userRequest"],
@@ -164,8 +171,10 @@ Workflow step definitions - provide ONLY on initial call.
       );
 
       // For sampling mode, add "complete" option and reasoning requirement
-      const actionEnum = sampling ? [...allToolNames, "complete"] : allToolNames;
-      const actionDescription = sampling 
+      const actionEnum = sampling
+        ? [...allToolNames, "complete"]
+        : allToolNames;
+      const actionDescription = sampling
         ? "The action to perform. Use 'complete' when the task is finished."
         : "Specifies the action to be performed from the enum. Based on the value chosen for 'action', the corresponding sibling property (which shares the same name as the action value and contains its specific parameters) **MUST** also be provided in this object. For example, if 'action' is 'get_weather', then the 'get_weather' parameter object is mandatory.";
 
@@ -192,7 +201,9 @@ Workflow step definitions - provide ONLY on initial call.
         };
       }
 
-      const requiredFields = sampling ? [ACTION_KEY, "reasoning"] : [ACTION_KEY];
+      const requiredFields = sampling
+        ? [ACTION_KEY, "reasoning"]
+        : [ACTION_KEY];
 
       return {
         additionalProperties: false,
@@ -252,7 +263,8 @@ NOTE: The \`steps\` has been predefined`
         currentStepDescription: state.getCurrentStep()?.description || "",
         toolName: name,
         schemaDefinition: JSON.stringify(this.forCurrentState(state), null, 2),
-        workflowSteps: "", // Remove redundant workflow steps display
+        // Remove redundant workflow steps display
+        workflowSteps: "",
       });
     },
   };

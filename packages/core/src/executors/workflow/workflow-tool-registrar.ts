@@ -19,13 +19,13 @@ export function registerAgenticWorkflowTool(
     toolNameToDetailList,
     predefinedSteps,
     sampling = false,
-  }: RegisterWorkflowToolParams
+  }: RegisterWorkflowToolParams,
 ) {
   const createArgsDef = createArgsDefFactory(
     name,
     allToolNames,
     depGroups,
-    predefinedSteps
+    predefinedSteps,
   );
 
   // Create executors
@@ -35,7 +35,7 @@ export function registerAgenticWorkflowTool(
     toolNameToDetailList,
     createArgsDef,
     server,
-    predefinedSteps
+    predefinedSteps,
   );
 
   const workflowSamplingExecutor = new WorkflowSamplingExecutor(
@@ -45,7 +45,7 @@ export function registerAgenticWorkflowTool(
     toolNameToDetailList as [string, ExternalTool][],
     createArgsDef,
     server,
-    predefinedSteps
+    predefinedSteps,
   );
 
   const workflowState = new WorkflowState();
@@ -57,15 +57,15 @@ export function registerAgenticWorkflowTool(
   // Generate description based on mode
   const baseDescription = sampling
     ? CompiledPrompts.samplingExecution({
-        toolName: name,
-        description,
-        toolList: allToolNames.map((name) => `- ${name}`).join("\n"),
-      })
+      toolName: name,
+      description,
+      toolList: allToolNames.map((name) => `- ${name}`).join("\n"),
+    })
     : CompiledPrompts.workflowExecution({
-        toolName: name,
-        description: description,
-        planningInstructions,
-      });
+      toolName: name,
+      description: description,
+      planningInstructions,
+    });
 
   // Generate schema based on mode
   const argsDef = sampling
@@ -80,16 +80,17 @@ export function registerAgenticWorkflowTool(
     name,
     toolDescription,
     jsonSchema<Record<string, unknown>>(
-      createGoogleCompatibleJSONSchema(argsDef)
+      createGoogleCompatibleJSONSchema(argsDef),
     ),
     async (args: Record<string, unknown>) => {
       try {
         // Use appropriate executor based on mode
         if (sampling) {
+          workflowState.reset();
           return await workflowSamplingExecutor.executeWorkflowSampling(
             args as Record<string, unknown>,
             argsDef as Record<string, unknown>,
-            workflowState
+            workflowState,
           );
         } else {
           return await workflowExecutor.execute(args, workflowState);
@@ -106,6 +107,6 @@ export function registerAgenticWorkflowTool(
           isError: true,
         };
       }
-    }
+    },
   );
 }

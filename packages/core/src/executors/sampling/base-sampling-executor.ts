@@ -75,10 +75,10 @@ export abstract class BaseSamplingExecutor {
         const response = await this.server.createMessage({
           systemPrompt: systemPrompt(),
           messages: this.conversationHistory,
-          maxTokens: 9999,
+          maxTokens: Number.MAX_SAFE_INTEGER,
         });
 
-        const responseContent = response.content.text as string || "{}";
+        const responseContent = (response.content.text as string) || "{}";
 
         // Parse JSON response
         let parsedData: Record<string, unknown>;
@@ -90,13 +90,30 @@ export abstract class BaseSamplingExecutor {
           continue;
         }
 
+        if (parsedData) {
+          this.conversationHistory.push({
+            role: "assistant",
+            content: {
+              type: "text",
+              text: `Executing with arguments: ${
+                JSON.stringify(
+                  parsedData,
+                  null,
+                  2,
+                )
+              }`,
+            },
+          });
+        }
+
         // Process the parsed data using subclass implementation
         const result = await this.processAction(parsedData, schema, state);
+        this.logIterationProgress(parsedData, result);
 
         if (result.isError) {
           // If processing resulted in an error, add to conversation history
           this.conversationHistory.push({
-            role: "assistant",
+            role: "user",
             content: {
               type: "text",
               text: result.content[0].text as string,
@@ -107,13 +124,6 @@ export abstract class BaseSamplingExecutor {
 
         if (result.isComplete) {
           return result;
-        }
-
-        // Add result to conversation history if not complete
-        if (result.conversationUpdate) {
-          this.conversationHistory.push(
-            ...result.conversationUpdate as ConversationMessage[],
-          );
         }
       }
 
@@ -208,56 +218,38 @@ ${text}
 
     let details = "\n\n**Detailed Conversation History:**";
 
-    this.conversationHistory.forEach((message, index) => {
-      details += `\n\n**Message ${index + 1} (${message.role}):**\n`;
-
+    this.conversationHistory.forEach((message) => {
       if (message.role === "assistant") {
         // Try to parse JSON and format nicely
         try {
           const parsed = JSON.parse(message.content.text);
-          details += "```json\n" + JSON.stringify(parsed, null, 2) + "\n```";
+          details += "\n```json\n" + JSON.stringify(parsed, null, 2) + "\n```";
         } catch {
           // Not JSON, show as text
-          details += "```\n" + message.content.text + "\n```";
+          details += "\n```\n" + message.content.text + "\n```";
         }
       } else {
         // User message
-        details += "```\n" + message.content.text + "\n```";
+        details += "\n```\n" + message.content.text + "\n```";
       }
     });
 
-    // Add summary
-    const toolsUsed = new Set<string>();
-    let errorCount = 0;
-
-    for (const message of this.conversationHistory) {
-      if (message.role === "assistant") {
-        try {
-          const parsed = JSON.parse(message.content.text);
-          if (parsed.action && parsed.action !== "complete") {
-            toolsUsed.add(parsed.action);
-          }
-        } catch {
-          if (
-            message.content.text.includes("JSON parsing failed") ||
-            message.content.text.toLowerCase().includes("error")
-          ) {
-            errorCount++;
-          }
-        }
-      }
-    }
-
-    details += "\n\n**Summary:**";
-    details += `\n- Total messages: ${this.conversationHistory.length}`;
-    if (toolsUsed.size > 0) {
-      details += `\n- Tools used: ${Array.from(toolsUsed).join(", ")}`;
-    }
-    if (errorCount > 0) {
-      details += `\n- Errors encountered: ${errorCount}`;
-    }
-
     return details;
+  }
+
+  protected logIterationProgress(
+    parsedData: Record<string, unknown>,
+    result: CallToolResult,
+  ): void {
+    // Optional: Log iteration progress for debugging
+    console.log(
+      `Iteration ${this.currentIteration + 1}/${this.maxIterations}:`,
+      {
+        parsedData,
+        isError: result.isError,
+        isComplete: result.isComplete,
+      },
+    );
   }
 
   // Abstract methods that subclasses must implement

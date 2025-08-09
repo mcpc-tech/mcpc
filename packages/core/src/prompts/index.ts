@@ -138,7 +138,7 @@ You MUST respond with a JSON object for workflow execution:
 **For Step Execution (Subsequent Calls):**
 - action: "{toolName}" OR "complete" when workflow is autonomously determined finished
 - reasoning: Your independent analysis of current step and next decision
-- proceed: true (advance to next step) OR false (retry current step)
+- proceed: true (advance to next step) OR false (retry/repeat current step)
 - [step parameters]: Tool-specific parameters you autonomously determine for current step
 
 **🎯 AGENTIC WORKFLOW CONSTRAINTS:**
