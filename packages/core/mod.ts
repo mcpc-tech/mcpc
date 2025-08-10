@@ -50,7 +50,4 @@ export * from "./src/controllers/openapi-docs.controller.ts";
 
 export * from "./src/transport/sse.ts";
 
-export * from "./src/service/llms/ollama.ts";
-export * from "./src/service/llms/qwen.ts";
-
 export * from "./src/set-up-mcp-compose.ts";

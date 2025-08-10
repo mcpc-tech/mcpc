@@ -2,7 +2,7 @@ name: MCPC Core - Deno Tests
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, "feature/**"]
     paths:
       - "packages/core/**"
       - ".github/workflows/**"
