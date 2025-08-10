@@ -1,13 +1,4 @@
-import { experimental_createMCPClient } from "ai";
-import { readFileSync } from "node:fs";
 import { z } from "zod";
-import { isProdEnv } from "../../mod.ts";
-
-export enum ServerName {
-  DIAGRAM = "diagram-thinker",
-  OAPI = "oapi-invoker",
-  CODE_RUNNER = "code-runner",
-}
 
 const AutoApproveSchema = z.array(z.string()).default([]);
 
@@ -51,45 +42,5 @@ export const McpSettingsSchema: z.ZodObject<{
   mcpServers: z.record(ServerConfigSchema),
 });
 
-const configStr = readFileSync(
-  new URL(
-    `../../../../${isProdEnv() ? "mcp.json" : "mcp.local.json"}`,
-    import.meta.url,
-  ),
-  "utf-8",
-);
-
 export type McpServerConfig = z.infer<typeof ServerConfigSchema>;
 export type MCPSetting = z.infer<typeof McpSettingsSchema>;
-
-const mcpSettings = McpSettingsSchema.parse(JSON.parse(configStr));
-const _mcpEnabledConfigs = Object.entries(mcpSettings.mcpServers).filter(
-  ([_name, config]) => {
-    if (config.disabled) {
-      return false;
-    }
-    return true;
-  },
-);
-
-export async function getMcpClient(
-  serverConfig: [string, z.infer<typeof ServerConfigSchema>],
-) {
-  const [_mcpName, mcpConfig] = serverConfig;
-  const transport: any = mcpConfig.transportType === "sse"
-    ? {
-      type: "sse",
-      url: mcpConfig.url,
-      headers: {},
-    }
-    : {
-      type: "stdio",
-      command: mcpConfig.command!,
-      args: mcpConfig.args || [],
-      env: mcpConfig.env || {},
-    };
-  const client = await experimental_createMCPClient({
-    transport,
-  });
-  return client;
-}
