@@ -1,8 +1,6 @@
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { JsonSchema } from "json-schema-to-zod";
-import { JSONSchemaFaker } from "json-schema-faker";
-import { z } from "zod";
-import { StreamableHTTPSchema } from "../../service/tools.ts";
+import type { JsonSchema } from "json-schema-to-zod";
+import type { z } from "zod";
+import type { StreamableHTTPSchema } from "../../service/tools.ts";
 
 export interface SmitheryConfig {
   type: "http";

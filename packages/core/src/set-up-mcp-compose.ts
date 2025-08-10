@@ -1,8 +1,9 @@
 import { ComposableMCPServer } from "../mod.ts";
 import minimist from "minimist";
 import { connectToSmitheryServer } from "./utils/common/registory.ts";
-import { MCPCStep } from "./utils/state.ts";
-import { MCPSetting } from "./service/tools.ts";
+import type { MCPCStep } from "./utils/state.ts";
+import type { MCPSetting } from "./service/tools.ts";
+import process from "node:process";
 
 export const INCOMING_MSG_ROUTE_PATH = "/core/messages";
 
@@ -19,6 +20,13 @@ export interface ComposeDefinition {
      * @default "agentic"
      */
     mode?: "agentic" | "agentic_workflow";
+
+    /**
+     * Enable MCP sampling-based autonomous execution capability
+     * When enabled, adds sampling tools that can execute tasks autonomously
+     * @default false
+     */
+    sampling?: boolean;
 
     /**
      * Optional predefined workflow steps for agentic_workflow mode

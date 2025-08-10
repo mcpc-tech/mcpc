@@ -2,7 +2,7 @@
  * @see https://github.com/honojs/middleware/tree/main/packages/zod-openapi
  */
 
-import { OpenAPIHono } from "@hono/zod-openapi";
+import type { OpenAPIHono } from "@hono/zod-openapi";
 
 export const coreHandler = (app: OpenAPIHono) => {
   app.doc("/core-docs", {

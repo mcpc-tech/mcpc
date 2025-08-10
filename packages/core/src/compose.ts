@@ -16,15 +16,15 @@ import { composeMcpDepTools, parseTags } from "../mod.ts";
 import type { ComposeDefinition } from "./set-up-mcp-compose.ts";
 import { updateRefPaths } from "./utils/common/schema.ts";
 import type { JSONSchema, ToolCallback } from "./types.ts";
-import { registerAgenticTool } from "./workflow/agentic-tool-registrar.ts";
-import { registerAgenticWorkflowTool } from "./workflow/workflow-tool-registrar.ts";
+import { registerAgenticTool } from "./executors/agentic/agentic-tool-registrar.ts";
+import { registerAgenticWorkflowTool } from "./executors/workflow/workflow-tool-registrar.ts";
+import { processToolTags } from "./utils/common/tool-tag-processor.ts";
 
 interface ComposedTool extends Tool {
   execute: ToolCallback;
 }
 
 const ALL_TOOLS_PLACEHOLDER = "__ALL__";
-const ACTION_KEY = "action";
 
 export interface ToolOverrideOptions {
   description?: string;
@@ -84,7 +84,7 @@ export class ComposableMCPServer extends Server {
     description: string,
     paramsSchema: Schema<T>,
     cb: (args: T, extra?: unknown) => unknown,
-    internal: boolean = false
+    internal: boolean = false,
   ) {
     if (!internal) {
       const newTool: Tool = {
@@ -148,8 +148,7 @@ export class ComposableMCPServer extends Server {
       throw new Error(`Tool ${name} not found`);
     }
 
-    const callback =
-      this.nameToCb.get(resolvedName) ||
+    const callback = this.nameToCb.get(resolvedName) ||
       this.internalTools.get(resolvedName)?.callback ||
       this.hiddenTools.get(resolvedName) ||
       this.composedTools.get(resolvedName);
@@ -159,8 +158,8 @@ export class ComposableMCPServer extends Server {
     }
 
     // Apply args transformation if override exists
-    const override =
-      this.toolOverrides.get(name) || this.toolOverrides.get(resolvedName);
+    const override = this.toolOverrides.get(name) ||
+      this.toolOverrides.get(resolvedName);
     const processedArgs = override?.args ? override.args(args) : args;
 
     return await callback(processedArgs);
@@ -171,7 +170,7 @@ export class ComposableMCPServer extends Server {
    */
   callInternalTool(name: string, args: unknown): Promise<unknown> {
     console.warn(
-      `callInternalTool() is deprecated. Use callTool() instead for: ${name}`
+      `callInternalTool() is deprecated. Use callTool() instead for: ${name}`,
     );
     return this.callTool(name, args);
   }
@@ -199,7 +198,7 @@ export class ComposableMCPServer extends Server {
    * Get internal tool schema by name
    */
   getInternalToolSchema(
-    name: string
+    name: string,
   ): { description: string; schema: JSONSchema } | undefined {
     const internalTool = this.internalTools.get(name);
     if (internalTool) {
@@ -226,7 +225,7 @@ export class ComposableMCPServer extends Server {
     name: string,
     description: string,
     depsConfig: z.infer<typeof McpSettingsSchema> = { mcpServers: {} },
-    options: ComposeDefinition["options"] = { mode: "agentic" }
+    options: ComposeDefinition["options"] = { mode: "agentic" },
   ) {
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
 
@@ -245,9 +244,13 @@ export class ComposableMCPServer extends Server {
     });
 
     // Filter tools and transform scoped tool names to valid action identifiers
+    const toolNameToIdMapping = new Map<string, string>();
     const { tools, cleanupClients } = await composeMcpDepTools(
       depsConfig,
       ({ mcpName, toolNameWithScope, toolId }) => {
+        // Store the mapping for later use in tag processing
+        toolNameToIdMapping.set(toolNameWithScope, toolId);
+
         const matchingStep = options.steps?.find((step) =>
           step.actions.includes(toolNameWithScope)
         );
@@ -264,10 +267,6 @@ export class ComposableMCPServer extends Server {
           const selectAll =
             tool.attribs.name === `${mcpName}.${ALL_TOOLS_PLACEHOLDER}`;
 
-          description = description.replace(
-            $(tool).prop("outerHTML")!,
-            `<action ${ACTION_KEY}="${toolId}"/>`
-          );
           if (selectAll) {
             return true;
           }
@@ -276,8 +275,21 @@ export class ComposableMCPServer extends Server {
             tool.attribs.name === toolId
           );
         });
-      }
-    ) as { tools: Record<string, ComposedTool>; cleanupClients: () => Promise<void> };
+      },
+    ) as {
+      tools: Record<string, ComposedTool>;
+      cleanupClients: () => Promise<void>;
+    };
+
+    // Replace tool tags with action tags after tool filtering is complete
+    description = processToolTags({
+      description,
+      tagToResults,
+      $,
+      tools,
+      toolOverrides: this.toolOverrides,
+      toolNameMapping: toolNameToIdMapping,
+    });
 
     // Cleanup clients when server is closed
     this.onclose = async () => {
@@ -288,7 +300,7 @@ export class ComposableMCPServer extends Server {
       console.error(`[${name}] MCP server error:`, error);
       await cleanupClients();
       console.log(
-        `[${name}] MCP server error handled, cleaned up dependent clients.`
+        `[${name}] MCP server error handled, cleaned up dependent clients.`,
       );
     };
 
@@ -299,10 +311,12 @@ export class ComposableMCPServer extends Server {
 
       // If no direct override found, check if we have an override for the dot notation equivalent
       if (!override) {
-        for (const [
-          overrideName,
-          overrideOptions,
-        ] of this.toolOverrides.entries()) {
+        for (
+          const [
+            overrideName,
+            overrideOptions,
+          ] of this.toolOverrides.entries()
+        ) {
           // Build the mapping during processing
           const dotNotationId = toolId.replace(/_/g, ".");
           const underscoreNotationId = overrideName.replace(/\./g, "_");
@@ -349,18 +363,22 @@ export class ComposableMCPServer extends Server {
     // For agentic interface: external tools (non-hidden) + internal tools
     const allToolNames = [...externalToolNames, ...internalToolNames];
     console.log(
-      `[${name}][composed tools] external: ${externalToolNames.join(
-        ", "
-      )} | internal: ${internalToolNames.join(", ")}`
+      `[${name}][composed tools] external: ${
+        externalToolNames.join(
+          ", ",
+        )
+      } | internal: ${internalToolNames.join(", ")}`,
     );
 
     const depGroups: Record<string, unknown> = {};
     toolNameToDetailList.forEach(([toolName, tool]) => {
       if (!tool) {
         throw new Error(
-          `Action ${toolName} not found, available action list: ${allToolNames.join(
-            ", "
-          )}`
+          `Action ${toolName} not found, available action list: ${
+            allToolNames.join(
+              ", ",
+            )
+          }`,
         );
       }
 
@@ -404,7 +422,7 @@ export class ComposableMCPServer extends Server {
       }
     });
 
-    switch (options.mode) {
+    switch (options.mode ?? "agentic") {
       case "agentic":
         registerAgenticTool(this, {
           description,
@@ -412,8 +430,9 @@ export class ComposableMCPServer extends Server {
           allToolNames,
           depGroups,
           toolNameToDetailList,
+          sampling: options.sampling,
         });
-        return;
+        break;
       case "agentic_workflow":
         registerAgenticWorkflowTool(this, {
           description,
@@ -422,8 +441,9 @@ export class ComposableMCPServer extends Server {
           depGroups,
           toolNameToDetailList,
           predefinedSteps: options.steps,
+          sampling: options.sampling,
         });
-        return;
+        break;
     }
   }
 }

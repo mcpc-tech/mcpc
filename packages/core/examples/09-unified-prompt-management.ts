@@ -7,13 +7,13 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { mcpc } from "../../mod.ts";
+import { mcpc } from "../mod.ts";
 import { jsonSchema } from "ai";
 import {
   CompiledPrompts,
   PromptUtils,
   type ToolDefinition,
-} from "../../src/prompts/index.ts";
+} from "../src/prompts/index.ts";
 
 // Type definitions for tool arguments
 interface AuditLogArgs {

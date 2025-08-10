@@ -11,7 +11,7 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { mcpc } from "../../mod.ts";
+import { mcpc } from "../mod.ts";
 
 export const server = await mcpc(
   [
@@ -37,7 +37,6 @@ Available tools:
 <tool name="@wonderwhy-er/desktop-commander.list_directory"/>
 <tool name="@wonderwhy-er/desktop-commander.create_directory"/>
 <tool name="@wonderwhy-er/desktop-commander.move_file"/>
-<tool name="@wonderwhy-er/desktop-commander.delete_file"/>
 <tool name="@wonderwhy-er/desktop-commander.read_file"/>
 <tool name="@wonderwhy-er/desktop-commander.write_file"/>
 

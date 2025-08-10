@@ -3,24 +3,27 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { generateId } from "ai";
-import { McpSettingsSchema, ServerConfigSchema } from "../../service/tools.ts";
-import z from "zod";
+import type {
+  McpSettingsSchema,
+  ServerConfigSchema,
+} from "../../service/tools.ts";
+import type z from "zod";
 
-import { CheerioAPI, load } from "cheerio";
+import { type CheerioAPI, load } from "cheerio";
 import { smitheryToolNameCompatibale } from "./registory.ts";
 import { ToolNameRegex } from "./provider.ts";
 import { cwd } from "node:process";
+import process from "node:process";
 
 /**
  * Helper type to extract variable names (inside {}) from a template string literal.
  * e.g., ExtractVariables<"Hello {name}! You are {age}."> -> "name" | "age"
  */
-type ExtractVariables<S extends string> =
-  S extends `${string}{${infer Var}}${infer Rest}`
-    ? Var extends `${infer ActualVar}}` // Handle potential extra '}' if no Rest or adjacent braces
-      ? ActualVar | ExtractVariables<Rest>
-      : Var | ExtractVariables<Rest> // Standard case {var}
-    : never;
+type ExtractVariables<S extends string> = S extends
+  `${string}{${infer Var}}${infer Rest}` ? Var extends `${infer ActualVar}}` // Handle potential extra '}' if no Rest or adjacent braces
+    ? ActualVar | ExtractVariables<Rest>
+  : Var | ExtractVariables<Rest> // Standard case {var}
+  : never;
 
 /**
  * Type for the input object required by the formatting function.
@@ -52,8 +55,8 @@ interface NativePromptOptions {
  */
 export const p = <T extends string>(
   template: T,
-  options: NativePromptOptions = {}
-): ((input: PromptInput<T>) => string) => {
+  options: NativePromptOptions = {},
+): (input: PromptInput<T>) => string => {
   const { missingVariableHandling = "warn" } = options;
 
   // Pre-compute variable names (at runtime) for the formatting function closure
@@ -65,7 +68,7 @@ export const p = <T extends string>(
     variableNames.add(match[1]);
   }
   const requiredVariables = Array.from(
-    variableNames
+    variableNames,
   ) as (keyof PromptInput<T>)[]; // Runtime list
 
   // Return the formatting function
@@ -82,13 +85,15 @@ export const p = <T extends string>(
         result = result.replace(replaceRegex, String(value));
       } else {
         // Handle missing variable based on options
-        const placeholder = `{${String(variableName)}}`;
+        const _placeholder = `{${String(variableName)}}`;
         switch (missingVariableHandling) {
           case "error": {
             throw new Error(
-              `Missing variable "${String(
-                variableName
-              )}" in input for template.`
+              `Missing variable "${
+                String(
+                  variableName,
+                )
+              }" in input for template.`,
             );
           }
           case "warn": {
@@ -104,7 +109,7 @@ export const p = <T extends string>(
           case "empty": {
             const replaceRegex = new RegExp(
               `\\{${String(variableName)}\\}`,
-              "g"
+              "g",
             );
             result = result.replace(replaceRegex, "");
             break;
@@ -122,7 +127,7 @@ export const p = <T extends string>(
 };
 export function parseTags(
   htmlString: string,
-  tags: Array<string>
+  tags: Array<string>,
 ): { tagToResults: Record<string, any[]>; $: CheerioAPI } {
   const $ = load(htmlString, { xml: { decodeEntities: false } });
 
@@ -146,7 +151,7 @@ export async function composeMcpDepTools(
     toolNameWithScope: string;
     internalToolName: string;
     toolId: string;
-  }) => boolean
+  }) => boolean,
 ): Promise<Record<string, any>> {
   const allTools: Record<string, any> = {};
   const allClients: Record<string, Client> = {};
@@ -257,7 +262,7 @@ export async function composeMcpDepTools(
         } catch (error) {
           console.error("Error closing MCP client:", error);
         }
-      })
+      }),
     );
 
     // Clear references to help GC

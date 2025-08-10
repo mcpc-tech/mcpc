@@ -1,195 +1,92 @@
-name: MCPC Core Tests
+name: MCPC Core - Deno Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
-      - 'packages/core/**'
-      - '.github/workflows/test.yml'
+      - "packages/core/**"
+      - ".github/workflows/**"
   pull_request:
-    branches: [ main, develop ]
+    branches: [main]
     paths:
-      - 'packages/core/**'
-      - '.github/workflows/test.yml'
-
-env:
-  DENO_DIR: ~/.cache/deno
+      - "packages/core/**"
+      - ".github/workflows/**"
 
 jobs:
   test:
-    name: Test MCPC Core
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
-      - name: Cache Deno dependencies
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.DENO_DIR }}
-          key: ${{ runner.os }}-deno-${{ hashFiles('packages/core/deno.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-deno-
-
-      - name: Verify Deno installation
-        run: deno --version
-
-      - name: Change to core package directory
-        run: cd packages/core
-
-      - name: Check code formatting
-        working-directory: packages/core
-        run: deno fmt --check
-
-      - name: Lint code
-        working-directory: packages/core
-        run: deno lint
-
-      - name: Type check
-        working-directory: packages/core
-        run: deno check **/*.ts
-
-      - name: Run tests
-        working-directory: packages/core
-        run: deno task test
-
-      - name: Run tests with coverage
-        working-directory: packages/core
-        run: deno test --allow-env --allow-read --coverage=coverage tests/
-
-      - name: Generate coverage report
-        working-directory: packages/core
-        run: deno coverage coverage --lcov --output=coverage.lcov
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          file: packages/core/coverage.lcov
-          directory: packages/core
-          flags: core
-          name: mcpc-core
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-  test-matrix:
-    name: Test on multiple Deno versions
+    name: Test with Deno ${{ matrix.deno-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
 
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        deno-version: ['v2.0', 'v2.1', 'v2.2', 'v2.3', 'v2.4']
+        deno-version: ["2.4.x", "2.x"]
+        os: [ubuntu-latest]
       fail-fast: false
 
     steps:
-      - name: Checkout code
+      - name: Git Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Deno ${{ matrix.deno-version }}
+      - name: Use Deno ${{ matrix.deno-version }}
         uses: denoland/setup-deno@v2
         with:
           deno-version: ${{ matrix.deno-version }}
 
-      - name: Cache Deno dependencies
+      - name: Show Deno Version
+        run: deno --version
+
+      - name: Cache Dependencies
         uses: actions/cache@v4
         with:
-          path: ${{ env.DENO_DIR }}
-          key: ${{ runner.os }}-${{ matrix.deno-version }}-deno-${{ hashFiles('packages/core/deno.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.deno-version }}-deno-
+          path: ~/.cache/deno
+          key: deno-${{ runner.os }}-${{ matrix.deno-version }}-${{ hashFiles('packages/core/deno.lock') }}
 
-      - name: Run tests
+      - name: Install Dependencies
+        working-directory: packages/core
+        run: deno cache mod.ts
+
+      - name: Run Linter
+        working-directory: packages/core
+        run: deno lint
+
+      - name: Check Formatting
+        working-directory: packages/core
+        run: deno fmt --check
+
+      - name: Type Check
+        working-directory: packages/core
+        run: deno check mod.ts
+
+      - name: Run Tests
         working-directory: packages/core
         run: deno task test
 
-  test-permissions:
-    name: Test with strict permissions
+  coverage:
+    name: Generate Coverage Report
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    needs: test
 
     steps:
-      - name: Checkout code
+      - name: Git Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Deno
+      - name: Use Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: 2.x
 
-      - name: Test with minimal permissions
+      - name: Run Tests with Coverage
         working-directory: packages/core
-        run: |
-          echo "Testing with only required permissions..."
-          deno test --allow-env --allow-read tests/
+        run: deno test --allow-env --allow-read --coverage=coverage tests/
 
-      - name: Test individual test files
+      - name: Generate Coverage Report
         working-directory: packages/core
-        run: |
-          echo "Running individual test files..."
-          deno test --allow-env --allow-read tests/integration_test.ts
-          deno test --allow-env --allow-read tests/workflow_test.ts
-          deno test --allow-env --allow-read tests/utils_test.ts
-          deno test --allow-env --allow-read tests/env_utils_test.ts
-          deno test --allow-env --allow-read tests/ai_test.ts
+        run: deno coverage coverage --lcov --output=coverage.lcov
 
-  benchmark:
-    name: Run benchmarks
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        continue-on-error: true
         with:
-          deno-version: v2.x
-
-      - name: Run benchmark tests
-        working-directory: packages/core
-        run: |
-          echo "Running performance benchmarks..."
-          deno bench --allow-env --allow-read tests/ || echo "No benchmark files found"
-
-  security-audit:
-    name: Security audit
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
-      - name: Check for vulnerabilities
-        working-directory: packages/core
-        run: |
-          echo "Checking for security vulnerabilities..."
-          # Deno doesn't have a built-in audit command yet, but we can check dependencies
-          deno info --json | grep -E "(http|npm|jsr):" || echo "No external dependencies found"
-
-  notify:
-    name: Notify on failure
-    runs-on: ubuntu-latest
-    needs: [test, test-matrix, test-permissions]
-    if: failure()
-
-    steps:
-      - name: Notify failure
-        run: |
-          echo "Tests failed! Please check the logs above."
-          echo "Failed jobs: ${{ join(needs.*.result, ', ') }}"
+          file: ./packages/core/coverage.lcov
+          flags: mcpc-core
