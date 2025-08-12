@@ -366,7 +366,7 @@ export const CompiledPrompts = {
   actionSuccess: p(ResponseTemplates.ACTION_SUCCESS),
   planningPrompt: p(ResponseTemplates.PLANNING_PROMPT),
   errorResponse: p(ResponseTemplates.ERROR_RESPONSE),
-  workflowErrorResponse: p(ResponseTemplates.ERROR_RESPONSE),
+  workflowErrorResponse: p(ResponseTemplates.WORKFLOW_ERROR_RESPONSE),
   securityPassed: p(ResponseTemplates.SECURITY_VALIDATION.PASSED),
   securityFailed: p(ResponseTemplates.SECURITY_VALIDATION.FAILED),
   auditLog: p(ResponseTemplates.AUDIT_LOG),

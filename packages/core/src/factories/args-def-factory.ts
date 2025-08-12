@@ -86,7 +86,7 @@ Workflow step definitions - provide ONLY on initial call.
     proceed: (): JSONSchema => ({
       type: "boolean",
       description:
-        "**Step execution control. Set \`true\` to advance, \`false\`/omit to retry. ⚠️ CRITICAL: For failed steps, NEVER use \`true\`**",
+        "**Step execution control. Set \`true\` to advance, \`false\`/omit to retry. For failed steps, MUST use \`false\`**",
     }),
 
     action: (sampling?: boolean): JSONSchema => ({
@@ -219,6 +219,7 @@ Workflow step definitions - provide ONLY on initial call.
       } as Record<string, JSONSchema>;
 
       stepDependencies["proceed"] = this.proceed();
+      stepDependencies["action"] = this.action();
 
       // Make proceed required for next state transitions
       return this.common(stepDependencies);
