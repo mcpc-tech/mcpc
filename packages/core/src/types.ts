@@ -14,6 +14,8 @@ export interface RegisterToolParams {
 export interface RegisterWorkflowToolParams extends RegisterToolParams {
   predefinedSteps?: import("./utils/state.ts").MCPCStep[];
   sampling?: boolean;
+  ensureStepActions?: string[];
+  toolNameToIdMapping?: Map<string, string>;
 }
 
 export interface ArgsDefCreator {

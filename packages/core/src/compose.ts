@@ -442,6 +442,8 @@ export class ComposableMCPServer extends Server {
           toolNameToDetailList,
           predefinedSteps: options.steps,
           sampling: options.sampling,
+          ensureStepActions: options.ensureStepActions,
+          toolNameToIdMapping,
         });
         break;
     }

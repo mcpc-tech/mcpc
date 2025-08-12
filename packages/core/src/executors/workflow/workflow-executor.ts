@@ -26,7 +26,48 @@ export class WorkflowExecutor {
     private createArgsDef: ArgsDefCreator,
     private server: ComposableMCPServer,
     private predefinedSteps?: MCPCStep[],
+    private ensureStepActions?: string[],
+    private toolNameToIdMapping?: Map<string, string>,
   ) {}
+
+  // Helper method to validate required actions are present in workflow steps
+  private validateRequiredActions(
+    steps: MCPCStep[],
+  ): { valid: boolean; missing: string[] } {
+    if (!this.ensureStepActions || this.ensureStepActions.length === 0) {
+      return { valid: true, missing: [] };
+    }
+
+    const allStepActions = new Set<string>();
+    steps.forEach((step) => {
+      step.actions.forEach((action) => allStepActions.add(action));
+    });
+
+    const missing: string[] = [];
+
+    for (const requiredAction of this.ensureStepActions) {
+      // Check if the action exists directly
+      if (allStepActions.has(requiredAction)) {
+        continue;
+      }
+
+      // If we have the mapping, try to find the corresponding toolId
+      if (this.toolNameToIdMapping) {
+        const mappedToolId = this.toolNameToIdMapping.get(requiredAction);
+        if (mappedToolId && allStepActions.has(mappedToolId)) {
+          continue;
+        }
+      }
+
+      // If neither direct match nor mapped match found, it's missing
+      missing.push(requiredAction);
+    }
+
+    return {
+      valid: missing.length === 0,
+      missing,
+    };
+  }
 
   // Helper method to format workflow progress
   private formatProgress(state: WorkflowState): string {
@@ -118,8 +159,10 @@ export class WorkflowExecutor {
         content: [
           {
             type: "text",
-            text:
-              `Tool call arguments validation failed: ${validationResult.error}`,
+            text: CompiledPrompts.errorResponse({
+              errorMessage: validationResult.error ||
+                "Arguments validation failed",
+            }),
           },
         ],
         isError: true,
@@ -150,6 +193,26 @@ export class WorkflowExecutor {
       };
     }
 
+    // Validate that required actions are present in the workflow steps
+    const validation = this.validateRequiredActions(steps);
+    if (!validation.valid) {
+      return {
+        content: [{
+          type: "text",
+          text: `## Workflow Validation Failed ❌
+
+**Missing Required Actions:** The following actions must be included in the workflow steps:
+
+${
+            validation.missing.map((action) =>
+              `- \`${this.toolNameToIdMapping?.get(action)}\``
+            ).join("\n")
+          }`,
+        }],
+        isError: true,
+      };
+    }
+
     state.initialize(steps);
 
     // The initial next step is the first one of the steps.
@@ -157,9 +220,9 @@ export class WorkflowExecutor {
       content: [
         {
           type: "text",
-          text: `## Workflow Initialized\n\n${this.formatProgress(state)}\n\n${
-            this.createArgsDef.forInitialStepDescription(steps, state)
-          }`,
+          text: `## Workflow Initialized
+${this.formatProgress(state)}
+${this.createArgsDef.forInitialStepDescription(steps, state)}`,
         },
       ],
       isError: false,
@@ -274,7 +337,8 @@ export class WorkflowExecutor {
     // Add final progress display
     results.content.push({
       type: "text",
-      text: `\n## Workflow Progress\n\n${this.formatProgress(state)}`,
+      text: `## Workflow Progress
+${this.formatProgress(state)}`,
     });
 
     return results;

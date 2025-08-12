@@ -35,6 +35,14 @@ export interface ComposeDefinition {
      * - Ignored when mode is "agentic"
      */
     steps?: MCPCStep[];
+
+    /**
+     * Actions that must be included at least once in any workflow
+     * Validation will fail if these actions are not present in the workflow steps
+     * - Only applies to agentic_workflow mode
+     * - Ignored when mode is "agentic"
+     */
+    ensureStepActions?: string[];
   };
 }
 

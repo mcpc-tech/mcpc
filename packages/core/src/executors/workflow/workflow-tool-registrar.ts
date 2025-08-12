@@ -19,6 +19,8 @@ export function registerAgenticWorkflowTool(
     toolNameToDetailList,
     predefinedSteps,
     sampling = false,
+    ensureStepActions,
+    toolNameToIdMapping,
   }: RegisterWorkflowToolParams,
 ) {
   const createArgsDef = createArgsDefFactory(
@@ -36,6 +38,8 @@ export function registerAgenticWorkflowTool(
     createArgsDef,
     server,
     predefinedSteps,
+    ensureStepActions,
+    toolNameToIdMapping,
   );
 
   const workflowSamplingExecutor = new WorkflowSamplingExecutor(
