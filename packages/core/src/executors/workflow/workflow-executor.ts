@@ -159,7 +159,7 @@ export class WorkflowExecutor {
         content: [
           {
             type: "text",
-            text: CompiledPrompts.errorResponse({
+            text: CompiledPrompts.workflowErrorResponse({
               errorMessage: validationResult.error ||
                 "Arguments validation failed",
             }),

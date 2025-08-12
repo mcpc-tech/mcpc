@@ -304,7 +304,9 @@ Choose the next action that best advances toward completing the user's request.`
   /**
    * Error response template
    */
-  ERROR_RESPONSE: `Action/Function argument validation failed: {errorMessage}`,
+  ERROR_RESPONSE: `Action argument validation failed: {errorMessage}`,
+  WORKFLOW_ERROR_RESPONSE: `Action argument validation failed: {errorMessage}
+Set \`proceed: false\` to retry the current step.`,
 
   /**
    * Completion message
@@ -364,6 +366,7 @@ export const CompiledPrompts = {
   actionSuccess: p(ResponseTemplates.ACTION_SUCCESS),
   planningPrompt: p(ResponseTemplates.PLANNING_PROMPT),
   errorResponse: p(ResponseTemplates.ERROR_RESPONSE),
+  workflowErrorResponse: p(ResponseTemplates.ERROR_RESPONSE),
   securityPassed: p(ResponseTemplates.SECURITY_VALIDATION.PASSED),
   securityFailed: p(ResponseTemplates.SECURITY_VALIDATION.FAILED),
   auditLog: p(ResponseTemplates.AUDIT_LOG),

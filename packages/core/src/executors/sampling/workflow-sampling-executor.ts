@@ -54,7 +54,7 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
         content: [
           {
             type: "text",
-            text: CompiledPrompts.errorResponse({
+            text: CompiledPrompts.workflowErrorResponse({
               errorMessage: validationResult.error || "Validation failed",
             }),
           },
