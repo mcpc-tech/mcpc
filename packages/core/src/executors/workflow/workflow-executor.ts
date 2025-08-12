@@ -205,7 +205,7 @@ export class WorkflowExecutor {
 
 ${
             validation.missing.map((action) =>
-              `- \`${this.toolNameToIdMapping?.get(action)}\``
+              `- \`${this.toolNameToIdMapping?.get(action) ?? action}\``
             ).join("\n")
           }`,
         }],
