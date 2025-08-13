@@ -5,6 +5,7 @@ import { Ajv } from "ajv";
 import { AggregateAjvError } from "@segment/ajv-human-errors";
 import addFormats from "ajv-formats";
 import { parseJSON } from "../../utils/common/json.ts";
+import { inspect } from "node:util";
 
 const ajv = new Ajv({
   allErrors: true,
@@ -52,7 +53,7 @@ export abstract class BaseSamplingExecutor {
     protected allToolNames: string[],
     protected toolNameToDetailList: [string, ExternalTool][],
     protected server: ComposableMCPServer,
-    config?: SamplingConfig,
+    config?: SamplingConfig
   ) {
     if (config?.maxIterations) {
       this.maxIterations = config.maxIterations;
@@ -62,7 +63,7 @@ export abstract class BaseSamplingExecutor {
   protected async runSamplingLoop<TState>(
     systemPrompt: () => string,
     schema: Record<string, unknown>,
-    state?: TState,
+    state?: TState
   ) {
     // Initialize conversation
     this.conversationHistory = [];
@@ -84,9 +85,8 @@ export abstract class BaseSamplingExecutor {
         // Parse JSON response
         let parsedData: Record<string, unknown>;
         try {
-          parsedData = parseJSON(responseContent.trim()) ?? {};
+          parsedData = parseJSON(responseContent.trim(), true);
         } catch (parseError) {
-          // Handle parsing error
           this.addParsingErrorToHistory(responseContent, parseError);
           continue;
         }
@@ -96,13 +96,7 @@ export abstract class BaseSamplingExecutor {
             role: "assistant",
             content: {
               type: "text",
-              text: `Executing with arguments: ${
-                JSON.stringify(
-                  parsedData,
-                  null,
-                  2,
-                )
-              }`,
+              text: JSON.stringify(parsedData, null, 2),
             },
           });
         }
@@ -137,7 +131,7 @@ export abstract class BaseSamplingExecutor {
 
   protected addParsingErrorToHistory(
     responseText: string,
-    parseError: unknown,
+    parseError: unknown
   ): void {
     this.conversationHistory.push({
       role: "assistant",
@@ -168,8 +162,7 @@ export abstract class BaseSamplingExecutor {
         {
           type: "text",
           text: CompiledPrompts.errorResponse({
-            errorMessage:
-              `Execution reached maximum iterations (${this.maxIterations}). Please try with a more specific request or break down the task into smaller parts.`,
+            errorMessage: `Execution reached maximum iterations (${this.maxIterations}). Please try with a more specific request or break down the task into smaller parts.`,
           }),
         },
       ],
@@ -240,7 +233,7 @@ ${text}
 
   protected logIterationProgress(
     parsedData: Record<string, unknown>,
-    result: CallToolResult,
+    result: CallToolResult
   ): void {
     // Optional: Log iteration progress for debugging
     console.log(
@@ -249,7 +242,8 @@ ${text}
         parsedData,
         isError: result.isError,
         isComplete: result.isComplete,
-      },
+        result: inspect(result),
+      }
     );
   }
 
@@ -257,7 +251,7 @@ ${text}
   protected abstract processAction<TState>(
     parsedData: Record<string, unknown>,
     schema: Record<string, unknown>,
-    state?: TState,
+    state?: TState
   ): Promise<CallToolResult>;
 
   protected injectJsonInstruction({
@@ -291,7 +285,7 @@ VALID: {"key":"value"}`,
   // Validate arguments using JSON schema
   protected validateSchema(
     args: Record<string, unknown>,
-    schema: Record<string, unknown>,
+    schema: Record<string, unknown>
   ): {
     valid: boolean;
     error?: string;

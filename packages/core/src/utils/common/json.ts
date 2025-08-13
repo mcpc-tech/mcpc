@@ -4,18 +4,27 @@ import { inspect } from "node:util";
 /**
  * Attempts to parse JSON with a repair function if initial parse fails.
  */
-export function parseJSON<T>(text: string): T | null {
+export function parseJSON<T, U extends boolean>(
+  text: string,
+  throwError?: U
+): U extends false ? T | null : T {
   try {
     return JSON.parse(text) as T;
   } catch (_error) {
     try {
       const repairedText = jsonrepair(text);
       console.warn(
-        `Failed to parse JSON, attempting to repair, result: ${text}`,
+        `Failed to parse JSON, attempting to repair, result: ${text}`
       );
+      if (throwError) {
+        throw _error;
+      }
       return JSON.parse(repairedText) as T;
     } catch {
-      return null;
+      if (throwError) {
+        throw new Error("Failed to parse repaired JSON");
+      }
+      return null as T;
     }
   }
 }
