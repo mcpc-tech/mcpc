@@ -4,6 +4,7 @@ import { CompiledPrompts } from "../../prompts/index.ts";
 import { Ajv } from "ajv";
 import { AggregateAjvError } from "@segment/ajv-human-errors";
 import addFormats from "ajv-formats";
+import { parseJSON } from "../../utils/common/json.ts";
 
 const ajv = new Ajv({
   allErrors: true,
@@ -83,7 +84,7 @@ export abstract class BaseSamplingExecutor {
         // Parse JSON response
         let parsedData: Record<string, unknown>;
         try {
-          parsedData = JSON.parse(responseContent.trim());
+          parsedData = parseJSON(responseContent.trim()) ?? {};
         } catch (parseError) {
           // Handle parsing error
           this.addParsingErrorToHistory(responseContent, parseError);
@@ -263,9 +264,13 @@ ${text}
     prompt,
     schema,
     schemaPrefix = "JSON schema:",
-    schemaSuffix =
-      "You MUST answer with a JSON object that matches the JSON schema above." +
-      "**YOU MUST correctly interpret and apply complex conditional logic keywords** such as 'anyOf', 'oneOf', 'allOf', and 'not'. The generated parameters **MUST** strictly comply with the schema's logical constraints",
+    schemaSuffix = `STRICT REQUIREMENTS:
+1. Return ONLY raw JSON that passes JSON.parse() - no markdown, code blocks, explanatory text, or extra characters
+2. Include ALL required fields with correct data types and satisfy ALL schema constraints (anyOf, oneOf, allOf, not, enum, pattern, min/max, conditionals)
+3. Your response must be the JSON object itself, nothing else
+
+INVALID: \`\`\`json{"key":"value"}\`\`\` or "Here is: {"key":"value"}"
+VALID: {"key":"value"}`,
   }: {
     prompt?: string;
     schema?: Record<string, unknown>;
