@@ -25,7 +25,7 @@ export interface ArgsDefCreator {
   ) => JSONSchema;
   steps: () => JSONSchema;
   init: () => JSONSchema;
-  proceed: () => JSONSchema;
+  decision: () => JSONSchema;
   action: () => JSONSchema;
   forTool: () => JSONSchema;
   forCurrentState: (

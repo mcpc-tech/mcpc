@@ -96,7 +96,9 @@ export class WorkflowExecutor {
         };
       }
 
-      if (args.proceed === true) {
+      const decision = args.decision as string;
+      
+      if (decision === "proceed") {
         // Allow proceeding to completion even when at the last step
         if (
           !state.hasNextStep() &&
@@ -144,13 +146,50 @@ export class WorkflowExecutor {
         } else {
           state.start();
         }
+      } else if (decision === "complete") {
+        // Only allow completion at final step or when at last step and started
+        if (
+          (state.isAtLastStep() && state.isWorkflowStarted()) ||
+          (!state.hasNextStep() && state.isWorkflowStarted())
+        ) {
+          state.markCompleted();
+          return {
+            content: [
+              {
+                type: "text",
+                text: `## Workflow Completed!\n\n${
+                  this.formatProgress(state)
+                }\n\n${
+                  CompiledPrompts.workflowCompleted({
+                    totalSteps: state.getSteps().length,
+                    toolName: this.name,
+                    newWorkflowInstructions: this.predefinedSteps
+                      ? ""
+                      : " and new `steps` array",
+                  })
+                }`,
+              },
+            ],
+            isError: false,
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: WorkflowPrompts.ERRORS.ALREADY_AT_FINAL,
+              },
+            ],
+            isError: true,
+          };
+        }
       }
-      // When proceed: false, stay at current step (retry)
+      // When decision is "retry" or undefined, stay at current step (retry)
     }
 
     // Validate arguments based on current state
-    // - If proceed: true, validate against the new step after moving
-    // - If proceed: false, validate against current step
+    // - If decision: "proceed", validate against the new step after moving
+    // - If decision: "retry" or undefined, validate against current step
     const validationSchema = this.createArgsDef.forCurrentState(state);
 
     const validationResult = this.validate(args, validationSchema);

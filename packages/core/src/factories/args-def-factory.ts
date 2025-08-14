@@ -83,10 +83,11 @@ Workflow step definitions - provide ONLY on initial call.
       enum: [true],
     }),
 
-    proceed: (): JSONSchema => ({
-      type: "boolean",
+    decision: (): JSONSchema => ({
+      type: "string",
+      enum: ["retry", "proceed", "complete"],
       description:
-        "**Step execution control. Set \`true\` to advance, \`false\`/omit to retry. For failed steps, MUST use \`false\`**",
+        "**Step execution control. Use \`proceed\` to advance to next step, \`retry\` to re-execute current step, or \`complete\` to finish workflow (only allowed at final step). For failed steps, MUST use \`retry\`**",
     }),
 
     action: (sampling?: boolean): JSONSchema => ({
@@ -115,10 +116,10 @@ Workflow step definitions - provide ONLY on initial call.
         ...pick(depGroups, currentStep.actions),
       } as Record<string, JSONSchema>;
 
-      stepDependencies["proceed"] = this.proceed();
+      stepDependencies["decision"] = this.decision();
       stepDependencies["action"] = this.action();
 
-      // Make proceed required when workflow is in progress and needs user decision
+      // Make decision required when workflow is in progress and needs user decision
       return this.common(stepDependencies);
     },
 
@@ -218,10 +219,10 @@ Workflow step definitions - provide ONLY on initial call.
         ...pick(depGroups, nextStep.actions),
       } as Record<string, JSONSchema>;
 
-      stepDependencies["proceed"] = this.proceed();
+      stepDependencies["decision"] = this.decision();
       stepDependencies["action"] = this.action();
 
-      // Make proceed required for next state transitions
+      // Make decision required for next state transitions
       return this.common(stepDependencies);
     },
 
