@@ -141,7 +141,7 @@ Workflow step definitions - provide ONLY on initial call.
     forAgentic: function (
       toolNameToDetailList: [string, unknown][],
       sampling: boolean = false,
-      ACTION_KEY: string = "action",
+      ACTION_KEY: string = "proceed",
       NEXT_ACTION_KEY: string = "nextAction",
     ): JSONSchema {
       const allOf = toolNameToDetailList.map(
@@ -164,7 +164,7 @@ Workflow step definitions - provide ONLY on initial call.
         : allToolNames;
       const actionDescription = sampling
         ? "The action to perform. Use 'complete' when the task is finished."
-        : "Specifies the action to be performed from the enum. Based on the value chosen for 'action', the corresponding sibling property (which shares the same name as the action value and contains its specific parameters) **MUST** also be provided in this object. For example, if 'action' is 'get_weather', then the 'get_weather' parameter object is mandatory.";
+        : "Specifies the action to be performed from the enum. Based on the value chosen for 'proceed', the corresponding sibling property (which shares the same name as the proceed value and contains its specific parameters) **MUST** also be provided in this object. For example, if 'proceed' is 'get_weather', then the 'get_weather' parameter object is mandatory.";
 
       const baseProperties = {
         [ACTION_KEY]: {

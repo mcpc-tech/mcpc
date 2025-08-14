@@ -18,7 +18,7 @@ export class AgenticExecutor {
     private allToolNames: string[],
     private toolNameToDetailList: [string, unknown][],
     private server: ComposableMCPServer,
-    private ACTION_KEY: string = "action",
+    private ACTION_KEY: string = "proceed",
     private NEXT_ACTION_KEY: string = "nextAction",
   ) {}
 
