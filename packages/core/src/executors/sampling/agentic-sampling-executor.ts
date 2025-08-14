@@ -1,12 +1,12 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ComposableMCPServer } from "../../compose.ts";
+import type { SamplingConfig } from "../../types.ts";
 import { CompiledPrompts } from "../../prompts/index.ts";
 import { AgenticExecutor } from "../agentic/agentic-executor.ts";
 import { createArgsDefFactory } from "../../factories/args-def-factory.ts";
 import {
   BaseSamplingExecutor,
   type ExternalTool,
-  type SamplingConfig,
 } from "./base-sampling-executor.ts";
 
 export class SamplingExecutor extends BaseSamplingExecutor {
@@ -107,7 +107,7 @@ export class SamplingExecutor extends BaseSamplingExecutor {
     // Define the expected tool call data structure
     const toolCallData = parsedData;
 
-    if (toolCallData.action === "complete") {
+    if (toolCallData.decision === "complete") {
       const reasoning = (toolCallData.reasoning as string) || "Task completed";
       return this.createCompletionResult(reasoning);
     }

@@ -3,6 +3,16 @@ import type { MCPCStep, WorkflowState } from "../utils/state.ts";
 import type { ArgsDefCreator, JSONSchema } from "../types.ts";
 import { CompiledPrompts } from "../prompts/index.ts";
 
+// Decision options for workflow step execution control
+export const DECISION_OPTIONS = {
+  RETRY: "retry",
+  PROCEED: "proceed",
+  COMPLETE: "complete",
+} as const;
+
+export type DecisionOption =
+  (typeof DECISION_OPTIONS)[keyof typeof DECISION_OPTIONS];
+
 export function createArgsDefFactory(
   name: string,
   allToolNames: string[],
@@ -83,16 +93,17 @@ Workflow step definitions - provide ONLY on initial call.
       enum: [true],
     }),
 
-    proceed: (): JSONSchema => ({
-      type: "boolean",
+    decision: (): JSONSchema => ({
+      type: "string",
+      enum: Object.values(DECISION_OPTIONS),
       description:
-        "**Step execution control. Set \`true\` to advance, \`false\`/omit to retry. For failed steps, MUST use \`false\`**",
+        `**Step execution control. Use \`${DECISION_OPTIONS.PROCEED}\` to advance to next step, \`${DECISION_OPTIONS.RETRY}\` to re-execute current step, or \`${DECISION_OPTIONS.COMPLETE}\` to finish workflow (only allowed at final step). For failed steps, MUST use \`${DECISION_OPTIONS.RETRY}\`**`,
     }),
 
-    action: (sampling?: boolean): JSONSchema => ({
+    action: (): JSONSchema => ({
       type: "string",
       description: "Define the current workflow action to be performed",
-      enum: allToolNames.concat(sampling ? ["complete"] : []),
+      enum: allToolNames,
       required: ["action"],
     }),
 
@@ -115,10 +126,10 @@ Workflow step definitions - provide ONLY on initial call.
         ...pick(depGroups, currentStep.actions),
       } as Record<string, JSONSchema>;
 
-      stepDependencies["proceed"] = this.proceed();
+      stepDependencies["decision"] = this.decision();
       stepDependencies["action"] = this.action();
 
-      // Make proceed required when workflow is in progress and needs user decision
+      // Make decision required when workflow is in progress and needs user decision
       return this.common(stepDependencies);
     },
 
@@ -157,18 +168,13 @@ Workflow step definitions - provide ONLY on initial call.
         },
       );
 
-      // For sampling mode, add "complete" option and reasoning requirement
-      const actionEnum = sampling
-        ? [...allToolNames, "complete"]
-        : allToolNames;
-      const actionDescription = sampling
-        ? "The action to perform. Use 'complete' when the task is finished."
-        : "Specifies the action to be performed from the enum. Based on the value chosen for 'action', the corresponding sibling property (which shares the same name as the action value and contains its specific parameters) **MUST** also be provided in this object. For example, if 'action' is 'get_weather', then the 'get_weather' parameter object is mandatory.";
+      const actionDescription =
+        "Specifies the action to be performed from the enum. Based on the value chosen for 'action', the corresponding sibling property (which shares the same name as the action value and contains its specific parameters) **MUST** also be provided in this object. For example, if 'action' is 'get_weather', then the 'get_weather' parameter object is mandatory.";
 
       const baseProperties = {
         [ACTION_KEY]: {
           type: "string",
-          enum: actionEnum,
+          enum: allToolNames,
           description: actionDescription,
         },
         [NEXT_ACTION_KEY]: {
@@ -177,6 +183,7 @@ Workflow step definitions - provide ONLY on initial call.
           description:
             "Specify the next action to execute only when the user's request requires additional steps. If no next action is needed, this property **MUST BE OMITTED** from the object.",
         },
+        decision: this.decision(),
         ...depGroups,
       };
 
@@ -188,9 +195,7 @@ Workflow step definitions - provide ONLY on initial call.
         };
       }
 
-      const requiredFields = sampling
-        ? [ACTION_KEY, "reasoning"]
-        : [ACTION_KEY];
+      const requiredFields = [ACTION_KEY, "decision"];
 
       return {
         additionalProperties: false,
@@ -218,10 +223,10 @@ Workflow step definitions - provide ONLY on initial call.
         ...pick(depGroups, nextStep.actions),
       } as Record<string, JSONSchema>;
 
-      stepDependencies["proceed"] = this.proceed();
+      stepDependencies["decision"] = this.decision();
       stepDependencies["action"] = this.action();
 
-      // Make proceed required for next state transitions
+      // Make decision required for next state transitions
       return this.common(stepDependencies);
     },
 

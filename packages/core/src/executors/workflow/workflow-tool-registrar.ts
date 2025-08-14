@@ -30,6 +30,10 @@ export function registerAgenticWorkflowTool(
     predefinedSteps,
   );
 
+  // Determine if sampling mode is enabled and extract config
+  const isSamplingMode = sampling === true || typeof sampling === "object";
+  const samplingConfig = typeof sampling === "object" ? sampling : undefined;
+
   // Create executors
   const workflowExecutor = new WorkflowExecutor(
     name,
@@ -50,6 +54,7 @@ export function registerAgenticWorkflowTool(
     createArgsDef,
     server,
     predefinedSteps,
+    samplingConfig,
   );
 
   const workflowState = new WorkflowState();
@@ -59,7 +64,7 @@ export function registerAgenticWorkflowTool(
     : "- Set `init: true` and define complete `steps` array";
 
   // Generate description based on mode
-  const baseDescription = sampling
+  const baseDescription = isSamplingMode
     ? CompiledPrompts.samplingExecution({
       toolName: name,
       description,
@@ -72,11 +77,11 @@ export function registerAgenticWorkflowTool(
     });
 
   // Generate schema based on mode
-  const argsDef = sampling
+  const argsDef = isSamplingMode
     ? createArgsDef.forSampling()
     : createArgsDef.forTool();
 
-  const toolDescription = sampling
+  const toolDescription = isSamplingMode
     ? baseDescription
     : createArgsDef.forToolDescription(baseDescription, workflowState);
 
@@ -89,7 +94,7 @@ export function registerAgenticWorkflowTool(
     async (args: Record<string, unknown>) => {
       try {
         // Use appropriate executor based on mode
-        if (sampling) {
+        if (isSamplingMode) {
           return await workflowSamplingExecutor.executeWorkflowSampling(
             args as Record<string, unknown>,
             argsDef as Record<string, unknown>,

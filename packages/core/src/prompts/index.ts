@@ -7,9 +7,6 @@
 
 import { p } from "../utils/common/ai.ts";
 
-/**
- * System prompts for different execution modes
- */
 export const SystemPrompts = {
   /**
    * Base system prompt for autonomous MCP execution
@@ -60,13 +57,14 @@ export const SystemPrompts = {
 
 **⚡ SUBSEQUENT CALLS (Execution):**
 - Provide ONLY current step parameters
-- **ADVANCE STEP**: Set \`proceed: true\` to move to next step  
-- **RETRY STEP**: Set \`proceed: false\`
+- **ADVANCE STEP**: Set \`decision: "proceed"\` to move to next step  
+- **RETRY STEP**: Set \`decision: "retry"\`
+- **COMPLETE WORKFLOW**: Set \`decision: "complete"\` (only at final step)
 - Use \`reasoning\` action for thinking/analysis
 
 **🚫 Do NOT include \`steps\` parameter during normal execution**
 **✅ Include \`steps\` parameter ONLY when restarting workflow with \`init: true\`**
-**⚠️ CRITICAL: When retrying failed steps, NEVER use \`proceed: true\`**`,
+**⚠️ CRITICAL: When retrying failed steps, MUST use \`decision: "retry"\`**`,
 
   /**
    * Sampling execution system prompt with JSON output constraints
@@ -89,12 +87,13 @@ export const SystemPrompts = {
 - Use "reasoning" field to show your independent thought process
 - Make self-directed choices about which tools to use and when
 - Adapt your approach based on previous results without external guidance
-- Use "complete" action only when you autonomously determine the task is finished
+- Use "decision: complete" when you autonomously determine the task is finished
 
 **🔄 JSON Response Format (Agentic Decision Output):**
 You MUST respond with a JSON object that demonstrates your autonomous decision:
-- action: Your self-selected tool name OR "complete" when you determine task is finished
+- action: Your self-selected tool name
 - reasoning: Your independent reasoning and decision-making process
+- decision: "proceed" (continue execution), "retry" (retry current step), or "complete" (finish task)
 - [tool parameters]: Tool-specific parameters you autonomously determine
 
 **📋 Available Tools:**
@@ -140,9 +139,9 @@ You MUST respond with a JSON object for workflow execution:
 - [other workflow parameters]: As you autonomously determine
 
 **For Step Execution (Subsequent Calls):**
-- action: "{toolName}" OR "complete" when workflow is autonomously determined finished
+- action: "{toolName}"
 - reasoning: Your independent analysis of current step and next decision
-- proceed: true (advance to next step) OR false (retry/repeat current step)
+- decision: "proceed" (advance to next step), "retry" (retry/repeat current step), or "complete" (finish workflow)
 - [step parameters]: Tool-specific parameters you autonomously determine for current step
 
 **🎯 AGENTIC WORKFLOW CONSTRAINTS:**
@@ -154,7 +153,7 @@ You MUST respond with a JSON object for workflow execution:
 
 **🚫 Do NOT include \`steps\` parameter during normal execution**
 **✅ Include \`steps\` parameter ONLY when restarting workflow with \`init: true\`**
-**⚠️ CRITICAL: When retrying failed steps, NEVER use \`proceed: true\`**`,
+**⚠️ CRITICAL: When retrying failed steps, MUST use \`decision: "retry"\`**`,
 };
 
 /**
@@ -175,9 +174,10 @@ export const WorkflowPrompts = {
 - **Include 'steps' parameter ONLY when restarting workflow (with 'init: true')**
 - **Do NOT include 'steps' parameter during normal step execution**
 - **MUST Use the provided JSON schema definition above for parameter generation and validation**
-- **ADVANCE STEP: Set 'proceed' to true to advance to next step**
-- **RETRY STEP: Set 'proceed' to false to re-execute current step**
-- **⚠️ CRITICAL: When retrying failed steps, MUST set 'proceed' to false**
+- **ADVANCE STEP: Set 'decision' to "proceed" to advance to next step**
+- **RETRY STEP: Set 'decision' to "retry" to re-execute current step**
+- **COMPLETE WORKFLOW: Set 'decision' to "complete" to finish workflow (only at final step)**
+- **⚠️ CRITICAL: When retrying failed steps, MUST set 'decision' to "retry"**
 
 {workflowSteps}`,
 
@@ -208,11 +208,11 @@ Previous step completed. Choose your action:
 
 **🔄 RETRY Current Step:** 
 - Call \`{toolName}\` with current parameters
-- ⚠️ CRITICAL: Set \`proceed: false\`
+- ⚠️ CRITICAL: Set \`decision: "retry"\`
 
 **▶️ PROCEED to Next Step:** 
 - Call \`{toolName}\` with parameters below
-- Set \`proceed: true\`
+- Set \`decision: "proceed"\`
 
 Next step: \`{nextStepDescription}\`
 
@@ -227,11 +227,11 @@ Next step: \`{nextStepDescription}\`
 
 Current step executed {statusText}. Choose your next action:
 
-**1. ▶️ Complete Workflow:** Call \`{toolName}\` with \`proceed: true\` to finish
-**2. 🔄 Retry Final Step:** Call \`{toolName}\` with final step parameters  
+**1. ▶️ Complete Workflow:** Call \`{toolName}\` with \`decision: "complete"\` to finish
+**2. 🔄 Retry Final Step:** Call \`{toolName}\` with final step parameters and \`decision: "retry"\`
 **3. 🆕 New Workflow:** Call \`{toolName}\` with \`init: true\`{newWorkflowInstructions}
 
-**Note:** Use \`proceed: true\` to officially complete the workflow.`,
+**Note:** Use \`decision: "complete"\` to officially complete the workflow.`,
 
   /**
    * Workflow completion success message
@@ -306,7 +306,7 @@ Choose the next action that best advances toward completing the user's request.`
    */
   ERROR_RESPONSE: `Action argument validation failed: {errorMessage}`,
   WORKFLOW_ERROR_RESPONSE: `Action argument validation failed: {errorMessage}
-Set \`proceed: false\` to retry the current step.`,
+Set \`decision: "retry"\` to retry the current step, or check your parameters and try again.`,
 
   /**
    * Completion message

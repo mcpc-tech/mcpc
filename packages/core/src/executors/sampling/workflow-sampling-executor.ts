@@ -1,5 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ComposableMCPServer } from "../../compose.ts";
+import type { SamplingConfig } from "../../types.ts";
 import { CompiledPrompts } from "../../prompts/index.ts";
 import { WorkflowExecutor } from "../workflow/workflow-executor.ts";
 import type { MCPCStep, WorkflowState } from "../../utils/state.ts";
@@ -7,7 +8,6 @@ import type { ArgsDefCreator } from "../../types.ts";
 import {
   BaseSamplingExecutor,
   type ExternalTool,
-  type SamplingConfig,
 } from "./base-sampling-executor.ts";
 
 export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
@@ -82,7 +82,7 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
 
     const toolCallData = parsedData as Record<string, unknown>;
 
-    if (toolCallData.action === "complete") {
+    if (toolCallData.decision === "complete") {
       const reasoning = (toolCallData.reasoning as string) || "Task completed";
       return this.createCompletionResult(reasoning);
     }

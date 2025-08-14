@@ -2,7 +2,8 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { Ajv } from "ajv";
 import { AggregateAjvError } from "@segment/ajv-human-errors";
 import addFormats from "ajv-formats";
-import type { MCPCStep, WorkflowState } from "../../utils/state.ts";
+import type { MCPCStep } from "../../utils/state.ts";
+import type { WorkflowState } from "../../utils/state.ts";
 import type { ArgsDefCreator } from "../../types.ts";
 import type { ComposableMCPServer } from "../../compose.ts";
 import {
@@ -31,9 +32,10 @@ export class WorkflowExecutor {
   ) {}
 
   // Helper method to validate required actions are present in workflow steps
-  private validateRequiredActions(
-    steps: MCPCStep[],
-  ): { valid: boolean; missing: string[] } {
+  private validateRequiredActions(steps: MCPCStep[]): {
+    valid: boolean;
+    missing: string[];
+  } {
     if (!this.ensureStepActions || this.ensureStepActions.length === 0) {
       return { valid: true, missing: [] };
     }
@@ -96,7 +98,9 @@ export class WorkflowExecutor {
         };
       }
 
-      if (args.proceed === true) {
+      const decision = args.decision as string;
+
+      if (decision === "proceed") {
         // Allow proceeding to completion even when at the last step
         if (
           !state.hasNextStep() &&
@@ -110,7 +114,9 @@ export class WorkflowExecutor {
               {
                 type: "text",
                 text: `## Workflow Completed!\n\n${
-                  this.formatProgress(state)
+                  this.formatProgress(
+                    state,
+                  )
                 }\n\n${
                   CompiledPrompts.workflowCompleted({
                     totalSteps: state.getSteps().length,
@@ -138,35 +144,117 @@ export class WorkflowExecutor {
           };
         }
 
-        // Move to next step when proceeding
+        // Temporarily move to next step for validation, but be ready to roll back
+        const currentStepIndex = state.getCurrentStepIndex();
+        const wasStarted = state.isWorkflowStarted();
+
         if (state.isWorkflowStarted()) {
           state.moveToNextStep();
         } else {
           state.start();
         }
+
+        // Validate arguments for the new current step (next step)
+        const nextStepValidationSchema = this.createArgsDef.forCurrentState(
+          state,
+        );
+        const nextStepValidationResult = this.validate(
+          args,
+          nextStepValidationSchema,
+        );
+
+        if (!nextStepValidationResult.valid) {
+          // Roll back the step movement on validation failure
+          if (wasStarted) {
+            state.moveToStep(currentStepIndex);
+          } else {
+            // Reset to unstarted state
+            state.moveToStep(currentStepIndex);
+            // We can't easily "unstart" the workflow, but we can reset to beginning state
+            // This is an edge case that should rarely happen
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: CompiledPrompts.workflowErrorResponse({
+                  errorMessage: `Cannot proceed to next step: ${
+                    nextStepValidationResult.error ||
+                    "Arguments validation failed"
+                  }`,
+                }),
+              },
+            ],
+            isError: true,
+          };
+        }
+        // If validation passes, we've already moved to the next step above
+      } else if (decision === "complete") {
+        // Only allow completion at final step or when at last step and started
+        if (
+          (state.isAtLastStep() && state.isWorkflowStarted()) ||
+          (!state.hasNextStep() && state.isWorkflowStarted())
+        ) {
+          state.markCompleted();
+          return {
+            content: [
+              {
+                type: "text",
+                text: `## Workflow Completed!\n\n${
+                  this.formatProgress(
+                    state,
+                  )
+                }\n\n${
+                  CompiledPrompts.workflowCompleted({
+                    totalSteps: state.getSteps().length,
+                    toolName: this.name,
+                    newWorkflowInstructions: this.predefinedSteps
+                      ? ""
+                      : " and new `steps` array",
+                  })
+                }`,
+              },
+            ],
+            isError: false,
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: "text",
+                text: WorkflowPrompts.ERRORS.ALREADY_AT_FINAL,
+              },
+            ],
+            isError: true,
+          };
+        }
       }
-      // When proceed: false, stay at current step (retry)
+      // When decision is "retry" or undefined, stay at current step (retry)
     }
 
     // Validate arguments based on current state
-    // - If proceed: true, validate against the new step after moving
-    // - If proceed: false, validate against current step
-    const validationSchema = this.createArgsDef.forCurrentState(state);
+    // Note: For "proceed", validation was already done above in the decision handling
+    // Here we only validate for "retry" or undefined decisions
+    const decision = args.decision as string;
+    if (decision !== "proceed") {
+      const validationSchema = this.createArgsDef.forCurrentState(state);
 
-    const validationResult = this.validate(args, validationSchema);
-    if (!validationResult.valid) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: CompiledPrompts.workflowErrorResponse({
-              errorMessage: validationResult.error ||
-                "Arguments validation failed",
-            }),
-          },
-        ],
-        isError: true,
-      };
+      const validationResult = this.validate(args, validationSchema);
+      if (!validationResult.valid) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: CompiledPrompts.workflowErrorResponse({
+                errorMessage: validationResult.error ||
+                  "Arguments validation failed",
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
     }
 
     if (args.init) {
@@ -185,10 +273,12 @@ export class WorkflowExecutor {
 
     if (!steps || steps.length === 0) {
       return {
-        content: [{
-          type: "text",
-          text: WorkflowPrompts.ERRORS.NO_STEPS_PROVIDED,
-        }],
+        content: [
+          {
+            type: "text",
+            text: WorkflowPrompts.ERRORS.NO_STEPS_PROVIDED,
+          },
+        ],
         isError: true,
       };
     }
@@ -197,18 +287,22 @@ export class WorkflowExecutor {
     const validation = this.validateRequiredActions(steps);
     if (!validation.valid) {
       return {
-        content: [{
-          type: "text",
-          text: `## Workflow Validation Failed ❌
+        content: [
+          {
+            type: "text",
+            text: `## Workflow Validation Failed ❌
 
 **Missing Required Actions:** The following actions must be included in the workflow steps:
 
 ${
-            validation.missing.map((action) =>
-              `- \`${this.toolNameToIdMapping?.get(action) ?? action}\``
-            ).join("\n")
-          }`,
-        }],
+              validation.missing
+                .map((action) =>
+                  `- \`${this.toolNameToIdMapping?.get(action) ?? action}\``
+                )
+                .join("\n")
+            }`,
+          },
+        ],
         isError: true,
       };
     }
@@ -236,10 +330,12 @@ ${this.createArgsDef.forInitialStepDescription(steps, state)}`,
     const currentStep = state.getCurrentStep();
     if (!currentStep) {
       return {
-        content: [{
-          type: "text",
-          text: WorkflowPrompts.ERRORS.NO_CURRENT_STEP,
-        }],
+        content: [
+          {
+            type: "text",
+            text: WorkflowPrompts.ERRORS.NO_CURRENT_STEP,
+          },
+        ],
         isError: true,
       };
     }
@@ -345,7 +441,10 @@ ${this.formatProgress(state)}`,
   }
 
   // Validate arguments using JSON schema
-  validate(args: Record<string, unknown>, schema: Record<string, unknown>): {
+  validate(
+    args: Record<string, unknown>,
+    schema: Record<string, unknown>,
+  ): {
     valid: boolean;
     error?: string;
   } {
