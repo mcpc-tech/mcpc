@@ -2,18 +2,21 @@ export type JSONSchema = Record<string, unknown>;
 
 export type ToolCallback = (args: unknown, extra?: unknown) => unknown;
 
+export interface SamplingConfig {
+  maxIterations?: number;
+}
+
 export interface RegisterToolParams {
   description: string;
   name: string;
   allToolNames: string[];
   depGroups: Record<string, unknown>;
   toolNameToDetailList: [string, unknown][];
-  sampling?: boolean;
+  sampling?: boolean | SamplingConfig;
 }
 
 export interface RegisterWorkflowToolParams extends RegisterToolParams {
   predefinedSteps?: import("./utils/state.ts").MCPCStep[];
-  sampling?: boolean;
   ensureStepActions?: string[];
   toolNameToIdMapping?: Map<string, string>;
 }

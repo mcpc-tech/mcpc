@@ -7,9 +7,6 @@
 
 import { p } from "../utils/common/ai.ts";
 
-/**
- * System prompts for different execution modes
- */
 export const SystemPrompts = {
   /**
    * Base system prompt for autonomous MCP execution
@@ -90,12 +87,13 @@ export const SystemPrompts = {
 - Use "reasoning" field to show your independent thought process
 - Make self-directed choices about which tools to use and when
 - Adapt your approach based on previous results without external guidance
-- Use "complete" action only when you autonomously determine the task is finished
+- Use "decision: complete" when you autonomously determine the task is finished
 
 **🔄 JSON Response Format (Agentic Decision Output):**
 You MUST respond with a JSON object that demonstrates your autonomous decision:
-- action: Your self-selected tool name OR "complete" when you determine task is finished
+- action: Your self-selected tool name
 - reasoning: Your independent reasoning and decision-making process
+- decision: "proceed" (continue execution), "retry" (retry current step), or "complete" (finish task)
 - [tool parameters]: Tool-specific parameters you autonomously determine
 
 **📋 Available Tools:**
@@ -141,7 +139,7 @@ You MUST respond with a JSON object for workflow execution:
 - [other workflow parameters]: As you autonomously determine
 
 **For Step Execution (Subsequent Calls):**
-- action: "{toolName}" OR "complete" when workflow is autonomously determined finished
+- action: "{toolName}"
 - reasoning: Your independent analysis of current step and next decision
 - decision: "proceed" (advance to next step), "retry" (retry/repeat current step), or "complete" (finish workflow)
 - [step parameters]: Tool-specific parameters you autonomously determine for current step
@@ -308,7 +306,7 @@ Choose the next action that best advances toward completing the user's request.`
    */
   ERROR_RESPONSE: `Action argument validation failed: {errorMessage}`,
   WORKFLOW_ERROR_RESPONSE: `Action argument validation failed: {errorMessage}
-Set \`decision: "retry"\` to retry the current step.`,
+Set \`decision: "retry"\` to retry the current step, or check your parameters and try again.`,
 
   /**
    * Completion message

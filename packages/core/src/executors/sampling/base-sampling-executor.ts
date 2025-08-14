@@ -1,5 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ComposableMCPServer } from "../../compose.ts";
+import type { SamplingConfig } from "../../types.ts";
 import { CompiledPrompts } from "../../prompts/index.ts";
 import { Ajv } from "ajv";
 import { AggregateAjvError } from "@segment/ajv-human-errors";
@@ -38,10 +39,6 @@ export interface ExternalTool {
   description?: string;
 }
 
-export interface SamplingConfig {
-  maxIterations?: number;
-}
-
 export abstract class BaseSamplingExecutor {
   protected conversationHistory: ConversationMessage[] = [];
   protected maxIterations: number = 33;
@@ -53,7 +50,7 @@ export abstract class BaseSamplingExecutor {
     protected allToolNames: string[],
     protected toolNameToDetailList: [string, ExternalTool][],
     protected server: ComposableMCPServer,
-    config?: SamplingConfig
+    config?: SamplingConfig,
   ) {
     if (config?.maxIterations) {
       this.maxIterations = config.maxIterations;
@@ -63,7 +60,7 @@ export abstract class BaseSamplingExecutor {
   protected async runSamplingLoop<TState>(
     systemPrompt: () => string,
     schema: Record<string, unknown>,
-    state?: TState
+    state?: TState,
   ) {
     // Initialize conversation
     this.conversationHistory = [];
@@ -131,7 +128,7 @@ export abstract class BaseSamplingExecutor {
 
   protected addParsingErrorToHistory(
     responseText: string,
-    parseError: unknown
+    parseError: unknown,
   ): void {
     this.conversationHistory.push({
       role: "assistant",
@@ -157,32 +154,25 @@ export abstract class BaseSamplingExecutor {
   }
 
   protected createMaxIterationsError(): CallToolResult {
+    const result = this.createCompletionResult(
+      `Action argument validation failed: Execution reached maximum iterations (${this.maxIterations}). Please try with a more specific request or break down the task into smaller parts.`,
+    );
     return {
-      content: [
-        {
-          type: "text",
-          text: CompiledPrompts.errorResponse({
-            errorMessage: `Execution reached maximum iterations (${this.maxIterations}). Please try with a more specific request or break down the task into smaller parts.`,
-          }),
-        },
-      ],
+      ...result,
       isError: true,
+      isComplete: false,
     };
   }
 
   protected createExecutionError(error: unknown): CallToolResult {
+    const errorMessage = `Sampling execution error: ${
+      error instanceof Error ? error.message : String(error)
+    }`;
+    const result = this.createCompletionResult(errorMessage);
     return {
-      content: [
-        {
-          type: "text",
-          text: CompiledPrompts.errorResponse({
-            errorMessage: `Sampling execution error: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          }),
-        },
-      ],
+      ...result,
       isError: true,
+      isComplete: false,
     };
   }
 
@@ -233,7 +223,7 @@ ${text}
 
   protected logIterationProgress(
     parsedData: Record<string, unknown>,
-    result: CallToolResult
+    result: CallToolResult,
   ): void {
     // Optional: Log iteration progress for debugging
     console.log(
@@ -242,8 +232,14 @@ ${text}
         parsedData,
         isError: result.isError,
         isComplete: result.isComplete,
-        result: inspect(result),
-      }
+        result: inspect(result, {
+          depth: 5,
+          maxArrayLength: 10,
+          breakLength: 120,
+          compact: true,
+          maxStringLength: 120,
+        }),
+      },
     );
   }
 
@@ -251,7 +247,7 @@ ${text}
   protected abstract processAction<TState>(
     parsedData: Record<string, unknown>,
     schema: Record<string, unknown>,
-    state?: TState
+    state?: TState,
   ): Promise<CallToolResult>;
 
   protected injectJsonInstruction({
@@ -285,7 +281,7 @@ VALID: {"key":"value"}`,
   // Validate arguments using JSON schema
   protected validateSchema(
     args: Record<string, unknown>,
-    schema: Record<string, unknown>
+    schema: Record<string, unknown>,
   ): {
     valid: boolean;
     error?: string;

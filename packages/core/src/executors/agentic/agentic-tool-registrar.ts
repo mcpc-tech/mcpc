@@ -28,11 +28,11 @@ export function registerAgenticTool(
     sampling = false,
   }: RegisterToolParams,
 ) {
-  const createArgsDef = createArgsDefFactory(
-    name,
-    allToolNames,
-    depGroups,
-  );
+  const createArgsDef = createArgsDefFactory(name, allToolNames, depGroups);
+
+  // Determine if sampling mode is enabled and extract config
+  const isSamplingMode = sampling === true || typeof sampling === "object";
+  const samplingConfig = typeof sampling === "object" ? sampling : undefined;
 
   // Create executors
   const agenticExecutor = new AgenticExecutor(
@@ -48,9 +48,10 @@ export function registerAgenticTool(
     allToolNames,
     toolNameToDetailList as [string, ExternalTool][],
     server,
+    samplingConfig,
   );
 
-  description = sampling
+  description = isSamplingMode
     ? CompiledPrompts.samplingExecution({
       toolName: name,
       description,
@@ -65,9 +66,8 @@ export function registerAgenticTool(
     toolNameToDetailList,
     false, // not sampling mode
   );
-  const argsDef: Schema<Record<PropertyKey, never>>["jsonSchema"] = sampling
-    ? createArgsDef.forSampling()
-    : agenticArgsDef;
+  const argsDef: Schema<Record<PropertyKey, never>>["jsonSchema"] =
+    isSamplingMode ? createArgsDef.forSampling() : agenticArgsDef;
   const schema = allToolNames.length > 0
     ? argsDef
     : { type: "object", properties: {} };
@@ -80,7 +80,7 @@ export function registerAgenticTool(
     ),
     async (args: Record<string, unknown>) => {
       // Use appropriate executor based on mode
-      if (sampling) {
+      if (isSamplingMode) {
         return await samplingExecutor.executeSampling(
           args,
           schema as Record<string, unknown>,
