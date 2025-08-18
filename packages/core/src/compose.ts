@@ -27,9 +27,15 @@ interface ComposedTool extends Tool {
 const ALL_TOOLS_PLACEHOLDER = "__ALL__";
 
 export interface ToolOverrideOptions {
+  /** Override the tool's description */
   description?: string;
+  /** Hide the tool from composed tools context (tool will not appear in agentic/workflow execution) */
   hide?: boolean;
+  /** Register the tool as a global tool in the server's public tool list (available server-wide) */
+  global?: boolean;
+  /** Transform the arguments before passing to the tool handler */
   args?: (originalArgs: unknown) => unknown;
+  /** Custom handler to replace the original tool execution */
   handler?: ToolCallback;
 }
 
@@ -166,16 +172,6 @@ export class ComposableMCPServer extends Server {
   }
 
   /**
-   * @deprecated Use callTool() instead. This method will be removed in a future version.
-   */
-  callInternalTool(name: string, args: unknown): Promise<unknown> {
-    console.warn(
-      `callInternalTool() is deprecated. Use callTool() instead for: ${name}`,
-    );
-    return this.callTool(name, args);
-  }
-
-  /**
    * Get all available tool names (including internal tools)
    */
   getAllToolNames(): string[] {
@@ -234,11 +230,13 @@ export class ComposableMCPServer extends Server {
       const toolName = toolEl.attribs.name;
       const toolDescription = toolEl.attribs.description;
       const isHidden = toolEl.attribs.hide !== undefined;
+      const isGlobal = toolEl.attribs.global !== undefined;
 
-      if (toolName && (toolDescription || isHidden)) {
+      if (toolName && (toolDescription || isHidden || isGlobal)) {
         this.toolOverrides.set(toolName, {
           description: toolDescription,
           hide: isHidden,
+          global: isGlobal,
         });
       }
     });
@@ -343,15 +341,26 @@ export class ComposableMCPServer extends Server {
           tool.execute = override.handler;
         }
         if (override.hide) {
-          // Move to hidden tools instead of internal tools
+          // Hide from composed tools context - tool won't be available in agentic/workflow execution
+          // but can still be called directly via callTool()
           const finalHandler = override.handler || tool.execute;
           this.hiddenTools.set(toolId, finalHandler);
           delete tools[toolId];
+        } else if (override.global) {
+          // Register as a global tool in the server's public tool list
+          // This makes the tool available server-wide via MCP protocol, not just in composed tool context
+          const globalTool: Tool = {
+            name: toolId,
+            description: tool.description,
+            inputSchema: tool.inputSchema as Tool["inputSchema"],
+          };
+          this.tools = [...this.tools, globalTool];
+          this.nameToCb.set(toolId, tool.execute);
         }
       }
     });
 
-    // Store composed tools for callInternalTool access
+    // Store composed tools for callTool access
     Object.entries(tools).forEach(([toolId, tool]) => {
       this.composedTools.set(toolId, tool.execute);
     });
