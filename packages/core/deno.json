@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/core",
-  "version": "0.1.1-beta.12",
+  "version": "0.1.2",
   "tasks": {
     "server:compile": "echo \"no need to compile\"",
     "test": "deno test --allow-env --allow-read tests/",
@@ -35,6 +35,8 @@
     ".": "./mod.ts",
     "./server": "./src/server.ts",
     "./bin": "./src/stdio.server.ts",
-    "./plugins": "./plugins.ts"
+    "./plugins": "./plugins.ts",
+    "./plugins/search": "./src/plugins/search-tool.ts",
+    "./plugins/large-result": "./src/plugins/large-result.ts"
   }
 }

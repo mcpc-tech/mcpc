@@ -21,6 +21,19 @@
  * }));
  * ```
  *
+ * @example Using default plugin instances
+ * ```ts
+ * // Import individual plugins with default configurations
+ * import searchPlugin from "@mcpc/core/plugins/search";
+ * import largeResultPlugin from "@mcpc/core/plugins/large-result";
+ *
+ * const server = await mcpc([...], [...]);
+ * 
+ * // Use plugins with default settings
+ * await server.addPlugin(searchPlugin);
+ * await server.addPlugin(largeResultPlugin);
+ * ```
+ *
  * @module
  */
 
@@ -28,5 +41,10 @@
 export { createSearchPlugin } from "./src/plugins/search-tool.ts";
 export { createLargeResultPlugin } from "./src/plugins/large-result.ts";
 
+// Export default plugin instances for convenience
+export { default as defaultSearchPlugin } from "./src/plugins/search-tool.ts";
+export { default as defaultLargeResultPlugin } from "./src/plugins/large-result.ts";
+
 // Export plugin types for advanced users
 export type { ToolPlugin } from "./src/compose.ts";
+export type { SearchOptions } from "./src/plugins/search-tool.ts";

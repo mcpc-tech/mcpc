@@ -204,3 +204,16 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
     },
   };
 }
+
+/**
+ * Default search plugin instance with common settings
+ */
+const defaultSearchPlugin = createSearchPlugin({
+  global: true,
+  maxResults: 20,
+  maxOutputSize: 5000,
+  caseSensitive: false,
+  timeoutMs: 30000,
+});
+
+export default defaultSearchPlugin;

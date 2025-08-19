@@ -67,8 +67,7 @@ const wildcardTools = availableTools
   .join("\n");
 
 // Use the centralized template system with local description
-const fileOperationsDescription =
-  `Advanced file management system with sophisticated tool management and security features.
+const fileOperationsDescription = `Advanced file management system with sophisticated tool management and security features.
 
 **Public Tools with Enhanced Descriptions:**
 {publicTools}
@@ -176,7 +175,7 @@ export const server = await mcpc(
           ],
         };
       },
-      true, // internal tool
+      { internal: true } // internal tool
     );
 
     server.tool(
@@ -198,18 +197,18 @@ export const server = await mcpc(
       }),
       (args) => {
         // Mock validation logic
-        const isValid = !args.path.includes("/system") &&
-          !args.path.includes("/etc");
+        const isValid =
+          !args.path.includes("/system") && !args.path.includes("/etc");
 
         const message = isValid
           ? CompiledPrompts.securityPassed({
-            operation: args.operation,
-            path: args.path,
-          })
+              operation: args.operation,
+              path: args.path,
+            })
           : CompiledPrompts.securityFailed({
-            operation: args.operation,
-            path: args.path,
-          });
+              operation: args.operation,
+              path: args.path,
+            });
 
         return {
           content: [
@@ -220,14 +219,14 @@ export const server = await mcpc(
           ],
         };
       },
-      true, // internal tool
+      { internal: true } // internal tool
     );
 
     console.log("✅ Unified prompt management system initialized!");
     console.log(
-      "📝 All prompts are now centrally managed and dynamically generated",
+      "📝 All prompts are now centrally managed and dynamically generated"
     );
-  },
+  }
 );
 
 const transport = new StdioServerTransport();
