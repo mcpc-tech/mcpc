@@ -6,6 +6,8 @@ export interface SamplingConfig {
   maxIterations?: number;
 }
 
+export type { PluginContext, ToolPlugin } from "./compose.ts";
+
 export interface RegisterToolParams {
   description: string;
   name: string;

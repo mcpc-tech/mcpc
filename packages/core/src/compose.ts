@@ -26,17 +26,48 @@ interface ComposedTool extends Tool {
 
 const ALL_TOOLS_PLACEHOLDER = "__ALL__";
 
-export interface ToolOverrideOptions {
+/**
+ * Simple and unified tool extension system
+ */
+export interface ToolPlugin {
+  /** Plugin name for identification */
+  name: string;
+  /** Transform tool behavior */
+  transform: (
+    tool: ComposedTool,
+    context: PluginContext,
+  ) => ComposedTool | void;
+  /** When to apply this plugin - 'compose' (during composition) or 'runtime' (during execution) */
+  when?: "compose" | "runtime";
+  /** Plugin execution order - 'pre' (before core), 'post' (after core), or default */
+  enforce?: "pre" | "post";
+}
+
+export type PluginOption =
+  | ToolPlugin
+  | ToolPlugin[]
+  | (() => ToolPlugin | ToolPlugin[] | null | undefined)
+  | null
+  | undefined
+  | false;
+
+export interface PluginContext {
+  /** Tool name */
+  toolName: string;
+  /** Server instance for accessing other tools */
+  server: ComposableMCPServer;
+  /** Current execution mode */
+  mode: "compose" | "runtime";
+}
+
+/** Simple tool configuration options */
+export interface ToolConfig {
   /** Override the tool's description */
   description?: string;
-  /** Hide the tool from composed tools context (tool will not appear in agentic/workflow execution) */
+  /** Hide the tool from composed tools context */
   hide?: boolean;
-  /** Register the tool as a global tool in the server's public tool list (available server-wide) */
+  /** Register the tool as a global tool in the server's public tool list */
   global?: boolean;
-  /** Transform the arguments before passing to the tool handler */
-  args?: (originalArgs: unknown) => unknown;
-  /** Custom handler to replace the original tool execution */
-  handler?: ToolCallback;
 }
 
 export class ComposableMCPServer extends Server {
@@ -46,10 +77,10 @@ export class ComposableMCPServer extends Server {
     string,
     { callback: ToolCallback; description: string; schema: JSONSchema }
   > = new Map();
-  private hiddenTools: Map<string, ToolCallback> = new Map(); // Separate storage for hidden tools
+  private hiddenTools: Map<string, ToolCallback> = new Map();
   private composedTools: Map<string, ToolCallback> = new Map();
-  private toolOverrides: Map<string, ToolOverrideOptions> = new Map();
-  // Store mapping between dot notation and underscore notation for tool names
+  private toolConfigs: Map<string, ToolConfig> = new Map();
+  private toolPlugins: ToolPlugin[] = [];
   private toolNameMapping: Map<string, string> = new Map();
 
   constructor(_serverInfo: Implementation, options: ServerOptions) {
@@ -57,28 +88,71 @@ export class ComposableMCPServer extends Server {
   }
 
   /**
-   * Resolve a tool name to its internal format, supporting both dot and underscore notation
+   * Apply plugin transformations to tool arguments/results
+   */
+  private applyPluginTransforms(
+    toolName: string,
+    args: unknown,
+    mode: "input" | "output",
+    _originalArgs?: unknown
+  ): unknown {
+    const plugins = this.toolPlugins.filter(p => p.when === "runtime" || !p.when);
+    
+    return plugins.reduce((currentArgs, plugin) => {
+      // Create temporary tool for transformation
+      const tempTool: ComposedTool = {
+        name: toolName,
+        description: `Plugin transform for ${toolName}`,
+        inputSchema: { type: "object", properties: {}, additionalProperties: true },
+        execute: mode === "input" 
+          ? (args) => ({ content: [{ type: "text", text: String(args) }] })
+          : (args) => ({ content: [{ type: "text", text: String(args) }] })
+      };
+
+      const context: PluginContext = {
+        toolName,
+        server: this,
+        mode: "runtime",
+      };
+
+      const result = plugin.transform(tempTool, context);
+      
+      // Extract transformed arguments/results if plugin modified them
+      if (result?.execute) {
+        try {
+          const transformed = result.execute(currentArgs);
+          return mode === "output" ? transformed : currentArgs;
+        } catch {
+          return currentArgs;
+        }
+      }
+      
+      return currentArgs;
+    }, args);
+  }
+
+  /**
+   * Check if a tool exists in any storage
+   */
+  private hasToolInStorage(name: string): boolean {
+    return this.nameToCb.has(name) ||
+      this.internalTools.has(name) ||
+      this.hiddenTools.has(name) ||
+      this.composedTools.has(name);
+  }
+
+  /**
+   * Resolve a tool name to its internal format
    */
   private resolveToolName(name: string): string | undefined {
     // Try exact match first
-    if (
-      this.nameToCb.has(name) ||
-      this.internalTools.has(name) ||
-      this.hiddenTools.has(name) ||
-      this.composedTools.has(name)
-    ) {
+    if (this.hasToolInStorage(name)) {
       return name;
     }
 
-    // Try mapping lookup (both directions)
+    // Try mapping lookup
     const mappedName = this.toolNameMapping.get(name);
-    if (
-      mappedName &&
-      (this.nameToCb.has(mappedName) ||
-        this.internalTools.has(mappedName) ||
-        this.hiddenTools.has(mappedName) ||
-        this.composedTools.has(mappedName))
-    ) {
+    if (mappedName && this.hasToolInStorage(mappedName)) {
       return mappedName;
     }
 
@@ -115,36 +189,64 @@ export class ComposableMCPServer extends Server {
     });
 
     this.setRequestHandler(CallToolRequestSchema, (request, extra) => {
-      const { name: n, arguments: args } = request.params;
+      const { name: toolName, arguments: args } = request.params;
 
-      // Check if there's an override with custom handler
-      const override = this.toolOverrides.get(n);
-      if (override?.handler) {
-        const processedArgs = override.args ? override.args(args) : args;
-        return override.handler(processedArgs, extra) as CallToolResult;
+      // Get handler (try to find custom plugin handler or regular tool callback)
+      let handler = this.getToolCallback(toolName);
+      if (!handler) {
+        throw new Error(`Tool ${toolName} not found`);
       }
 
-      // Check regular tools
-      const callback = this.nameToCb.get(n);
-      if (callback) {
-        const processedArgs = override?.args ? override.args(args) : args;
-        return callback(processedArgs, extra) as CallToolResult;
-      }
+      // Apply runtime plugins
+      handler = this.applyRuntimePlugins(handler, toolName);
 
-      // Check internal tools
-      const internalTool = this.internalTools.get(n);
-      if (internalTool) {
-        const processedArgs = override?.args ? override.args(args) : args;
-        return internalTool.callback(processedArgs, extra) as CallToolResult;
-      }
-
-      throw new Error(`Tool ${n} not found`);
+      // Apply plugin transformations
+      const processedArgs = this.applyPluginTransforms(toolName, args, "input");
+      const result = handler(processedArgs, extra) as CallToolResult;
+      
+      return this.applyPluginTransforms(toolName, result, "output", args) as CallToolResult;
     });
   }
 
   /**
    * Register a tool override with description, hide, args transformation, and/or custom handler
    */
+  /**
+   * Get tool callback from any storage
+   */
+  private getToolCallback(name: string): ToolCallback | undefined {
+    return this.nameToCb.get(name) ||
+      this.internalTools.get(name)?.callback ||
+      this.hiddenTools.get(name) ||
+      this.composedTools.get(name);
+  }
+
+  /**
+   * Find tool configuration, supporting both dot and underscore notation
+   */
+  private findToolConfig(toolId: string): ToolConfig | undefined {
+    // Try direct match first
+    const directConfig = this.toolConfigs.get(toolId);
+    if (directConfig) {
+      return directConfig;
+    }
+
+    // Check dot/underscore notation mapping
+    const dotNotationId = toolId.replace(/_/g, ".");
+    for (const [configName, configOptions] of this.toolConfigs.entries()) {
+      const underscoreNotationId = configName.replace(/\./g, "_");
+
+      if (configName === dotNotationId || underscoreNotationId === toolId) {
+        // Store bidirectional mapping for future lookups
+        this.toolNameMapping.set(dotNotationId, toolId);
+        this.toolNameMapping.set(toolId, dotNotationId);
+        return configOptions;
+      }
+    }
+
+    return undefined;
+  }
+
   /**
    * Call any registered tool directly, whether it's public or internal
    */
@@ -154,21 +256,18 @@ export class ComposableMCPServer extends Server {
       throw new Error(`Tool ${name} not found`);
     }
 
-    const callback = this.nameToCb.get(resolvedName) ||
-      this.internalTools.get(resolvedName)?.callback ||
-      this.hiddenTools.get(resolvedName) ||
-      this.composedTools.get(resolvedName);
-
+    let callback = this.getToolCallback(resolvedName);
     if (!callback) {
       throw new Error(`Tool ${name} not found`);
     }
 
-    // Apply args transformation if override exists
-    const override = this.toolOverrides.get(name) ||
-      this.toolOverrides.get(resolvedName);
-    const processedArgs = override?.args ? override.args(args) : args;
+    // Apply runtime plugins before execution
+    callback = this.applyRuntimePlugins(callback, resolvedName);
 
-    return await callback(processedArgs);
+    // Apply plugin transformations
+    const processedArgs = this.applyPluginTransforms(resolvedName, args, "input");
+    const result = await callback(processedArgs);
+    return this.applyPluginTransforms(resolvedName, result, "output", args);
   }
 
   /**
@@ -217,6 +316,169 @@ export class ComposableMCPServer extends Server {
     );
   }
 
+  /**
+   * Configure tool behavior (simplified replacement for middleware)
+   * @example
+   * ```typescript
+   * // Override description
+   * server.configTool('myTool', {
+   *   description: 'Enhanced tool description'
+   * });
+   *
+   * // Hide tool from agentic execution
+   * server.configTool('myTool', {
+   *   hide: true
+   * });
+   *
+   * // Make tool globally available
+   * server.configTool('myTool', {
+   *   global: true
+   * });
+   * ```
+   */
+  configTool(toolName: string, config: ToolConfig): void {
+    this.toolConfigs.set(toolName, config);
+  }
+
+  /**
+   * Get tool configuration
+   */
+  getToolConfig(toolName: string): ToolConfig | undefined {
+    return this.toolConfigs.get(toolName);
+  }
+
+  /**
+   * Remove tool configuration
+   */
+  removeToolConfig(toolName: string): boolean {
+    return this.toolConfigs.delete(toolName);
+  }
+
+  /**
+   * Register a tool plugin
+   * @example
+   * ```typescript
+   * // Simple logging plugin
+   * server.addPlugin({
+   *   name: 'logger',
+   *   apply: (tool) => {
+   *     const originalExecute = tool.execute;
+   *     tool.execute = async (args, extra) => {
+   *       console.log(`Calling ${tool.name} with:`, args);
+   *       const result = await originalExecute(args, extra);
+   *       console.log(`Result:`, result);
+   *       return result;
+   *     };
+   *   }
+   * });
+   * ```
+   */
+  addPlugin(plugin: ToolPlugin): void {
+    this.toolPlugins.push(plugin);
+  }
+
+  /**
+   * Load plugin from file path
+   * @example
+   * ```typescript
+   * // Load plugin from file
+   * await server.loadPlugin('./my-plugin.js');
+   * ```
+   */
+  async loadPlugin(pluginPath: string): Promise<void> {
+    try {
+      const pluginModule = await import(pluginPath);
+      const plugin = pluginModule.default || pluginModule;
+
+      if (plugin && typeof plugin.apply === "function") {
+        this.addPlugin(plugin);
+      } else {
+        throw new Error(`Invalid plugin format in ${pluginPath}`);
+      }
+    } catch (error) {
+      throw new Error(`Failed to load plugin from ${pluginPath}: ${error}`);
+    }
+  }
+
+  /**
+   * Apply compose-time plugins to a tool
+   */
+  private applyComposePlugins(
+    tool: ComposedTool,
+    toolName: string,
+  ): ComposedTool {
+    const composePlugins = this.toolPlugins.filter(
+      (p) => p.when === "compose" || !p.when,
+    );
+
+    if (composePlugins.length === 0) {
+      return tool;
+    }
+
+    // Sort plugins by enforcement order
+    const sortedPlugins = [
+      ...composePlugins.filter((p) => p.enforce === "pre"),
+      ...composePlugins.filter((p) => !p.enforce),
+      ...composePlugins.filter((p) => p.enforce === "post"),
+    ];
+
+    const context: PluginContext = {
+      toolName,
+      server: this,
+      mode: "compose",
+    };
+
+    return sortedPlugins.reduce((currentTool, plugin) => {
+      const result = plugin.transform(currentTool, context);
+      return result || currentTool;
+    }, tool);
+  }
+
+  /**
+   * Apply runtime plugins to a tool callback during execution
+   */
+  private applyRuntimePlugins(
+    callback: ToolCallback,
+    toolName: string,
+  ): ToolCallback {
+    const runtimePlugins = this.toolPlugins.filter(
+      (p) => p.when === "runtime" || !p.when,
+    );
+
+    if (runtimePlugins.length === 0) {
+      return callback;
+    }
+
+    // Sort plugins by enforcement order
+    const sortedPlugins = [
+      ...runtimePlugins.filter((p) => p.enforce === "pre"),
+      ...runtimePlugins.filter((p) => !p.enforce),
+      ...runtimePlugins.filter((p) => p.enforce === "post"),
+    ];
+
+    return sortedPlugins.reduce((currentCallback, plugin) => {
+      const tempTool: ComposedTool = {
+        name: toolName,
+        description: `Runtime execution of ${toolName}`,
+        inputSchema: {
+          type: "object",
+          properties: {},
+          additionalProperties: true,
+        },
+        execute: currentCallback,
+      };
+
+      const context: PluginContext = {
+        toolName,
+        server: this,
+        mode: "runtime",
+      };
+
+      const result = plugin.transform(tempTool, context);
+      return result?.execute || currentCallback;
+    }, callback);
+  }
+
   async compose(
     name: string,
     description: string,
@@ -225,7 +487,7 @@ export class ComposableMCPServer extends Server {
   ) {
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
 
-    // Process tool overrides from description
+    // Process tool middleware/overrides from description
     tagToResults.tool.forEach((toolEl) => {
       const toolName = toolEl.attribs.name;
       const toolDescription = toolEl.attribs.description;
@@ -233,7 +495,7 @@ export class ComposableMCPServer extends Server {
       const isGlobal = toolEl.attribs.global !== undefined;
 
       if (toolName && (toolDescription || isHidden || isGlobal)) {
-        this.toolOverrides.set(toolName, {
+        this.toolConfigs.set(toolName, {
           description: toolDescription,
           hide: isHidden,
           global: isGlobal,
@@ -243,7 +505,7 @@ export class ComposableMCPServer extends Server {
 
     // Filter tools and transform scoped tool names to valid action identifiers
     const toolNameToIdMapping = new Map<string, string>();
-    const { tools, cleanupClients } = await composeMcpDepTools(
+    const { tools, cleanupClients } = (await composeMcpDepTools(
       depsConfig,
       ({ mcpName, toolNameWithScope, toolId }) => {
         // Store the mapping for later use in tag processing
@@ -274,7 +536,7 @@ export class ComposableMCPServer extends Server {
           );
         });
       },
-    ) as {
+    )) as {
       tools: Record<string, ComposedTool>;
       cleanupClients: () => Promise<void>;
     };
@@ -285,7 +547,7 @@ export class ComposableMCPServer extends Server {
       tagToResults,
       $,
       tools,
-      toolOverrides: this.toolOverrides,
+      toolOverrides: this.toolConfigs,
       toolNameMapping: toolNameToIdMapping,
     });
 
@@ -302,62 +564,39 @@ export class ComposableMCPServer extends Server {
       );
     };
 
-    // Apply tool overrides
+    // Apply tool middleware/overrides and plugins
     Object.entries(tools).forEach(([toolId, tool]) => {
-      // Check both the internal toolId and any user-friendly names from overrides
-      let override = this.toolOverrides.get(toolId);
+      // Apply plugins first
+      const processedTool = this.applyComposePlugins(tool, toolId);
 
-      // If no direct override found, check if we have an override for the dot notation equivalent
-      if (!override) {
-        for (
-          const [
-            overrideName,
-            overrideOptions,
-          ] of this.toolOverrides.entries()
-        ) {
-          // Build the mapping during processing
-          const dotNotationId = toolId.replace(/_/g, ".");
-          const underscoreNotationId = overrideName.replace(/\./g, "_");
+      // Then apply configuration
+      const config = this.findToolConfig(toolId);
 
-          if (
-            overrideName === dotNotationId ||
-            underscoreNotationId === toolId
-          ) {
-            override = overrideOptions;
-            // Store bidirectional mapping for future lookups
-            this.toolNameMapping.set(dotNotationId, toolId);
-            this.toolNameMapping.set(toolId, dotNotationId);
-            break;
-          }
+      if (config) {
+        if (config.description) {
+          processedTool.description = config.description;
         }
-      }
 
-      if (override) {
-        if (override.description) {
-          tool.description = override.description;
-        }
-        if (override.handler) {
-          // Replace the tool's execute function with the custom handler
-          tool.execute = override.handler;
-        }
-        if (override.hide) {
-          // Hide from composed tools context - tool won't be available in agentic/workflow execution
-          // but can still be called directly via callTool()
-          const finalHandler = override.handler || tool.execute;
-          this.hiddenTools.set(toolId, finalHandler);
+        // Handle hide/global options
+        if (config.hide) {
+          // Hide from composed tools context
+          this.hiddenTools.set(toolId, processedTool.execute);
           delete tools[toolId];
-        } else if (override.global) {
+          return; // Skip further processing for hidden tools
+        } else if (config.global) {
           // Register as a global tool in the server's public tool list
-          // This makes the tool available server-wide via MCP protocol, not just in composed tool context
           const globalTool: Tool = {
             name: toolId,
-            description: tool.description,
-            inputSchema: tool.inputSchema as Tool["inputSchema"],
+            description: processedTool.description,
+            inputSchema: processedTool.inputSchema as Tool["inputSchema"],
           };
           this.tools = [...this.tools, globalTool];
-          this.nameToCb.set(toolId, tool.execute);
+          this.nameToCb.set(toolId, processedTool.execute);
         }
       }
+
+      // Update the tool in the tools object
+      tools[toolId] = processedTool;
     });
 
     // Store composed tools for callTool access

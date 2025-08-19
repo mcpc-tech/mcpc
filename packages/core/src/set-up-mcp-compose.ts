@@ -4,7 +4,7 @@ import { connectToSmitheryServer } from "./utils/common/registory.ts";
 import type { MCPCStep } from "./utils/state.ts";
 import type { MCPSetting } from "./service/tools.ts";
 import process from "node:process";
-import { SamplingConfig } from "./types.ts";
+import type { SamplingConfig, ToolPlugin } from "./types.ts";
 
 export const INCOMING_MSG_ROUTE_PATH = "/core/messages";
 
@@ -12,6 +12,20 @@ export interface ComposeDefinition {
   name: string;
   description: string;
   deps?: MCPSetting;
+
+  /**
+   * Plugins to load and apply to tools
+   * Can be plugin objects or file paths to plugin files
+   * @example
+   * ```typescript
+   * plugins: [
+   *   './plugins/logger.js',
+   *   './plugins/cache.js',
+   *   { name: 'inline', apply: (tool) => tool }
+   * ]
+   * ```
+   */
+  plugins?: (ToolPlugin | string)[];
 
   options?: {
     /**
@@ -85,6 +99,21 @@ export async function mcpc(
 ): Promise<InstanceType<typeof ComposableMCPServer>> {
   const server = new ComposableMCPServer(...serverConf);
   const parsed = parseMcpcConfigs(composeConf);
+
+  // Load plugins first
+  for (const mcpcConfig of parsed) {
+    if (mcpcConfig.plugins) {
+      for (const plugin of mcpcConfig.plugins) {
+        if (typeof plugin === "string") {
+          // Load plugin from file
+          await server.loadPlugin(plugin);
+        } else {
+          // Register plugin object directly
+          server.addPlugin(plugin);
+        }
+      }
+    }
+  }
 
   // Allow user to register tools before composing
   if (setupCallback) {
