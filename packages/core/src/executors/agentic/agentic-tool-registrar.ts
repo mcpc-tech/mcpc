@@ -8,15 +8,6 @@ import { SamplingExecutor } from "../sampling/agentic-sampling-executor.ts";
 import type { ExternalTool } from "../sampling/base-sampling-executor.ts";
 import { createArgsDefFactory } from "../../factories/args-def-factory.ts";
 
-interface MCPServer {
-  tool: <T>(
-    name: string,
-    description: string,
-    schema: Schema<T>,
-    callback: (args: T) => unknown,
-  ) => void;
-}
-
 export function registerAgenticTool(
   server: ComposableMCPServer,
   {

@@ -19,8 +19,12 @@ import type { JSONSchema, ToolCallback } from "./types.ts";
 import { registerAgenticTool } from "./executors/agentic/agentic-tool-registrar.ts";
 import { registerAgenticWorkflowTool } from "./executors/workflow/workflow-tool-registrar.ts";
 import { processToolTags } from "./utils/common/tool-tag-processor.ts";
+import {
+  getBuiltInPlugins,
+  processToolVisibility,
+} from "./plugins/built-in/index.ts";
 
-interface ComposedTool extends Tool {
+export interface ComposedTool extends Tool {
   execute: ToolCallback;
 }
 
@@ -32,8 +36,10 @@ const ALL_TOOLS_PLACEHOLDER = "__ALL__";
 export interface ToolPlugin {
   /** Plugin name for identification */
   name: string;
+  /** Initialize plugin - called once when plugin is added to server */
+  init?: (server: ComposableMCPServer) => void | Promise<void>;
   /** Transform tool behavior */
-  transform: (
+  transform?: (
     tool: ComposedTool,
     context: PluginContext,
   ) => ComposedTool | void;
@@ -64,27 +70,44 @@ export interface PluginContext {
 export interface ToolConfig {
   /** Override the tool's description */
   description?: string;
-  /** Hide the tool from composed tools context */
-  hide?: boolean;
-  /** Register the tool as a global tool in the server's public tool list */
-  global?: boolean;
+  /** Tool visibility and access settings */
+  visibility?: {
+    /** Hide the tool from composed tools context */
+    hide?: boolean;
+    /** Register the tool as a global tool in the server's public tool list */
+    global?: boolean;
+    /** Internal tool - not visible in public list but accessible via callTool */
+    internal?: boolean;
+  };
 }
 
 export class ComposableMCPServer extends Server {
   private tools: Tool[] = [];
-  private nameToCb: Map<string, ToolCallback> = new Map();
-  private internalTools: Map<
+  private toolRegistry: Map<
     string,
-    { callback: ToolCallback; description: string; schema: JSONSchema }
+    {
+      callback: ToolCallback;
+      description: string;
+      schema?: JSONSchema;
+    }
   > = new Map();
-  private hiddenTools: Map<string, ToolCallback> = new Map();
-  private composedTools: Map<string, ToolCallback> = new Map();
   private toolConfigs: Map<string, ToolConfig> = new Map();
-  private toolPlugins: ToolPlugin[] = [];
+  private globalPlugins: ToolPlugin[] = [];
   private toolNameMapping: Map<string, string> = new Map();
 
   constructor(_serverInfo: Implementation, options: ServerOptions) {
     super(_serverInfo, options);
+  }
+
+  /**
+   * Initialize built-in plugins - called during setup
+   */
+  async initBuiltInPlugins(): Promise<void> {
+    // Auto-load built-in plugins
+    const builtInPlugins = getBuiltInPlugins();
+    for (const plugin of builtInPlugins) {
+      await this.addPlugin(plugin);
+    }
   }
 
   /**
@@ -94,19 +117,24 @@ export class ComposableMCPServer extends Server {
     toolName: string,
     args: unknown,
     mode: "input" | "output",
-    _originalArgs?: unknown
+    _originalArgs?: unknown,
   ): unknown {
-    const plugins = this.toolPlugins.filter(p => p.when === "runtime" || !p.when);
-    
+    const plugins = this.globalPlugins.filter(
+      (p) => p.when === "runtime" || !p.when,
+    );
+
     return plugins.reduce((currentArgs, plugin) => {
-      // Create temporary tool for transformation
       const tempTool: ComposedTool = {
         name: toolName,
         description: `Plugin transform for ${toolName}`,
-        inputSchema: { type: "object", properties: {}, additionalProperties: true },
-        execute: mode === "input" 
+        inputSchema: {
+          type: "object",
+          properties: {},
+          additionalProperties: true,
+        },
+        execute: mode === "input"
           ? (args) => ({ content: [{ type: "text", text: String(args) }] })
-          : (args) => ({ content: [{ type: "text", text: String(args) }] })
+          : (args) => ({ content: [{ type: "text", text: String(args) }] }),
       };
 
       const context: PluginContext = {
@@ -115,9 +143,8 @@ export class ComposableMCPServer extends Server {
         mode: "runtime",
       };
 
-      const result = plugin.transform(tempTool, context);
-      
-      // Extract transformed arguments/results if plugin modified them
+      const result = plugin.transform?.(tempTool, context);
+
       if (result?.execute) {
         try {
           const transformed = result.execute(currentArgs);
@@ -126,19 +153,16 @@ export class ComposableMCPServer extends Server {
           return currentArgs;
         }
       }
-      
+
       return currentArgs;
     }, args);
   }
 
   /**
-   * Check if a tool exists in any storage
+   * Check if a tool exists in storage
    */
   private hasToolInStorage(name: string): boolean {
-    return this.nameToCb.has(name) ||
-      this.internalTools.has(name) ||
-      this.hiddenTools.has(name) ||
-      this.composedTools.has(name);
+    return this.toolConfigs.has(name);
   }
 
   /**
@@ -164,24 +188,40 @@ export class ComposableMCPServer extends Server {
     description: string,
     paramsSchema: Schema<T>,
     cb: (args: T, extra?: unknown) => unknown,
-    internal: boolean = false,
+    options: { internal?: boolean; plugins?: ToolPlugin[] } = {},
   ) {
-    if (!internal) {
-      const newTool: Tool = {
-        name,
-        description,
-        inputSchema: paramsSchema.jsonSchema as Tool["inputSchema"],
-      };
+    if (this.toolRegistry.has(name)) {
+      console.warn(
+        `Tool "${name}" is already registered, skipping duplicate registration`,
+      );
+      return;
+    }
 
-      this.tools = [...this.tools, newTool];
-      this.nameToCb.set(name, cb as ToolCallback);
+    this.toolRegistry.set(name, {
+      callback: cb as ToolCallback,
+      description,
+      schema: paramsSchema.jsonSchema as JSONSchema,
+    });
+
+    // Add any plugins specified for this tool to global plugins
+    if (options.plugins) {
+      for (const plugin of options.plugins) {
+        this.globalPlugins.push(plugin);
+      }
+    }
+
+    if (options.internal) {
+      this.toolConfigs.set(name, { visibility: { internal: true } });
     } else {
-      // Register as internal tool - not visible in public list
-      this.internalTools.set(name, {
-        callback: cb as ToolCallback,
-        description,
-        schema: paramsSchema.jsonSchema as JSONSchema,
-      });
+      const existingTool = this.tools.find((t) => t.name === name);
+      if (!existingTool) {
+        const newTool: Tool = {
+          name,
+          description,
+          inputSchema: paramsSchema.jsonSchema as Tool["inputSchema"],
+        };
+        this.tools = [...this.tools, newTool];
+      }
     }
 
     this.setRequestHandler(ListToolsRequestSchema, () => {
@@ -203,8 +243,13 @@ export class ComposableMCPServer extends Server {
       // Apply plugin transformations
       const processedArgs = this.applyPluginTransforms(toolName, args, "input");
       const result = handler(processedArgs, extra) as CallToolResult;
-      
-      return this.applyPluginTransforms(toolName, result, "output", args) as CallToolResult;
+
+      return this.applyPluginTransforms(
+        toolName,
+        result,
+        "output",
+        args,
+      ) as CallToolResult;
     });
   }
 
@@ -212,36 +257,24 @@ export class ComposableMCPServer extends Server {
    * Register a tool override with description, hide, args transformation, and/or custom handler
    */
   /**
-   * Get tool callback from any storage
+   * Get tool callback from registry
    */
-  private getToolCallback(name: string): ToolCallback | undefined {
-    return this.nameToCb.get(name) ||
-      this.internalTools.get(name)?.callback ||
-      this.hiddenTools.get(name) ||
-      this.composedTools.get(name);
+  getToolCallback(name: string): ToolCallback | undefined {
+    return this.toolRegistry.get(name)?.callback;
   }
 
   /**
-   * Find tool configuration, supporting both dot and underscore notation
+   * Find tool configuration (simplified - dot/underscore mapping now handled by plugin)
    */
-  private findToolConfig(toolId: string): ToolConfig | undefined {
-    // Try direct match first
+  findToolConfig(toolId: string): ToolConfig | undefined {
     const directConfig = this.toolConfigs.get(toolId);
     if (directConfig) {
       return directConfig;
     }
 
-    // Check dot/underscore notation mapping
-    const dotNotationId = toolId.replace(/_/g, ".");
-    for (const [configName, configOptions] of this.toolConfigs.entries()) {
-      const underscoreNotationId = configName.replace(/\./g, "_");
-
-      if (configName === dotNotationId || underscoreNotationId === toolId) {
-        // Store bidirectional mapping for future lookups
-        this.toolNameMapping.set(dotNotationId, toolId);
-        this.toolNameMapping.set(toolId, dotNotationId);
-        return configOptions;
-      }
+    const mappedName = this.toolNameMapping.get(toolId);
+    if (mappedName && this.toolConfigs.has(mappedName)) {
+      return this.toolConfigs.get(mappedName);
     }
 
     return undefined;
@@ -261,11 +294,13 @@ export class ComposableMCPServer extends Server {
       throw new Error(`Tool ${name} not found`);
     }
 
-    // Apply runtime plugins before execution
     callback = this.applyRuntimePlugins(callback, resolvedName);
 
-    // Apply plugin transformations
-    const processedArgs = this.applyPluginTransforms(resolvedName, args, "input");
+    const processedArgs = this.applyPluginTransforms(
+      resolvedName,
+      args,
+      "input",
+    );
     const result = await callback(processedArgs);
     return this.applyPluginTransforms(resolvedName, result, "output", args);
   }
@@ -274,19 +309,16 @@ export class ComposableMCPServer extends Server {
    * Get all available tool names (including internal tools)
    */
   getAllToolNames(): string[] {
-    return [
-      ...Array.from(this.nameToCb.keys()),
-      ...Array.from(this.internalTools.keys()),
-      ...Array.from(this.hiddenTools.keys()),
-      ...Array.from(this.composedTools.keys()),
-    ];
+    return Array.from(this.toolConfigs.keys());
   }
 
   /**
    * Get all internal tool names
    */
   getInternalToolNames(): string[] {
-    return Array.from(this.internalTools.keys());
+    return Array.from(this.toolConfigs.entries())
+      .filter(([_name, config]) => config.visibility?.internal)
+      .map(([name]) => name);
   }
 
   /**
@@ -295,11 +327,12 @@ export class ComposableMCPServer extends Server {
   getInternalToolSchema(
     name: string,
   ): { description: string; schema: JSONSchema } | undefined {
-    const internalTool = this.internalTools.get(name);
-    if (internalTool) {
+    const tool = this.toolRegistry.get(name);
+    const config = this.toolConfigs.get(name);
+    if (tool && config?.visibility?.internal && tool.schema) {
       return {
-        description: internalTool.description,
-        schema: internalTool.schema,
+        description: tool.description,
+        schema: tool.schema,
       };
     }
     return undefined;
@@ -309,11 +342,7 @@ export class ComposableMCPServer extends Server {
    * Check if a tool exists (visible or internal)
    */
   hasToolNamed(name: string): boolean {
-    return (
-      this.nameToCb.has(name) ||
-      this.internalTools.has(name) ||
-      this.hiddenTools.has(name)
-    );
+    return this.toolConfigs.has(name);
   }
 
   /**
@@ -322,17 +351,22 @@ export class ComposableMCPServer extends Server {
    * ```typescript
    * // Override description
    * server.configTool('myTool', {
+   *   callback: originalCallback,
    *   description: 'Enhanced tool description'
    * });
    *
    * // Hide tool from agentic execution
    * server.configTool('myTool', {
-   *   hide: true
+   *   callback: originalCallback,
+   *   description: 'Hidden tool',
+   *   visibility: { hide: true }
    * });
    *
    * // Make tool globally available
    * server.configTool('myTool', {
-   *   global: true
+   *   callback: originalCallback,
+   *   description: 'Global tool',
+   *   visibility: { global: true }
    * });
    * ```
    */
@@ -358,10 +392,10 @@ export class ComposableMCPServer extends Server {
    * Register a tool plugin
    * @example
    * ```typescript
-   * // Simple logging plugin
+   * // Global plugin for all tools
    * server.addPlugin({
    *   name: 'logger',
-   *   apply: (tool) => {
+   *   transform: (tool) => {
    *     const originalExecute = tool.execute;
    *     tool.execute = async (args, extra) => {
    *       console.log(`Calling ${tool.name} with:`, args);
@@ -373,15 +407,20 @@ export class ComposableMCPServer extends Server {
    * });
    * ```
    */
-  addPlugin(plugin: ToolPlugin): void {
-    this.toolPlugins.push(plugin);
+  async addPlugin(plugin: ToolPlugin): Promise<void> {
+    if (plugin.init) {
+      await plugin.init(this);
+    }
+    
+    this.globalPlugins.push(plugin);
   }
 
   /**
    * Load plugin from file path
+   * @param pluginPath - Path to the plugin file
    * @example
    * ```typescript
-   * // Load plugin from file
+   * // Load global plugin from file
    * await server.loadPlugin('./my-plugin.js');
    * ```
    */
@@ -407,7 +446,7 @@ export class ComposableMCPServer extends Server {
     tool: ComposedTool,
     toolName: string,
   ): ComposedTool {
-    const composePlugins = this.toolPlugins.filter(
+    const composePlugins = this.globalPlugins.filter(
       (p) => p.when === "compose" || !p.when,
     );
 
@@ -415,7 +454,6 @@ export class ComposableMCPServer extends Server {
       return tool;
     }
 
-    // Sort plugins by enforcement order
     const sortedPlugins = [
       ...composePlugins.filter((p) => p.enforce === "pre"),
       ...composePlugins.filter((p) => !p.enforce),
@@ -429,7 +467,7 @@ export class ComposableMCPServer extends Server {
     };
 
     return sortedPlugins.reduce((currentTool, plugin) => {
-      const result = plugin.transform(currentTool, context);
+      const result = plugin.transform?.(currentTool, context);
       return result || currentTool;
     }, tool);
   }
@@ -441,7 +479,7 @@ export class ComposableMCPServer extends Server {
     callback: ToolCallback,
     toolName: string,
   ): ToolCallback {
-    const runtimePlugins = this.toolPlugins.filter(
+    const runtimePlugins = this.globalPlugins.filter(
       (p) => p.when === "runtime" || !p.when,
     );
 
@@ -474,9 +512,46 @@ export class ComposableMCPServer extends Server {
         mode: "runtime",
       };
 
-      const result = plugin.transform(tempTool, context);
+      const result = plugin.transform?.(tempTool, context);
       return result?.execute || currentCallback;
     }, callback);
+  }
+
+  /**
+   * Apply plugins to all tools in registry and handle visibility configurations
+   */
+  private processAllToolsWithPlugins(
+    externalTools: Record<string, ComposedTool>,
+  ): void {
+    for (const [toolId, toolData] of this.toolRegistry.entries()) {
+      const defaultSchema = {
+        type: "object",
+        properties: {},
+        additionalProperties: true,
+      } as Tool["inputSchema"];
+      const tempTool: ComposedTool = {
+        name: toolId,
+        description: toolData.description,
+        inputSchema: (toolData.schema as Tool["inputSchema"]) || defaultSchema,
+        execute: toolData.callback,
+      };
+
+      const processedTool = this.applyComposePlugins(tempTool, toolId);
+
+      this.toolRegistry.set(toolId, {
+        callback: processedTool.execute,
+        description: processedTool.description || toolData.description,
+        schema: processedTool.inputSchema as JSONSchema,
+      });
+
+      if (externalTools[toolId]) {
+        processToolVisibility(toolId, processedTool, this, externalTools);
+
+        if (externalTools[toolId]) {
+          externalTools[toolId] = processedTool;
+        }
+      }
+    }
   }
 
   async compose(
@@ -487,7 +562,6 @@ export class ComposableMCPServer extends Server {
   ) {
     const { tagToResults, $ } = parseTags(description, ["tool", "fn"]);
 
-    // Process tool middleware/overrides from description
     tagToResults.tool.forEach((toolEl) => {
       const toolName = toolEl.attribs.name;
       const toolDescription = toolEl.attribs.description;
@@ -497,8 +571,10 @@ export class ComposableMCPServer extends Server {
       if (toolName && (toolDescription || isHidden || isGlobal)) {
         this.toolConfigs.set(toolName, {
           description: toolDescription,
-          hide: isHidden,
-          global: isGlobal,
+          visibility: {
+            hide: isHidden,
+            global: isGlobal,
+          },
         });
       }
     });
@@ -508,7 +584,6 @@ export class ComposableMCPServer extends Server {
     const { tools, cleanupClients } = (await composeMcpDepTools(
       depsConfig,
       ({ mcpName, toolNameWithScope, toolId }) => {
-        // Store the mapping for later use in tag processing
         toolNameToIdMapping.set(toolNameWithScope, toolId);
 
         const matchingStep = options.steps?.find((step) =>
@@ -564,45 +639,17 @@ export class ComposableMCPServer extends Server {
       );
     };
 
-    // Apply tool middleware/overrides and plugins
+    // First, add external tools to registry
     Object.entries(tools).forEach(([toolId, tool]) => {
-      // Apply plugins first
-      const processedTool = this.applyComposePlugins(tool, toolId);
-
-      // Then apply configuration
-      const config = this.findToolConfig(toolId);
-
-      if (config) {
-        if (config.description) {
-          processedTool.description = config.description;
-        }
-
-        // Handle hide/global options
-        if (config.hide) {
-          // Hide from composed tools context
-          this.hiddenTools.set(toolId, processedTool.execute);
-          delete tools[toolId];
-          return; // Skip further processing for hidden tools
-        } else if (config.global) {
-          // Register as a global tool in the server's public tool list
-          const globalTool: Tool = {
-            name: toolId,
-            description: processedTool.description,
-            inputSchema: processedTool.inputSchema as Tool["inputSchema"],
-          };
-          this.tools = [...this.tools, globalTool];
-          this.nameToCb.set(toolId, processedTool.execute);
-        }
-      }
-
-      // Update the tool in the tools object
-      tools[toolId] = processedTool;
+      this.toolRegistry.set(toolId, {
+        callback: tool.execute,
+        description: tool.description || "No description available",
+        schema: tool.inputSchema as JSONSchema,
+      });
     });
 
-    // Store composed tools for callTool access
-    Object.entries(tools).forEach(([toolId, tool]) => {
-      this.composedTools.set(toolId, tool.execute);
-    });
+    // Apply plugins to all tools and handle visibility configurations
+    this.processAllToolsWithPlugins(tools);
 
     const toolNameToDetailList = Object.entries(tools);
     const externalToolNames = toolNameToDetailList.map(([name]) => name);

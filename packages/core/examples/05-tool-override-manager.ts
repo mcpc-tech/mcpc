@@ -123,7 +123,7 @@ server.tool(
       ],
     };
   },
-  true, // internal tool
+  { internal: true }, // internal tool
 );
 
 server.tool(
@@ -169,7 +169,7 @@ server.tool(
       ],
     };
   },
-  true, // internal tool
+  { internal: true }, // internal tool
 );
 
 // Add a public tool that uses internal tools internally
@@ -283,7 +283,7 @@ await server.connect(transport);
  *    - Enhanced descriptions provide better user guidance
  *
  * 2. **Internal Tools:**
- *    - Created with server.tool(..., true)
+ *    - Created with server.tool(..., { internal: true })
  *    - Not visible in list_tools responses
  *    - Available for internal operations only
  *    - Perfect for security, logging, and validation

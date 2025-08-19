@@ -53,7 +53,8 @@ export const server = await mcpc(
         ],
       },
 
-      description: `**Objective:** Generate high-quality images by creating and rendering HTML/CSS designs through a structured workflow.
+      description:
+        `**Objective:** Generate high-quality images by creating and rendering HTML/CSS designs through a structured workflow.
 
 **Design Capabilities:**
 - Modern CSS layouts with Flexbox and Grid
@@ -109,7 +110,7 @@ Present final images using ![image](path) syntax and provide file locations.`,
         },
       },
     },
-  ]
+  ],
 );
 
 const transport = new StdioServerTransport();

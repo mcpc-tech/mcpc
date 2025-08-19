@@ -172,7 +172,7 @@ Available tools:
 
 ```typescript
 // Register internal tools
-server.tool("audit-logger", "Internal logging", schema, callback, true);
+server.tool("audit-logger", "Internal logging", schema, callback, { internal: true });
 
 // Use internal tools in public interfaces
 server.tool("secure-operation", "Safe operation", schema, async (args) => {

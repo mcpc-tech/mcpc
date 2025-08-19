@@ -189,13 +189,19 @@ Workflow step definitions - provide ONLY on initial call.
 
       const requiredFields = [ACTION_KEY, "decision"];
 
-      return {
+      const schema: JSONSchema = {
         additionalProperties: false,
-        allOf,
         type: "object",
         properties: baseProperties,
         required: requiredFields,
       };
+
+      // Only add allOf if there are items to avoid schema validation error
+      if (allOf.length > 0) {
+        schema.allOf = allOf;
+      }
+
+      return schema;
     },
 
     forNextState: function (state: WorkflowState): JSONSchema {

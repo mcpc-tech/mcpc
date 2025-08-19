@@ -58,7 +58,7 @@ export function processToolTags({
     }
 
     const override = toolOverrides.get(toolName);
-    const isHidden = override?.hide;
+    const isHidden = override?.visibility?.hide;
 
     if (isHidden) {
       // Remove the tag completely for hidden tools

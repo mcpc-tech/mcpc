@@ -113,7 +113,8 @@ export class SamplingExecutor extends BaseSamplingExecutor {
 
     try {
       // Extract tool arguments (everything except action and decision)
-      const { action: _action, decision: _decision, ..._toolArgs } = toolCallData;
+      const { action: _action, decision: _decision, ..._toolArgs } =
+        toolCallData;
 
       const toolResult = await this.agenticExecutor.execute(
         toolCallData,

@@ -14,7 +14,7 @@ export interface ComposeDefinition {
   deps?: MCPSetting;
 
   /**
-   * Plugins to load and apply to tools
+   * Global plugins to load and apply to all tools
    * Can be plugin objects or file paths to plugin files
    * @example
    * ```typescript
@@ -100,16 +100,19 @@ export async function mcpc(
   const server = new ComposableMCPServer(...serverConf);
   const parsed = parseMcpcConfigs(composeConf);
 
-  // Load plugins first
+  // Initialize built-in plugins first
+  await server.initBuiltInPlugins();
+
+  // Load global plugins before composition
   for (const mcpcConfig of parsed) {
     if (mcpcConfig.plugins) {
       for (const plugin of mcpcConfig.plugins) {
         if (typeof plugin === "string") {
-          // Load plugin from file
+          // Load global plugin from file
           await server.loadPlugin(plugin);
         } else {
-          // Register plugin object directly
-          server.addPlugin(plugin);
+          // Register global plugin object directly
+          await server.addPlugin(plugin);
         }
       }
     }
