@@ -3,7 +3,7 @@
  * Adds ripgrep search functionality with result size limits
  */
 
-import rg from "npm:@mcpc-tech/ripgrep-napi";
+import rg from "@mcpc-tech/ripgrep-napi";
 import { tmpdir } from "node:os";
 import { jsonSchema } from "ai";
 import type { ToolPlugin } from "../compose.ts";
@@ -208,7 +208,7 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
 /**
  * Default search plugin instance with common settings
  */
-const defaultSearchPlugin = createSearchPlugin({
+const defaultSearchPlugin: ToolPlugin = createSearchPlugin({
   global: true,
   maxResults: 20,
   maxOutputSize: 5000,

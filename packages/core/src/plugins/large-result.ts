@@ -92,7 +92,7 @@ ${preview}
 /**
  * Default large result plugin instance with common settings
  */
-const defaultLargeResultPlugin = createLargeResultPlugin({
+const defaultLargeResultPlugin: ToolPlugin = createLargeResultPlugin({
   maxSize: 8000,
   previewSize: 4000,
 });
