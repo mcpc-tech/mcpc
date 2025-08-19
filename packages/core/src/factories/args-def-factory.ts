@@ -150,7 +150,7 @@ Workflow step definitions - provide ONLY on initial call.
 
     forAgentic: function (
       toolNameToDetailList: [string, unknown][],
-      sampling: boolean = false,
+      _sampling: boolean = false,
       ACTION_KEY: string = "action",
       NEXT_ACTION_KEY: string = "nextAction",
     ): JSONSchema {
@@ -186,14 +186,6 @@ Workflow step definitions - provide ONLY on initial call.
         decision: this.decision(),
         ...depGroups,
       };
-
-      // Add reasoning field for sampling mode
-      if (sampling) {
-        baseProperties.reasoning = {
-          type: "string",
-          description: "Explain your reasoning for this action",
-        };
-      }
 
       const requiredFields = [ACTION_KEY, "decision"];
 

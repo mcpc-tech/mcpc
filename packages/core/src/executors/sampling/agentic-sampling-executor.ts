@@ -108,13 +108,12 @@ export class SamplingExecutor extends BaseSamplingExecutor {
     const toolCallData = parsedData;
 
     if (toolCallData.decision === "complete") {
-      const reasoning = (toolCallData.reasoning as string) || "Task completed";
-      return this.createCompletionResult(reasoning);
+      return this.createCompletionResult("Task completed");
     }
 
     try {
-      // Extract tool arguments (everything except action and reasoning)
-      const { action: _action, reasoning: _reasoning } = toolCallData;
+      // Extract tool arguments (everything except action and decision)
+      const { action: _action, decision: _decision, ..._toolArgs } = toolCallData;
 
       const toolResult = await this.agenticExecutor.execute(
         toolCallData,
@@ -178,8 +177,7 @@ export class SamplingExecutor extends BaseSamplingExecutor {
 I will now use agentic sampling to complete the following task: "${userRequest}"
 
 When I need to use a tool, I should specify the tool name in 'action' and provide tool-specific parameters as additional properties.
-When the task is complete, I should use "action": "complete".
-I must always provide reasoning for my actions.`;
+When the task is complete, I should use "action": "complete".`;
 
     // Use JSON instruction injection pattern
     return this.injectJsonInstruction({

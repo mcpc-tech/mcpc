@@ -60,7 +60,6 @@ export const SystemPrompts = {
 - **ADVANCE STEP**: Set \`decision: "proceed"\` to move to next step  
 - **RETRY STEP**: Set \`decision: "retry"\`
 - **COMPLETE WORKFLOW**: Set \`decision: "complete"\` when ready to finish
-- Use \`reasoning\` action for thinking/analysis
 
 **🚫 Do NOT include \`steps\` parameter during normal execution**
 **✅ Include \`steps\` parameter ONLY when restarting workflow with \`init: true\`**
@@ -84,7 +83,6 @@ export const SystemPrompts = {
 
 **⚡ AGENTIC EXECUTION RULES:**
 - Each response demonstrates autonomous reasoning and decision-making
-- Use "reasoning" field to show your independent thought process
 - Make self-directed choices about which tools to use and when
 - Adapt your approach based on previous results without external guidance
 - Use "decision: complete" when you autonomously determine the task is finished
@@ -92,7 +90,6 @@ export const SystemPrompts = {
 **🔄 JSON Response Format (Agentic Decision Output):**
 You MUST respond with a JSON object that demonstrates your autonomous decision:
 - action: Your self-selected tool name
-- reasoning: Your independent reasoning and decision-making process
 - decision: "proceed" (continue execution), "retry" (retry current step), or "complete" (finish task)
 - [tool parameters]: Tool-specific parameters you autonomously determine
 
@@ -102,7 +99,6 @@ You MUST respond with a JSON object that demonstrates your autonomous decision:
 **🎯 AGENTIC CONSTRAINTS:**
 - Response must be pure JSON demonstrating autonomous decision-making
 - Invalid JSON indicates failure in agentic reasoning
-- Missing "reasoning" field shows lack of autonomous thought process
 - Tool parameters must reflect your independent analysis and planning`,
 
   /**
@@ -123,7 +119,6 @@ You MUST respond with a JSON object that demonstrates your autonomous decision:
 
 **⚡ AGENTIC EXECUTION RULES (Subsequent Calls):**
 - Each response demonstrates autonomous reasoning and decision-making within workflow context
-- Use "reasoning" field to show your independent thought process for current workflow step
 - Make self-directed choices about step execution, retry, or advancement
 - Adapt your approach based on previous step results without external guidance
 - Balance workflow structure with autonomous flexibility
@@ -133,21 +128,18 @@ You MUST respond with a JSON object for workflow execution:
 
 **For Workflow Initialization (First Call):**
 - action: "{toolName}"
-- reasoning: Your autonomous workflow planning process
 - init: true
 - steps: Autonomously designed workflow steps array
 - [other workflow parameters]: As you autonomously determine
 
 **For Step Execution (Subsequent Calls):**
 - action: "{toolName}"
-- reasoning: Your independent analysis of current step and next decision
 - decision: "proceed" (advance), "retry" (retry), or "complete" (finish - sampling mode only)
 - [step parameters]: Tool-specific parameters you autonomously determine for current step
 
 **🎯 AGENTIC WORKFLOW CONSTRAINTS:**
 - Response must be pure JSON demonstrating autonomous decision-making within workflow structure
 - Invalid JSON indicates failure in agentic workflow reasoning
-- Missing "reasoning" field shows lack of autonomous thought process
 - Tool parameters must reflect your independent analysis and workflow planning
 - Balance autonomous decision-making with structured workflow progression
 
