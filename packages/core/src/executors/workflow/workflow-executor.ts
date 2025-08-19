@@ -101,13 +101,8 @@ export class WorkflowExecutor {
       const decision = args.decision as string;
 
       if (decision === "proceed") {
-        // Allow proceeding to completion even when at the last step
-        if (
-          !state.hasNextStep() &&
-          state.isAtLastStep() &&
-          state.isWorkflowStarted()
-        ) {
-          // Mark the workflow as completed and provide completion message
+        // Auto-complete workflow when at last step and proceeding
+        if (state.isAtLastStep() && state.isWorkflowStarted()) {
           state.markCompleted();
           return {
             content: [
@@ -132,7 +127,8 @@ export class WorkflowExecutor {
           };
         }
 
-        if (!state.hasNextStep() && !state.isAtLastStep()) {
+        // Check if workflow is already completed
+        if (state.isCompleted()) {
           return {
             content: [
               {
@@ -191,11 +187,8 @@ export class WorkflowExecutor {
         }
         // If validation passes, we've already moved to the next step above
       } else if (decision === "complete") {
-        // Only allow completion at final step or when at last step and started
-        if (
-          (state.isAtLastStep() && state.isWorkflowStarted()) ||
-          (!state.hasNextStep() && state.isWorkflowStarted())
-        ) {
+        // Allow completion when at the last step
+        if (state.isAtLastStep() && state.isWorkflowStarted()) {
           state.markCompleted();
           return {
             content: [
@@ -402,32 +395,18 @@ ${this.createArgsDef.forInitialStepDescription(steps, state)}`,
         }),
       });
     } else {
-      // Auto-complete workflow when final step is reached
-      if (!results.isError) {
-        results.content.push({
-          type: "text",
-          text: CompiledPrompts.workflowCompleted({
-            totalSteps: state.getSteps().length,
-            toolName: this.name,
-            newWorkflowInstructions: this.predefinedSteps
-              ? ""
-              : " and new `steps` array",
-          }),
-        });
-      } else {
-        // Show completion prompt only if there were errors
-        results.content.push({
-          type: "text",
-          text: CompiledPrompts.finalStepCompletion({
-            statusIcon: "❌",
-            statusText: "with errors",
-            toolName: this.name,
-            newWorkflowInstructions: this.predefinedSteps
-              ? ""
-              : " and new `steps` array",
-          }),
-        });
-      }
+      // Show completion options when final step is reached
+      results.content.push({
+        type: "text",
+        text: CompiledPrompts.finalStepCompletion({
+          statusIcon: results.isError ? "❌" : "✅",
+          statusText: results.isError ? "with errors" : "successfully",
+          toolName: this.name,
+          newWorkflowInstructions: this.predefinedSteps
+            ? ""
+            : " and new `steps` array",
+        }),
+      });
     }
 
     // Add final progress display

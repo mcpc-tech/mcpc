@@ -59,7 +59,7 @@ export const SystemPrompts = {
 - Provide ONLY current step parameters
 - **ADVANCE STEP**: Set \`decision: "proceed"\` to move to next step  
 - **RETRY STEP**: Set \`decision: "retry"\`
-- **COMPLETE WORKFLOW**: Set \`decision: "complete"\` (only at final step)
+- **COMPLETE WORKFLOW**: Set \`decision: "complete"\` when ready to finish
 - Use \`reasoning\` action for thinking/analysis
 
 **🚫 Do NOT include \`steps\` parameter during normal execution**
@@ -141,7 +141,7 @@ You MUST respond with a JSON object for workflow execution:
 **For Step Execution (Subsequent Calls):**
 - action: "{toolName}"
 - reasoning: Your independent analysis of current step and next decision
-- decision: "proceed" (advance to next step), "retry" (retry/repeat current step), or "complete" (finish workflow)
+- decision: "proceed" (advance), "retry" (retry), or "complete" (finish - sampling mode only)
 - [step parameters]: Tool-specific parameters you autonomously determine for current step
 
 **🎯 AGENTIC WORKFLOW CONSTRAINTS:**
@@ -175,8 +175,8 @@ export const WorkflowPrompts = {
 - **Do NOT include 'steps' parameter during normal step execution**
 - **MUST Use the provided JSON schema definition above for parameter generation and validation**
 - **ADVANCE STEP: Set 'decision' to "proceed" to advance to next step**
-- **RETRY STEP: Set 'decision' to "retry" to re-execute current step**
-- **COMPLETE WORKFLOW: Set 'decision' to "complete" to finish workflow (only at final step)**
+- **RETRY STEP: Set 'decision' to "retry" to re-execute current step**  
+- **FINAL STEP: Execute normally for workflow completion**
 - **⚠️ CRITICAL: When retrying failed steps, MUST set 'decision' to "retry"**
 
 {workflowSteps}`,
@@ -223,15 +223,13 @@ Next step: \`{nextStepDescription}\`
   /**
    * Final step completion prompt
    */
-  FINAL_STEP_COMPLETION: `**Step Complete - Workflow Ending** {statusIcon}
+  FINAL_STEP_COMPLETION: `**Final Step Complete** {statusIcon}
 
-Current step executed {statusText}. Choose your next action:
+Step executed {statusText}. Choose action:
 
-**1. ▶️ Complete Workflow:** Call \`{toolName}\` with \`decision: "complete"\` to finish
-**2. 🔄 Retry Final Step:** Call \`{toolName}\` with final step parameters and \`decision: "retry"\`
-**3. 🆕 New Workflow:** Call \`{toolName}\` with \`init: true\`{newWorkflowInstructions}
-
-**Note:** Use \`decision: "complete"\` to officially complete the workflow.`,
+**🔄 RETRY:** Call \`{toolName}\` with \`decision: "retry"\`
+**✅ COMPLETE:** Call \`{toolName}\` with \`decision: "complete"\`
+**🆕 NEW:** Call \`{toolName}\` with \`init: true\`{newWorkflowInstructions}`,
 
   /**
    * Workflow completion success message

@@ -32,11 +32,6 @@ export const server = await mcpc(
         steps: [
           {
             description:
-              "Analyze the user's image generation request and create a detailed design plan including layout, colors, style requirements, and technical specifications.",
-            actions: ["reasoning"],
-          },
-          {
-            description:
               "Generate complete HTML and CSS code for the image design using modern web technologies, responsive design principles, and accessibility best practices.",
             actions: ["@wonderwhy-er/desktop-commander.write_file"],
           },
@@ -58,8 +53,7 @@ export const server = await mcpc(
         ],
       },
 
-      description:
-        `**Objective:** Generate high-quality images by creating and rendering HTML/CSS designs through a structured workflow.
+      description: `**Objective:** Generate high-quality images by creating and rendering HTML/CSS designs through a structured workflow.
 
 **Design Capabilities:**
 - Modern CSS layouts with Flexbox and Grid
@@ -115,7 +109,7 @@ Present final images using ![image](path) syntax and provide file locations.`,
         },
       },
     },
-  ],
+  ]
 );
 
 const transport = new StdioServerTransport();

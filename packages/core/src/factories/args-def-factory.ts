@@ -97,7 +97,7 @@ Workflow step definitions - provide ONLY on initial call.
       type: "string",
       enum: Object.values(DECISION_OPTIONS),
       description:
-        `**Step execution control. Use \`${DECISION_OPTIONS.PROCEED}\` to advance to next step, \`${DECISION_OPTIONS.RETRY}\` to re-execute current step, or \`${DECISION_OPTIONS.COMPLETE}\` to finish workflow (only allowed at final step). For failed steps, MUST use \`${DECISION_OPTIONS.RETRY}\`**`,
+        `**Step control: \`${DECISION_OPTIONS.PROCEED}\` = next step, \`${DECISION_OPTIONS.RETRY}\` = retry current, \`${DECISION_OPTIONS.COMPLETE}\` = finish workflow**`,
     }),
 
     action: (): JSONSchema => ({
