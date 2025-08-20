@@ -120,7 +120,7 @@ except Exception as e:
           "code-runner.python-code-runner",
           {
             code: wrappedCode,
-          }
+          },
         );
 
         return {
@@ -139,7 +139,7 @@ ${JSON.stringify(executionResult, null, 2)}`,
           ],
         };
       },
-      { internal: true }
+      { internal: true },
     );
 
     // Code safety validator
@@ -181,19 +181,19 @@ ${JSON.stringify(executionResult, null, 2)}`,
                 isValid ? "✅ SAFE" : "❌ UNSAFE"
               }
 ${
-  issues.length > 0
-    ? "\nIssues:\n" + issues.map((i) => `- ${i}`).join("\n")
-    : "No issues found."
-}`,
+                issues.length > 0
+                  ? "\nIssues:\n" + issues.map((i) => `- ${i}`).join("\n")
+                  : "No issues found."
+              }`,
             },
           ],
         };
       },
-      { internal: true }
+      { internal: true },
     );
 
     console.log("✅ Internal tool wrappers registered!");
-  }
+  },
 );
 
 const mcpTransport = new StdioServerTransport();

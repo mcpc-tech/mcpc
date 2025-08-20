@@ -35,7 +35,7 @@ export function processToolVisibility(
   toolId: string,
   tool: ComposedTool,
   server: any,
-  externalTools: Record<string, ComposedTool>
+  externalTools: Record<string, ComposedTool>,
 ): void {
   const visibility = (tool as any)._visibility;
 

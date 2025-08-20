@@ -43,9 +43,9 @@ const server = await mcpc(
         }
         return { content: [{ type: "text", text }] };
       },
-      { internal: true }
+      { internal: true },
     );
-  }
+  },
 );
 
 const transport = new StdioServerTransport();

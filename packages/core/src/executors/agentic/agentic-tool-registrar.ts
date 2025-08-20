@@ -19,7 +19,13 @@ export function registerAgenticTool(
     sampling = false,
   }: RegisterToolParams,
 ) {
-  const createArgsDef = createArgsDefFactory(name, allToolNames, depGroups, undefined, undefined);
+  const createArgsDef = createArgsDefFactory(
+    name,
+    allToolNames,
+    depGroups,
+    undefined,
+    undefined,
+  );
 
   // Determine if sampling mode is enabled and extract config
   const isSamplingMode = sampling === true || typeof sampling === "object";

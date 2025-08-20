@@ -9,7 +9,7 @@ export const createLoggingPlugin = (
     enabled?: boolean;
     verbose?: boolean;
     compact?: boolean;
-  } = {}
+  } = {},
 ): ToolPlugin => {
   const { enabled = true, verbose = false, compact = true } = options;
 
@@ -25,22 +25,35 @@ export const createLoggingPlugin = (
         const internalCount = context.internalToolNames.length;
 
         console.log(
-          `🧩 [${context.serverName}] ${pluginCount} plugins • ${externalCount} external tools • ${internalCount} internal tools`
+          `🧩 [${context.serverName}] ${pluginCount} plugins • ${externalCount} external tools • ${internalCount} internal tools`,
         );
       } else if (verbose) {
         console.log(`🧩 [${context.serverName}]`);
         console.log(`   ├─ Plugins: ${context.pluginNames.join(", ")}`);
-        
+
         // Get all tool information from server
         const server = context.server;
-        const allToolNames = server.getAllToolNames?.() || [];
-        const publicTools = server.tools || [];
-        const globalToolNames = publicTools.map((t: any) => t.name);
-        
-        console.log(`   ├─ External: ${context.externalToolNames.join(", ") || "none"}`);
-        console.log(`   ├─ Internal: ${context.internalToolNames.join(", ") || "none"}`);
+        const publicTools = (server.tools ?? []) as Array<{ name: string }>;
+        const globalToolNames = Array.from(
+          new Set<string>(publicTools.map((t) => String(t.name))),
+        ) as string[];
+
+        // Ensure uniqueness across categories
+        const external = Array.from(new Set<string>(context.externalToolNames));
+        const internal = Array.from(new Set<string>(context.internalToolNames));
+        const totalSet = new Set<string>([
+          ...external,
+          ...internal,
+          ...globalToolNames,
+        ]);
+        const totalList = Array.from(totalSet);
+
+        console.log(`   ├─ External: ${external.join(", ") || "none"}`);
+        console.log(`   ├─ Internal: ${internal.join(", ") || "none"}`);
         console.log(`   ├─ Global: ${globalToolNames.join(", ") || "none"}`);
-        console.log(`   └─ Total: ${allToolNames.length} tools (${allToolNames.join(", ")})`);
+        console.log(
+          `   └─ Total: ${totalList.length} tools (${totalList.join(", ")})`,
+        );
       }
     },
   };

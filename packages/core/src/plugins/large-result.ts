@@ -20,7 +20,7 @@ interface PluginOptions {
  * and providing search capabilities for the saved content.
  */
 export function createLargeResultPlugin(
-  options: PluginOptions = {}
+  options: PluginOptions = {},
 ): ToolPlugin {
   const maxSize = options.maxSize || 8000;
   const previewSize = options.previewSize || 4000;
@@ -68,9 +68,8 @@ export function createLargeResultPlugin(
           content: [
             {
               type: "text",
-              text: `**Result too large (${
-                resultText.length
-              } chars), saved to file**
+              text:
+                `**Result too large (${resultText.length} chars), saved to file**
 
 📁 **File:** ${filePath}
 📊 **Size:** ${(resultText.length / 1024).toFixed(1)} KB

@@ -27,7 +27,8 @@ export const toolDefinitions: ComposeDefinition[] = [
       // No predefined steps - will generate dynamically at runtime
     },
 
-    description: `**Objective:** Process and analyze documents through a dynamically generated workflow that adapts to document type and processing requirements.
+    description:
+      `**Objective:** Process and analyze documents through a dynamically generated workflow that adapts to document type and processing requirements.
 
 **Dynamic Workflow Generation:**
 I analyze each document processing request and dynamically create an optimal workflow with these potential phases:
@@ -168,18 +169,21 @@ export const server = await mcpc(
                     is_supported: isSupported,
                     format_matches: formatMatch,
                     supported_formats: supportedFormats,
-                    validation_result:
-                      isSupported && formatMatch ? "VALID" : "INVALID",
+                    validation_result: isSupported && formatMatch
+                      ? "VALID"
+                      : "INVALID",
                     recommendations: !isSupported
-                      ? `Format '${extension}' is not supported. Supported formats: ${supportedFormats.join(
-                          ", "
-                        )}`
+                      ? `Format '${extension}' is not supported. Supported formats: ${
+                        supportedFormats.join(
+                          ", ",
+                        )
+                      }`
                       : !formatMatch
                       ? `Format mismatch: expected '${expected_format}', got '${extension}'`
                       : "Document format is valid for processing",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -192,21 +196,22 @@ export const server = await mcpc(
                 text: JSON.stringify(
                   {
                     error: "Failed to validate document format",
-                    details:
-                      error instanceof Error ? error.message : "Unknown error",
+                    details: error instanceof Error
+                      ? error.message
+                      : "Unknown error",
                     file_path,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
           };
         }
       },
-      { internal: true } // This makes it an internal tool
+      { internal: true }, // This makes it an internal tool
     );
-  }
+  },
 );
 
 const transport = new StdioServerTransport();

@@ -249,7 +249,8 @@ Agent can now start a new workflow if needed by calling \`{toolName}\` with \`in
         "Error: Workflow not initialized. Please provide 'init' and 'steps' parameter to start a new workflow.",
     },
     ALREADY_AT_FINAL: "Error: Cannot proceed, already at the final step.",
-    CANNOT_COMPLETE_NOT_AT_FINAL: "Error: Cannot complete workflow - you are not at the final step. Please use decision=proceed to continue to the next step.",
+    CANNOT_COMPLETE_NOT_AT_FINAL:
+      "Error: Cannot complete workflow - you are not at the final step. Please use decision=proceed to continue to the next step.",
     NO_STEPS_PROVIDED: "Error: No steps provided",
     NO_CURRENT_STEP: "Error: No current step to execute",
   },

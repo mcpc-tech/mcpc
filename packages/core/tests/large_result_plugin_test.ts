@@ -41,22 +41,30 @@ Deno.test("large-result plugin truncates and enables search", async () => {
 
   // Invoke tool to trigger large-result handling
   const res = (await server.callTool("huge_output", {})) as any;
-  const text = res?.content?.find((c: any) => c.type === "text")?.text as string;
+  const text = res?.content?.find((c: any) => c.type === "text")
+    ?.text as string;
 
   if (!text || !text.includes("Result too large") || !text.includes("File:")) {
-    throw new Error("Large-result plugin did not report truncation and file path");
+    throw new Error(
+      "Large-result plugin did not report truncation and file path",
+    );
   }
 
   // Extract saved file path
-  const match = text.match(/File:\*\*\s+(.+)\n/) || text.match(/File:\s+(.+)\n/);
+  const match = text.match(/File:\*\*\s+(.+)\n/) ||
+    text.match(/File:\s+(.+)\n/);
   const filePath = match?.[1]?.trim();
   if (!filePath) {
     throw new Error("Could not extract file path from plugin message");
   }
 
   // Search for the sentinel in the saved file
-  const search = (await server.callTool("search-tool-result", { pattern: "SENTINEL", path: filePath })) as any;
-  const out = search?.content?.find((c: any) => c.type === "text")?.text as string;
+  const search = (await server.callTool("search-tool-result", {
+    pattern: "SENTINEL",
+    path: filePath,
+  })) as any;
+  const out = search?.content?.find((c: any) => c.type === "text")
+    ?.text as string;
   if (!out || !(out.includes("Found") || out.includes("matches"))) {
     throw new Error(`Search did not return expected matches. Output: ${out}`);
   }

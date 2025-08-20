@@ -14,7 +14,7 @@ Deno.test("callTool resolves tools from registry (no config)", async () => {
         // no deps, defaults to agentic mode
       } as any,
     ],
-  (server: any) => {
+    (server: any) => {
       // Register a tool without any visibility config entry
       server.tool(
         "cls_SearchLog",

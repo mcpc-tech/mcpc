@@ -24,7 +24,7 @@ interface ProcessToolTagsParams {
 function findToolId(
   toolName: string,
   tools: Record<string, ComposedTool>,
-  toolNameMapping?: Map<string, string>
+  toolNameMapping?: Map<string, string>,
 ): string | undefined {
   // Try mapping first
   const mappedId = toolNameMapping?.get(toolName);
@@ -68,7 +68,7 @@ export function processToolTags({
       if (toolId) {
         description = description.replace(
           $(toolEl).prop("outerHTML")!,
-          `<action action="${toolId}"/>`
+          `<action action="${toolId}"/>`,
         );
       }
     }

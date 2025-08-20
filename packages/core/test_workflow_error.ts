@@ -17,4 +17,6 @@ console.log("2. New CANNOT_COMPLETE_NOT_AT_FINAL message:");
 console.log("   " + WorkflowPrompts.ERRORS.CANNOT_COMPLETE_NOT_AT_FINAL);
 console.log();
 
-console.log("✅ Both error messages are available and properly differentiated!");
+console.log(
+  "✅ Both error messages are available and properly differentiated!",
+);

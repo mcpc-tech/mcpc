@@ -27,7 +27,7 @@ export function createArgsDefFactory(
     }
     return `\n\n## Required Actions
 The workflow MUST include at least one of these actions:
-${ensureStepActions.map(action => `- \`${action}\``).join('\n')}`;
+${ensureStepActions.map((action) => `- \`${action}\``).join("\n")}`;
   };
 
   return {

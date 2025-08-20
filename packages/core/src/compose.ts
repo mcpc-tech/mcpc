@@ -27,15 +27,12 @@ import {
 // Import plugin types and utilities
 import type {
   ComposedTool,
-  ToolPlugin,
-  ToolConfig,
-  TransformContext,
   ComposeEndContext,
+  ToolConfig,
+  ToolPlugin,
+  TransformContext,
 } from "./plugin-types.ts";
-import {
-  shouldApplyPlugin,
-  loadPlugin,
-} from "./plugin-utils.ts";
+import { loadPlugin, shouldApplyPlugin } from "./plugin-utils.ts";
 
 const ALL_TOOLS_PLACEHOLDER = "__ALL__";
 
@@ -87,8 +84,8 @@ export class ComposableMCPServer extends Server {
    * Check if a tool exists in storage
    */
   private hasToolInStorage(name: string): boolean {
-  // Treat tool existence as presence in the runtime registry (external or internal)
-  return this.toolRegistry.has(name);
+    // Treat tool existence as presence in the runtime registry (external or internal)
+    return this.toolRegistry.has(name);
   }
 
   /**
@@ -345,13 +342,13 @@ export class ComposableMCPServer extends Server {
     if (plugin.configureServer) {
       await plugin.configureServer(this);
     }
-    
+
     this.globalPlugins.push(plugin);
   }
 
   /**
    * Load and register a plugin from a file path with optional parameters
-   * 
+   *
    * Supports parameter passing via query string syntax:
    * loadPluginFromPath("path/to/plugin.ts?param1=value1&param2=value2")
    */
@@ -397,7 +394,7 @@ export class ComposableMCPServer extends Server {
         }
       }
     }
-    
+
     return currentTool;
   }
 
@@ -421,7 +418,11 @@ export class ComposableMCPServer extends Server {
         execute: toolData.callback,
       };
 
-      const processedTool = await this.applyTransformToolHooks(tempTool, toolId, mode);
+      const processedTool = await this.applyTransformToolHooks(
+        tempTool,
+        toolId,
+        mode,
+      );
 
       this.toolRegistry.set(toolId, {
         callback: processedTool.execute,
@@ -442,11 +443,13 @@ export class ComposableMCPServer extends Server {
   /**
    * Trigger composeEnd hooks for all plugins
    */
-  private async triggerComposeEndHooks(context: ComposeEndContext): Promise<void> {
-    const endPlugins = this.globalPlugins.filter(p => 
+  private async triggerComposeEndHooks(
+    context: ComposeEndContext,
+  ): Promise<void> {
+    const endPlugins = this.globalPlugins.filter((p) =>
       p.composeEnd && shouldApplyPlugin(p, context.mode)
     );
-    
+
     for (const plugin of endPlugins) {
       if (plugin.composeEnd) {
         await plugin.composeEnd(context);
@@ -570,13 +573,13 @@ export class ComposableMCPServer extends Server {
 
     // For agentic interface: external tools (non-hidden) + internal tools
     const allToolNames = [...externalToolNames, ...internalToolNames];
-    
+
     // Trigger composition complete hooks
     await this.triggerComposeEndHooks({
       serverName: name,
       externalToolNames,
       internalToolNames,
-      pluginNames: this.globalPlugins.map(p => p.name),
+      pluginNames: this.globalPlugins.map((p) => p.name),
       totalTools: allToolNames.length,
       mode: options.mode ?? "agentic",
       server: this,
