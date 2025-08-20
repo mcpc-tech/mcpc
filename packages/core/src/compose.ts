@@ -24,62 +24,20 @@ import {
   processToolVisibility,
 } from "./plugins/built-in/index.ts";
 
-export interface ComposedTool extends Tool {
-  execute: ToolCallback;
-}
+// Import plugin types and utilities
+import type {
+  ComposedTool,
+  ToolPlugin,
+  ToolConfig,
+  TransformContext,
+  ComposeEndContext,
+} from "./plugin-types.ts";
+import {
+  shouldApplyPlugin,
+  loadPlugin,
+} from "./plugin-utils.ts";
 
 const ALL_TOOLS_PLACEHOLDER = "__ALL__";
-
-/**
- * Simple and unified tool extension system
- */
-export interface ToolPlugin {
-  /** Plugin name for identification */
-  name: string;
-  /** Initialize plugin - called once when plugin is added to server */
-  init?: (server: ComposableMCPServer) => void | Promise<void>;
-  /** Transform tool behavior */
-  transform?: (
-    tool: ComposedTool,
-    context: PluginContext,
-  ) => ComposedTool | void;
-  /** When to apply this plugin - 'compose' (during composition) or 'runtime' (during execution) */
-  when?: "compose" | "runtime";
-  /** Plugin execution order - 'pre' (before core), 'post' (after core), or default */
-  enforce?: "pre" | "post";
-}
-
-export type PluginOption =
-  | ToolPlugin
-  | ToolPlugin[]
-  | (() => ToolPlugin | ToolPlugin[] | null | undefined)
-  | null
-  | undefined
-  | false;
-
-export interface PluginContext {
-  /** Tool name */
-  toolName: string;
-  /** Server instance for accessing other tools */
-  server: ComposableMCPServer;
-  /** Current execution mode */
-  mode: "compose" | "runtime";
-}
-
-/** Simple tool configuration options */
-export interface ToolConfig {
-  /** Override the tool's description */
-  description?: string;
-  /** Tool visibility and access settings */
-  visibility?: {
-    /** Hide the tool from composed tools context */
-    hide?: boolean;
-    /** Register the tool as a global tool in the server's public tool list */
-    global?: boolean;
-    /** Internal tool - not visible in public list but accessible via callTool */
-    internal?: boolean;
-  };
-}
 
 export class ComposableMCPServer extends Server {
   private tools: Tool[] = [];
@@ -112,50 +70,17 @@ export class ComposableMCPServer extends Server {
 
   /**
    * Apply plugin transformations to tool arguments/results
+   * TODO: Implement transformResult lifecycle hooks
    */
   private applyPluginTransforms(
-    toolName: string,
+    _toolName: string,
     args: unknown,
-    mode: "input" | "output",
+    _mode: "input" | "output",
     _originalArgs?: unknown,
   ): unknown {
-    const plugins = this.globalPlugins.filter(
-      (p) => p.when === "runtime" || !p.when,
-    );
-
-    return plugins.reduce((currentArgs, plugin) => {
-      const tempTool: ComposedTool = {
-        name: toolName,
-        description: `Plugin transform for ${toolName}`,
-        inputSchema: {
-          type: "object",
-          properties: {},
-          additionalProperties: true,
-        },
-        execute: mode === "input"
-          ? (args) => ({ content: [{ type: "text", text: String(args) }] })
-          : (args) => ({ content: [{ type: "text", text: String(args) }] }),
-      };
-
-      const context: PluginContext = {
-        toolName,
-        server: this,
-        mode: "runtime",
-      };
-
-      const result = plugin.transform?.(tempTool, context);
-
-      if (result?.execute) {
-        try {
-          const transformed = result.execute(currentArgs);
-          return mode === "output" ? transformed : currentArgs;
-        } catch {
-          return currentArgs;
-        }
-      }
-
-      return currentArgs;
-    }, args);
+    // For now, just return args unchanged
+    // TODO: Implement transformResult hooks for runtime transformation
+    return args;
   }
 
   /**
@@ -232,13 +157,10 @@ export class ComposableMCPServer extends Server {
       const { name: toolName, arguments: args } = request.params;
 
       // Get handler (try to find custom plugin handler or regular tool callback)
-      let handler = this.getToolCallback(toolName);
+      const handler = this.getToolCallback(toolName);
       if (!handler) {
         throw new Error(`Tool ${toolName} not found`);
       }
-
-      // Apply runtime plugins
-      handler = this.applyRuntimePlugins(handler, toolName);
 
       // Apply plugin transformations
       const processedArgs = this.applyPluginTransforms(toolName, args, "input");
@@ -289,12 +211,10 @@ export class ComposableMCPServer extends Server {
       throw new Error(`Tool ${name} not found`);
     }
 
-    let callback = this.getToolCallback(resolvedName);
+    const callback = this.getToolCallback(resolvedName);
     if (!callback) {
       throw new Error(`Tool ${name} not found`);
     }
-
-    callback = this.applyRuntimePlugins(callback, resolvedName);
 
     const processedArgs = this.applyPluginTransforms(
       resolvedName,
@@ -395,7 +315,7 @@ export class ComposableMCPServer extends Server {
    * // Global plugin for all tools
    * server.addPlugin({
    *   name: 'logger',
-   *   transform: (tool) => {
+   *   transformTool: (tool, context) => {
    *     const originalExecute = tool.execute;
    *     tool.execute = async (args, extra) => {
    *       console.log(`Calling ${tool.name} with:`, args);
@@ -403,126 +323,79 @@ export class ComposableMCPServer extends Server {
    *       console.log(`Result:`, result);
    *       return result;
    *     };
+   *     return tool;
    *   }
    * });
    * ```
    */
   async addPlugin(plugin: ToolPlugin): Promise<void> {
-    if (plugin.init) {
-      await plugin.init(this);
+    // Call configureServer hook immediately when plugin is added
+    if (plugin.configureServer) {
+      await plugin.configureServer(this);
     }
     
     this.globalPlugins.push(plugin);
   }
 
   /**
-   * Load plugin from file path
-   * @param pluginPath - Path to the plugin file
-   * @example
-   * ```typescript
-   * // Load global plugin from file
-   * await server.loadPlugin('./my-plugin.js');
-   * ```
+   * Load and register a plugin from a file path with optional parameters
+   * 
+   * Supports parameter passing via query string syntax:
+   * loadPluginFromPath("path/to/plugin.ts?param1=value1&param2=value2")
    */
-  async loadPlugin(pluginPath: string): Promise<void> {
-    try {
-      const pluginModule = await import(pluginPath);
-      const plugin = pluginModule.default || pluginModule;
-
-      if (plugin && typeof plugin.apply === "function") {
-        this.addPlugin(plugin);
-      } else {
-        throw new Error(`Invalid plugin format in ${pluginPath}`);
-      }
-    } catch (error) {
-      throw new Error(`Failed to load plugin from ${pluginPath}: ${error}`);
-    }
+  async loadPluginFromPath(pluginPath: string): Promise<void> {
+    const plugin = await loadPlugin(pluginPath);
+    this.addPlugin(plugin);
   }
 
   /**
-   * Apply compose-time plugins to a tool
+   * Apply transformTool hook to a tool during composition
    */
-  private applyComposePlugins(
+  private async applyTransformToolHooks(
     tool: ComposedTool,
     toolName: string,
-  ): ComposedTool {
-    const composePlugins = this.globalPlugins.filter(
-      (p) => p.when === "compose" || !p.when,
+    mode: "agentic" | "agentic_workflow",
+  ): Promise<ComposedTool> {
+    const transformPlugins = this.globalPlugins.filter(
+      (p) => p.transformTool && shouldApplyPlugin(p, mode),
     );
 
-    if (composePlugins.length === 0) {
+    if (transformPlugins.length === 0) {
       return tool;
     }
 
     const sortedPlugins = [
-      ...composePlugins.filter((p) => p.enforce === "pre"),
-      ...composePlugins.filter((p) => !p.enforce),
-      ...composePlugins.filter((p) => p.enforce === "post"),
+      ...transformPlugins.filter((p) => p.enforce === "pre"),
+      ...transformPlugins.filter((p) => !p.enforce),
+      ...transformPlugins.filter((p) => p.enforce === "post"),
     ];
 
-    const context: PluginContext = {
+    const context: TransformContext = {
       toolName,
       server: this,
-      mode: "compose",
+      mode,
     };
 
-    return sortedPlugins.reduce((currentTool, plugin) => {
-      const result = plugin.transform?.(currentTool, context);
-      return result || currentTool;
-    }, tool);
-  }
-
-  /**
-   * Apply runtime plugins to a tool callback during execution
-   */
-  private applyRuntimePlugins(
-    callback: ToolCallback,
-    toolName: string,
-  ): ToolCallback {
-    const runtimePlugins = this.globalPlugins.filter(
-      (p) => p.when === "runtime" || !p.when,
-    );
-
-    if (runtimePlugins.length === 0) {
-      return callback;
+    let currentTool = tool;
+    for (const plugin of sortedPlugins) {
+      if (plugin.transformTool) {
+        const result = await plugin.transformTool(currentTool, context);
+        if (result) {
+          currentTool = result;
+        }
+      }
     }
-
-    // Sort plugins by enforcement order
-    const sortedPlugins = [
-      ...runtimePlugins.filter((p) => p.enforce === "pre"),
-      ...runtimePlugins.filter((p) => !p.enforce),
-      ...runtimePlugins.filter((p) => p.enforce === "post"),
-    ];
-
-    return sortedPlugins.reduce((currentCallback, plugin) => {
-      const tempTool: ComposedTool = {
-        name: toolName,
-        description: `Runtime execution of ${toolName}`,
-        inputSchema: {
-          type: "object",
-          properties: {},
-          additionalProperties: true,
-        },
-        execute: currentCallback,
-      };
-
-      const context: PluginContext = {
-        toolName,
-        server: this,
-        mode: "runtime",
-      };
-
-      const result = plugin.transform?.(tempTool, context);
-      return result?.execute || currentCallback;
-    }, callback);
+    
+    return currentTool;
   }
 
   /**
    * Apply plugins to all tools in registry and handle visibility configurations
    */
-  private processAllToolsWithPlugins(
+  private async processAllToolsWithPlugins(
     externalTools: Record<string, ComposedTool>,
-  ): void {
+    mode: "agentic" | "agentic_workflow",
+  ): Promise<void> {
     for (const [toolId, toolData] of this.toolRegistry.entries()) {
       const defaultSchema = {
         type: "object",
@@ -536,7 +409,7 @@ export class ComposableMCPServer extends Server {
         execute: toolData.callback,
       };
 
-      const processedTool = this.applyComposePlugins(tempTool, toolId);
+      const processedTool = await this.applyTransformToolHooks(tempTool, toolId, mode);
 
       this.toolRegistry.set(toolId, {
         callback: processedTool.execute,
@@ -550,6 +423,21 @@ export class ComposableMCPServer extends Server {
         if (externalTools[toolId]) {
           externalTools[toolId] = processedTool;
         }
+      }
+    }
+  }
+
+  /**
+   * Trigger composeEnd hooks for all plugins
+   */
+  private async triggerComposeEndHooks(context: ComposeEndContext): Promise<void> {
+    const endPlugins = this.globalPlugins.filter(p => 
+      p.composeEnd && shouldApplyPlugin(p, context.mode)
+    );
+    
+    for (const plugin of endPlugins) {
+      if (plugin.composeEnd) {
+        await plugin.composeEnd(context);
       }
     }
   }
@@ -649,7 +537,7 @@ export class ComposableMCPServer extends Server {
     });
 
     // Apply plugins to all tools and handle visibility configurations
-    this.processAllToolsWithPlugins(tools);
+    await this.processAllToolsWithPlugins(tools, options.mode ?? "agentic");
 
     const toolNameToDetailList = Object.entries(tools);
     const externalToolNames = toolNameToDetailList.map(([name]) => name);
@@ -657,13 +545,17 @@ export class ComposableMCPServer extends Server {
 
     // For agentic interface: external tools (non-hidden) + internal tools
     const allToolNames = [...externalToolNames, ...internalToolNames];
-    console.log(
-      `[${name}][composed tools] external: ${
-        externalToolNames.join(
-          ", ",
-        )
-      } | internal: ${internalToolNames.join(", ")}`,
-    );
+    
+    // Trigger composition complete hooks
+    await this.triggerComposeEndHooks({
+      serverName: name,
+      externalToolNames,
+      internalToolNames,
+      pluginNames: this.globalPlugins.map(p => p.name),
+      totalTools: allToolNames.length,
+      mode: options.mode ?? "agentic",
+      server: this,
+    });
 
     const depGroups: Record<string, unknown> = {};
     toolNameToDetailList.forEach(([toolName, tool]) => {

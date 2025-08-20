@@ -1,5 +1,9 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
-import type { ComposedTool, ToolPlugin } from "../../compose.ts";
+import {
+  ComposedTool,
+  ToolPlugin,
+  TransformContext,
+} from "../../plugin-types.ts";
 
 /**
  * Built-in plugin that handles tool visibility configurations
@@ -7,9 +11,8 @@ import type { ComposedTool, ToolPlugin } from "../../compose.ts";
  */
 export const createVisibilityPlugin = (): ToolPlugin => ({
   name: "built-in-visibility",
-  when: "compose",
   enforce: "post", // Apply after other transformations
-  transform: (tool, context) => {
+  transformTool: (tool, context: TransformContext) => {
     const server = context.server as any;
     const config = server.findToolConfig?.(context.toolName);
 
@@ -32,7 +35,7 @@ export function processToolVisibility(
   toolId: string,
   tool: ComposedTool,
   server: any,
-  externalTools: Record<string, ComposedTool>,
+  externalTools: Record<string, ComposedTool>
 ): void {
   const visibility = (tool as any)._visibility;
 
@@ -52,3 +55,9 @@ export function processToolVisibility(
   }
   // For normal visibility, keep in externalTools
 }
+
+// Export factory function for parameterized usage
+export const createPlugin = createVisibilityPlugin;
+
+// Default export for static usage
+export default createVisibilityPlugin();

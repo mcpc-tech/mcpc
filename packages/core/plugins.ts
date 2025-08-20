@@ -28,7 +28,7 @@
  * import largeResultPlugin from "@mcpc/core/plugins/large-result";
  *
  * const server = await mcpc([...], [...]);
- * 
+ *
  * // Use plugins with default settings
  * await server.addPlugin(searchPlugin);
  * await server.addPlugin(largeResultPlugin);
@@ -46,5 +46,4 @@ export { default as defaultSearchPlugin } from "./src/plugins/search-tool.ts";
 export { default as defaultLargeResultPlugin } from "./src/plugins/large-result.ts";
 
 // Export plugin types for advanced users
-export type { ToolPlugin } from "./src/compose.ts";
 export type { SearchOptions } from "./src/plugins/search-tool.ts";

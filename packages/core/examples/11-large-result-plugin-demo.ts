@@ -7,7 +7,7 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { mcpc } from "../src/set-up-mcp-compose.ts";
-import { createLargeResultPlugin } from "../plugins.ts";
+// import { createLargeResultPlugin } from "../plugins.ts";
 import { jsonSchema } from "ai";
 
 const server = await mcpc(
@@ -17,7 +17,11 @@ const server = await mcpc(
       name: "large-output-handler",
       description:
         "Agent that demonstrates automatic large output handling and file storage",
-      plugins: [createLargeResultPlugin()],
+      plugins: [
+        "./plugins/large-result.ts?maxSize=8000&previewSize=4000",
+        // create a large result plugin instance
+        // createLargeResultPlugin(),
+      ],
     },
   ],
   (server) => {
@@ -39,9 +43,9 @@ const server = await mcpc(
         }
         return { content: [{ type: "text", text }] };
       },
-      { internal: true },
+      { internal: true }
     );
-  },
+  }
 );
 
 const transport = new StdioServerTransport();

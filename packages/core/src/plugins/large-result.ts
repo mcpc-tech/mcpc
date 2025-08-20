@@ -5,8 +5,8 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import type { ToolPlugin } from "../compose.ts";
 import { createSearchPlugin, type SearchOptions } from "./search-tool.ts";
+import { ToolPlugin } from "../plugin-types.ts";
 
 interface PluginOptions {
   maxSize?: number;
@@ -25,6 +25,7 @@ export function createLargeResultPlugin(
   const maxSize = options.maxSize || 8000;
   const previewSize = options.previewSize || 4000;
   let tempDir: string | null = options.tempDir || null;
+  let searchPluginAdded = false;
 
   const searchConfig: SearchOptions = {
     maxResults: options.search?.maxResults || 15,
@@ -33,14 +34,15 @@ export function createLargeResultPlugin(
 
   return {
     name: "plugin-large-result-handler",
-    when: "compose",
-    init: async (server) => {
-      const searchPlugin = createSearchPlugin({
-        ...searchConfig,
-      });
-      await server.addPlugin(searchPlugin);
+    configureServer: async (server) => {
+      // Add search plugin once during server configuration
+      if (!searchPluginAdded) {
+        const searchPlugin = createSearchPlugin(searchConfig);
+        await server.addPlugin(searchPlugin);
+        searchPluginAdded = true;
+      }
     },
-    transform: (tool, _context) => {
+    transformTool: (tool, context) => {
       const originalExecute = tool.execute;
 
       tool.execute = async (args: unknown) => {
@@ -55,7 +57,7 @@ export function createLargeResultPlugin(
           tempDir = await mkdtemp(join(tmpdir(), "mcpc-results-"));
         }
 
-        const fileName = `${tool.name}-${Date.now()}.txt`;
+        const fileName = `${context.toolName}-${Date.now()}.txt`;
         const filePath = join(tempDir, fileName);
         await writeFile(filePath, resultText);
 
@@ -96,5 +98,8 @@ const defaultLargeResultPlugin: ToolPlugin = createLargeResultPlugin({
   maxSize: 8000,
   previewSize: 4000,
 });
+
+// Export factory function for parameterized usage
+export const createPlugin = createLargeResultPlugin;
 
 export default defaultLargeResultPlugin;

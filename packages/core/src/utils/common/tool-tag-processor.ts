@@ -1,7 +1,7 @@
 import type { CheerioAPI } from "cheerio";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { ToolCallback } from "../../types.ts";
-import type { ToolConfig } from "../../compose.ts";
+import { ToolConfig } from "../../plugin-types.ts";
 
 interface ComposedTool extends Tool {
   execute: ToolCallback;
@@ -24,7 +24,7 @@ interface ProcessToolTagsParams {
 function findToolId(
   toolName: string,
   tools: Record<string, ComposedTool>,
-  toolNameMapping?: Map<string, string>,
+  toolNameMapping?: Map<string, string>
 ): string | undefined {
   // Try mapping first
   const mappedId = toolNameMapping?.get(toolName);
@@ -68,7 +68,7 @@ export function processToolTags({
       if (toolId) {
         description = description.replace(
           $(toolEl).prop("outerHTML")!,
-          `<action action="${toolId}"/>`,
+          `<action action="${toolId}"/>`
         );
       }
     }

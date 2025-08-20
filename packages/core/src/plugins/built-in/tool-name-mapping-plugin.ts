@@ -1,4 +1,4 @@
-import type { ToolPlugin } from "../../compose.ts";
+import { ToolPlugin, TransformContext } from "../../plugin-types.ts";
 
 /**
  * Built-in plugin that handles tool name mapping between dot and underscore notation
@@ -6,9 +6,8 @@ import type { ToolPlugin } from "../../compose.ts";
  */
 export const createToolNameMappingPlugin = (): ToolPlugin => ({
   name: "built-in-tool-name-mapping",
-  when: "compose",
   enforce: "pre", // Apply early to establish mappings
-  transform: (tool, context) => {
+  transformTool: (tool, context: TransformContext) => {
     const server = context.server as any;
     const toolName = context.toolName;
 
@@ -29,3 +28,9 @@ export const createToolNameMappingPlugin = (): ToolPlugin => ({
     return tool;
   },
 });
+
+// Export factory function for parameterized usage
+export const createPlugin = createToolNameMappingPlugin;
+
+// Default export for static usage
+export default createToolNameMappingPlugin();
