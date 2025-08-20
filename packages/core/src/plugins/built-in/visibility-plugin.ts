@@ -1,5 +1,5 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
-import {
+import type {
   ComposedTool,
   ToolPlugin,
   TransformContext,

@@ -6,7 +6,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createSearchPlugin, type SearchOptions } from "./search-tool.ts";
-import { ToolPlugin } from "../plugin-types.ts";
+import type { ToolPlugin } from "../plugin-types.ts";
 
 interface PluginOptions {
   maxSize?: number;
@@ -25,7 +25,8 @@ export function createLargeResultPlugin(
   const maxSize = options.maxSize || 8000;
   const previewSize = options.previewSize || 4000;
   let tempDir: string | null = options.tempDir || null;
-  let searchPluginAdded = false;
+  // Track servers that already received the search plugin to avoid duplicates per server
+  const serversConfigured = new WeakSet<object>();
 
   const searchConfig: SearchOptions = {
     maxResults: options.search?.maxResults || 15,
@@ -36,11 +37,11 @@ export function createLargeResultPlugin(
   return {
     name: "plugin-large-result-handler",
     configureServer: async (server) => {
-      // Add search plugin once during server configuration
-      if (!searchPluginAdded) {
+      // Add search plugin for this specific server (once per server)
+      if (!serversConfigured.has(server)) {
         const searchPlugin = createSearchPlugin(searchConfig);
         await server.addPlugin(searchPlugin);
-        searchPluginAdded = true;
+        serversConfigured.add(server);
       }
     },
     transformTool: (tool, context) => {

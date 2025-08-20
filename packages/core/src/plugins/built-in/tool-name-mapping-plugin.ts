@@ -1,4 +1,4 @@
-import { ToolPlugin, TransformContext } from "../../plugin-types.ts";
+import type { ToolPlugin, TransformContext } from "../../plugin-types.ts";
 
 /**
  * Built-in plugin that handles tool name mapping between dot and underscore notation

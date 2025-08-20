@@ -5,7 +5,7 @@ import type { MCPCStep } from "./utils/state.ts";
 import type { MCPSetting } from "./service/tools.ts";
 import process from "node:process";
 import type { SamplingConfig } from "./types.ts";
-import { ToolPlugin } from "./plugin-types.ts";
+import type { ToolPlugin } from "./plugin-types.ts";
 
 export const INCOMING_MSG_ROUTE_PATH = "/core/messages";
 

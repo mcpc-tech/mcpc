@@ -87,22 +87,32 @@ export class ComposableMCPServer extends Server {
    * Check if a tool exists in storage
    */
   private hasToolInStorage(name: string): boolean {
-    return this.toolConfigs.has(name);
+  // Treat tool existence as presence in the runtime registry (external or internal)
+  return this.toolRegistry.has(name);
   }
 
   /**
    * Resolve a tool name to its internal format
    */
   private resolveToolName(name: string): string | undefined {
-    // Try exact match first
-    if (this.hasToolInStorage(name)) {
+    // Try exact match in runtime registry first
+    if (this.toolRegistry.has(name)) {
       return name;
     }
 
-    // Try mapping lookup
+    // Try mapping lookup (dot <-> underscore, or other mappings established by plugins)
     const mappedName = this.toolNameMapping.get(name);
-    if (mappedName && this.hasToolInStorage(mappedName)) {
+    if (mappedName && this.toolRegistry.has(mappedName)) {
       return mappedName;
+    }
+
+    // As a fallback, check if name corresponds to a configured alias (visibility overrides),
+    // then see if a mapping exists from that to a real tool in the registry
+    if (this.toolConfigs.has(name)) {
+      const cfgMapped = this.toolNameMapping.get(name);
+      if (cfgMapped && this.toolRegistry.has(cfgMapped)) {
+        return cfgMapped;
+      }
     }
 
     return undefined;
@@ -262,7 +272,9 @@ export class ComposableMCPServer extends Server {
    * Check if a tool exists (visible or internal)
    */
   hasToolNamed(name: string): boolean {
-    return this.toolConfigs.has(name);
+    return this.toolRegistry.has(name) ||
+      (this.toolNameMapping.has(name) &&
+        this.toolRegistry.has(this.toolNameMapping.get(name)!));
   }
 
   /**
@@ -473,6 +485,19 @@ export class ComposableMCPServer extends Server {
       depsConfig,
       ({ mcpName, toolNameWithScope, toolId }) => {
         toolNameToIdMapping.set(toolNameWithScope, toolId);
+
+        // Populate server-level name mappings for easier resolution at runtime
+        // 1) Map fully-scoped name (e.g., "server.SearchLog") -> toolId
+        this.toolNameMapping.set(toolNameWithScope, toolId);
+
+        // 2) Map bare internal tool name when unambiguous
+        //    Extract internal part after the first dot if present
+        const internalName = toolNameWithScope.includes(".")
+          ? toolNameWithScope.split(".").slice(1).join(".")
+          : toolNameWithScope;
+        if (!this.toolNameMapping.has(internalName)) {
+          this.toolNameMapping.set(internalName, toolId);
+        }
 
         const matchingStep = options.steps?.find((step) =>
           step.actions.includes(toolNameWithScope)

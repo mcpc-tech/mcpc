@@ -1,4 +1,4 @@
-import { ComposeEndContext, ToolPlugin } from "../../plugin-types.ts";
+import type { ComposeEndContext, ToolPlugin } from "../../plugin-types.ts";
 
 /**
  * Built-in plugin that provides composition logging

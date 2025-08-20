@@ -1,7 +1,7 @@
 import type { CheerioAPI } from "cheerio";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { ToolCallback } from "../../types.ts";
-import { ToolConfig } from "../../plugin-types.ts";
+import type { ToolConfig } from "../../plugin-types.ts";
 
 interface ComposedTool extends Tool {
   execute: ToolCallback;

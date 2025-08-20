@@ -6,7 +6,7 @@
 import rg from "@mcpc-tech/ripgrep-napi";
 import { tmpdir } from "node:os";
 import { jsonSchema } from "ai";
-import { ToolPlugin } from "../plugin-types.ts";
+import type { ToolPlugin } from "../plugin-types.ts";
 
 /**
  * Configuration options for the search plugin
@@ -93,9 +93,10 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
 
             const searchPath = requestedPath;
 
-            // Create timeout promise
+            // Create timeout promise and keep reference to clear it later
+            let timeoutId: ReturnType<typeof setTimeout> | undefined;
             const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => {
+              timeoutId = setTimeout(() => {
                 reject(new Error(`Search timeout after ${timeoutMs}ms`));
               }, timeoutMs);
             });
@@ -115,6 +116,9 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
               searchPromise,
               timeoutPromise,
             ])) as any;
+
+            // Clear timeout to avoid leaking timers
+            if (timeoutId) clearTimeout(timeoutId);
 
             if (!result.success || !result.matches?.length) {
               return {
