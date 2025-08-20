@@ -28,6 +28,7 @@ export function registerAgenticWorkflowTool(
     allToolNames,
     depGroups,
     predefinedSteps,
+    ensureStepActions,
   );
 
   // Determine if sampling mode is enabled and extract config

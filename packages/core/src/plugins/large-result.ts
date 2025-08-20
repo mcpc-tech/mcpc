@@ -30,6 +30,7 @@ export function createLargeResultPlugin(
   const searchConfig: SearchOptions = {
     maxResults: options.search?.maxResults || 15,
     maxOutputSize: options.search?.maxOutputSize || 4000,
+    global: true,
   };
 
   return {

@@ -18,7 +18,18 @@ export function createArgsDefFactory(
   allToolNames: string[],
   depGroups: Record<string, unknown>,
   predefinedSteps?: MCPCStep[],
+  ensureStepActions?: string[],
 ): ArgsDefCreator {
+  // Helper function to format ensureStepActions for display
+  const formatEnsureStepActions = (): string => {
+    if (!ensureStepActions || ensureStepActions.length === 0) {
+      return "";
+    }
+    return `\n\n## Required Actions
+The workflow MUST include at least one of these actions:
+${ensureStepActions.map(action => `- \`${action}\``).join('\n')}`;
+  };
+
   return {
     common: (
       extra: { [n: string]: JSONSchema },
@@ -241,6 +252,7 @@ NOTE: The \`steps\` has been predefined`
       return CompiledPrompts.workflowToolDescription({
         description: description,
         initTitle: initTitle,
+        ensureStepActions: formatEnsureStepActions(),
         schemaDefinition: JSON.stringify(enforceToolArgs, null, 2),
       });
     },

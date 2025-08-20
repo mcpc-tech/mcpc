@@ -168,8 +168,9 @@ export const WorkflowPrompts = {
 - **MUST Use the provided JSON schema definition above for parameter generation and validation**
 - **ADVANCE STEP: Set 'decision' to "proceed" to advance to next step**
 - **RETRY STEP: Set 'decision' to "retry" to re-execute current step**  
-- **FINAL STEP: Execute normally for workflow completion**
+- **FINAL STEP: Execute normally for workflow completion, do NOT use 'decision: complete' unless workflow is truly finished**
 - **⚠️ CRITICAL: When retrying failed steps, MUST set 'decision' to "retry"**
+- **⚠️ CRITICAL: Only use 'decision: complete' when the entire workflow has been successfully executed**
 
 {workflowSteps}`,
 
@@ -178,6 +179,7 @@ export const WorkflowPrompts = {
    */
   WORKFLOW_TOOL_DESCRIPTION: `{description}
 {initTitle}
+{ensureStepActions}
 {schemaDefinition}`,
 
   /**
@@ -247,6 +249,7 @@ Agent can now start a new workflow if needed by calling \`{toolName}\` with \`in
         "Error: Workflow not initialized. Please provide 'init' and 'steps' parameter to start a new workflow.",
     },
     ALREADY_AT_FINAL: "Error: Cannot proceed, already at the final step.",
+    CANNOT_COMPLETE_NOT_AT_FINAL: "Error: Cannot complete workflow - you are not at the final step. Please use decision=proceed to continue to the next step.",
     NO_STEPS_PROVIDED: "Error: No steps provided",
     NO_CURRENT_STEP: "Error: No current step to execute",
   },

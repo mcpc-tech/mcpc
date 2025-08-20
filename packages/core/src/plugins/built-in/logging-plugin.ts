@@ -30,11 +30,17 @@ export const createLoggingPlugin = (
       } else if (verbose) {
         console.log(`🧩 [${context.serverName}]`);
         console.log(`   ├─ Plugins: ${context.pluginNames.join(", ")}`);
-        console.log(
-          `   └─ Tools: external: ${
-            context.externalToolNames.join(", ") || "none"
-          } | internal: ${context.internalToolNames.join(", ") || "none"}`
-        );
+        
+        // Get all tool information from server
+        const server = context.server;
+        const allToolNames = server.getAllToolNames?.() || [];
+        const publicTools = server.tools || [];
+        const globalToolNames = publicTools.map((t: any) => t.name);
+        
+        console.log(`   ├─ External: ${context.externalToolNames.join(", ") || "none"}`);
+        console.log(`   ├─ Internal: ${context.internalToolNames.join(", ") || "none"}`);
+        console.log(`   ├─ Global: ${globalToolNames.join(", ") || "none"}`);
+        console.log(`   └─ Total: ${allToolNames.length} tools (${allToolNames.join(", ")})`);
       }
     },
   };

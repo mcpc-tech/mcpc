@@ -216,7 +216,7 @@ export class WorkflowExecutor {
             content: [
               {
                 type: "text",
-                text: WorkflowPrompts.ERRORS.ALREADY_AT_FINAL,
+                text: WorkflowPrompts.ERRORS.CANNOT_COMPLETE_NOT_AT_FINAL,
               },
             ],
             isError: true,

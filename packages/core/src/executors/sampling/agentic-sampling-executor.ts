@@ -86,6 +86,8 @@ export class SamplingExecutor extends BaseSamplingExecutor {
       this.name,
       this.allToolNames,
       this.buildDepGroups(),
+      undefined,
+      undefined,
     );
 
     const agenticSchema = createArgsDef.forAgentic(
