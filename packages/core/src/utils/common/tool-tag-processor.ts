@@ -62,17 +62,17 @@ export function processToolTags({
 
     if (isHidden) {
       // Remove the tag completely for hidden tools
-      description = description.replace($(toolEl).prop("outerHTML")!, "");
+      // Manipulate DOM directly instead of brittle string replace
+      $(toolEl).remove();
     } else {
       const toolId = findToolId(toolName, tools, toolNameMapping);
       if (toolId) {
-        description = description.replace(
-          $(toolEl).prop("outerHTML")!,
-          `<action action="${toolId}"/>`,
-        );
+        // Replace <tool> with <action action="..."/> in the DOM
+        $(toolEl).replaceWith(`<action action="${toolId}"/>`);
       }
     }
   });
 
-  return description;
+  // Return the updated HTML from the DOM; fallback to original if undefined
+  return $.root().html() ?? description;
 }
