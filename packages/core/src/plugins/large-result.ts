@@ -59,7 +59,9 @@ export function createLargeResultPlugin(
           tempDir = await mkdtemp(join(tmpdir(), "mcpc-results-"));
         }
 
-        const fileName = `${context.toolName}-${Date.now()}.txt`;
+        // Sanitize tool name for safe filename usage (avoid creating nested paths)
+        const safeToolName = encodeURIComponent(context.toolName ?? "tool");
+        const fileName = `${safeToolName}-${Date.now()}.txt`;
         const filePath = join(tempDir, fileName);
         await writeFile(filePath, resultText);
 

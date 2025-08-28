@@ -111,7 +111,9 @@ deno install  # Install dependencies
 Register internal tools (audit, logging) using:
 
 ```typescript
-server.tool("internal-name", "description", schema, callback, { internal: true }); // internal tool
+server.tool("internal-name", "description", schema, callback, {
+  internal: true,
+}); // internal tool
 ```
 
 Internal tools are accessible via `callTool()` but hidden from public MCP
