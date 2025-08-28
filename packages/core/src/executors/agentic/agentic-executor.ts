@@ -143,10 +143,17 @@ export class AgenticExecutor {
   }
 
   // Validate arguments using JSON schema
-  validate(args: Record<string, unknown>, schema: Record<string, unknown>): {
+  validate(
+    args: Record<string, unknown>,
+    schema: Record<string, unknown>,
+  ): {
     valid: boolean;
     error?: string;
   } {
+    // Skip validation for complete decision
+    if (args.decision === "complete") {
+      return { valid: true };
+    }
     const validate = ajv.compile(schema);
     if (!validate(args)) {
       const errors = new AggregateAjvError(validate.errors!);

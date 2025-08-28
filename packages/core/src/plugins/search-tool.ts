@@ -42,7 +42,7 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
       // Register the search tool once during plugin initialization
       server.tool(
         "search-tool-result",
-        `Search files for text patterns. Allowed directory: ${allowedSearchDir}`,
+        `Search for text patterns in files and directories. Use this to find specific content, code, or information within files.`,
         jsonSchema<{ pattern: string; path?: string; maxResults?: number }>({
           type: "object",
           properties: {
@@ -84,7 +84,8 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
                   content: [
                     {
                       type: "text",
-                      text: `❌ Path "${args.path}" not allowed. Must be within: ${allowedSearchDir}`,
+                      text:
+                        `❌ Path "${args.path}" not allowed. Must be within: ${allowedSearchDir}`,
                     },
                   ],
                 };
@@ -125,7 +126,8 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
                 content: [
                   {
                     type: "text",
-                    text: `No matches found for: "${args.pattern}"\n\nTry:\n- **Simpler/ pattern** or \`*\`\n- Check if files exist in: ${searchPath}\n- Use specific file path`,
+                    text:
+                      `No matches found for: "${args.pattern}"\n\nTry:\n- **Simpler pattern** or \`*\`\n- Check if files exist in: ${searchPath}\n- Use specific file path`,
                   },
                 ],
               };
@@ -133,12 +135,14 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
 
             // Build output and check size
             const matches = result.matches.slice(0, limit);
-            let output = `Found ${result.matches.length} matches (showing up to ${matches.length}):\n\n`;
+            let output =
+              `Found ${result.matches.length} matches (showing up to ${matches.length}):\n\n`;
             let matchesIncluded = 0;
 
             for (const match of matches) {
               const baseMatchText = `**${match.path}:${match.lineNumber}**\n`;
-              const fullMatchText = `${baseMatchText}\`\`\`\n${match.line}\n\`\`\`\n\n`;
+              const fullMatchText =
+                `${baseMatchText}\`\`\`\n${match.line}\n\`\`\`\n\n`;
 
               // Check if adding this match would exceed size limit
               if ((output + fullMatchText).length > maxOutputSize) {
@@ -148,7 +152,8 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
                   if (remainingSpace > 50) {
                     // Only truncate if we have reasonable space
                     const truncatedLine = match.line.slice(0, remainingSpace);
-                    output += `${baseMatchText}\`\`\`\n${truncatedLine}...\n\`\`\`\n\n`;
+                    output +=
+                      `${baseMatchText}\`\`\`\n${truncatedLine}...\n\`\`\`\n\n`;
                     output += `⚠️ Content truncated\n`;
                     matchesIncluded++;
                   } else {
@@ -164,10 +169,12 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
 
             // Add size limit warning if needed
             if (matchesIncluded < matches.length) {
-              output += `\n⚠️ Showing ${matchesIncluded}/${matches.length} matches (size limit)\n`;
+              output +=
+                `\n⚠️ Showing ${matchesIncluded}/${matches.length} matches (size limit)\n`;
               output += `\nFor more results:\n`;
               output += `- Use specific pattern: "${args.pattern} keyword"\n`;
-              output += `- Search specific file: {"pattern": "${args.pattern}", "path": "/file.txt"}\n`;
+              output +=
+                `- Search specific file: {"pattern": "${args.pattern}", "path": "/file.txt"}\n`;
               output += `- Use fewer results: {"maxResults": 5}`;
             }
 
@@ -180,8 +187,9 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
               ],
             };
           } catch (error) {
-            const errorMsg =
-              error instanceof Error ? error.message : String(error);
+            const errorMsg = error instanceof Error
+              ? error.message
+              : String(error);
             const isTimeout = errorMsg.includes("timeout");
 
             return {
@@ -198,7 +206,7 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
             };
           }
         },
-        { internal: !global }
+        { internal: !global },
       );
     },
   };

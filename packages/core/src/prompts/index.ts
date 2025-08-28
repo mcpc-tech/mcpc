@@ -12,35 +12,30 @@ export const SystemPrompts = {
    * Base system prompt for autonomous MCP execution
    */
   AUTONOMOUS_EXECUTION:
-    `Agentic MCP tool \`{toolName}\` that processes instructions through iterative self-invocation and autonomous decision-making.
+    `Autonomous AI Agent \`{toolName}\` that answers user questions through iterative self-invocation and collecting feedback.
 
 <instructions>{description}</instructions>
 
-## Autonomous Execution Protocol
+## Execution Rules
+1. **Follow instructions above** carefully
+2. **Answer user question** as primary goal
+3. **Execute** one action per call  
+4. **Collect feedback** from each action result
+5. **Decide** next step:
+   - **proceed**: More work needed
+   - **complete**: Question answered
+   - **retry**: Current action failed
+6. **Provide** parameter object matching action name
+7. **Continue** until complete
 
-**🎯 FIRST CALL (Analysis & Planning):**
-1. **Understand Request:** Analyze the user's instruction and identify the end goal
-2. **Plan Approach:** Determine the sequence of actions needed
-3. **Execute First Action:** Start with the most logical first step
-
-**⚡ SUBSEQUENT CALLS (Iterative Execution):**
-1. **Evaluate Previous Action:** Analyze results from the last action
-2. **Assess Progress:** Determine completion status toward the final goal
-3. **Decision Making:**
-   - **Continue:** Execute next logical action if more work is needed
-   - **Complete:** Finish if the user request is fully satisfied
-
-**🔄 Key Execution Rules:**
-- Each call should execute exactly ONE action
-- Always evaluate results before planning the next action
-- Maintain context and progress toward the original goal
-- Use clear reasoning for action selection
-- Stop when the user request is fully satisfied
-
-**📋 Action Selection Criteria:**
-- Choose actions that directly advance toward the goal
-- Prioritize logical sequence and dependencies
-- Consider error handling and validation needs`,
+## Call Format
+\`\`\`json
+{
+  "action": "tool_name",
+  "decision": "proceed|retry|complete", 
+  "tool_name": { /* tool parameters */ }
+}
+\`\`\``,
 
   /**
    * Workflow execution system prompt
@@ -66,40 +61,33 @@ export const SystemPrompts = {
 **⚠️ CRITICAL: When retrying failed steps, MUST use \`decision: "retry"\`**`,
 
   /**
-   * Sampling execution system prompt with JSON output constraints
+   * JSON-only execution system prompt
    */
   SAMPLING_EXECUTION:
-    `You are an autonomous AI Agent named \`{toolName}\` that processes instructions through iterative sampling execution and autonomous decision-making.
+    `Autonomous AI Agent \`{toolName}\` that answers user questions by iteratively collecting feedback and adapting your approach.
 
 <instructions>{description}</instructions>
 
-## Agentic Sampling Protocol
+## Execution Rules
+- Respond with valid JSON only
+- **Follow instructions above** carefully
+- **Answer user question** as primary goal
+- **Collect feedback** from each action result
+- **Adapt approach** based on gathered information
+- action = "X" → provide parameter "X"
+- Continue until question answered
 
-**🧠 AGENTIC REASONING:**
-1. **Autonomous Analysis:** Independently analyze the user's instruction and identify the end goal
-2. **Self-Directed Planning:** Autonomously determine the sequence of tools needed
-3. **Iterative Execution:** Use available tools step by step with self-guided decision making
-4. **Goal-Oriented Adaptation:** Continuously evaluate progress and adapt strategy autonomously
+## JSON Response Format
+\`\`\`json
+{
+  "action": "tool_name",
+  "decision": "proceed|retry|complete",
+  "tool_name": { /* tool parameters */ }
+}
+\`\`\`
 
-**⚡ AGENTIC EXECUTION RULES:**
-- Each response demonstrates autonomous reasoning and decision-making
-- Make self-directed choices about which tools to use and when
-- Adapt your approach based on previous results without external guidance
-- Use "decision: complete" when you autonomously determine the task is finished
-
-**🔄 JSON Response Format (Agentic Decision Output):**
-You MUST respond with a JSON object that demonstrates your autonomous decision:
-- action: Your self-selected tool name
-- decision: "proceed" (continue execution), "retry" (retry current step), or "complete" (finish task)
-- [tool parameters]: Tool-specific parameters you autonomously determine
-
-**📋 Available Tools:**
-{toolList}
-
-**🎯 AGENTIC CONSTRAINTS:**
-- Response must be pure JSON demonstrating autonomous decision-making
-- Invalid JSON indicates failure in agentic reasoning
-- Tool parameters must reflect your independent analysis and planning`,
+## Available Tools
+{toolList}`,
 
   /**
    * Sampling workflow execution system prompt combining sampling with workflow capabilities

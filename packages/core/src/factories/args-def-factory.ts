@@ -108,7 +108,7 @@ Workflow step definitions - provide ONLY on initial call.
       type: "string",
       enum: Object.values(DECISION_OPTIONS),
       description:
-        `**Step control: \`${DECISION_OPTIONS.PROCEED}\` = next step, \`${DECISION_OPTIONS.RETRY}\` = retry current, \`${DECISION_OPTIONS.COMPLETE}\` = finish workflow**`,
+        `**Step control: \`${DECISION_OPTIONS.PROCEED}\` = next step, \`${DECISION_OPTIONS.RETRY}\` = retry/repeat current, \`${DECISION_OPTIONS.COMPLETE}\` = finish workflow**`,
     }),
 
     action: (): JSONSchema => ({
@@ -180,7 +180,7 @@ Workflow step definitions - provide ONLY on initial call.
       );
 
       const actionDescription =
-        "Specifies the action to be performed from the enum. Based on the value chosen for 'action', the corresponding sibling property (which shares the same name as the action value and contains its specific parameters) **MUST** also be provided in this object. For example, if 'action' is 'get_weather', then the 'get_weather' parameter object is mandatory.";
+        `Specifies the action to be performed from the enum. **⚠️ When setting \`action: "example_action"\`, you MUST also provide \`"example_action": { ... }\`**`;
 
       const baseProperties = {
         [ACTION_KEY]: {
@@ -192,7 +192,7 @@ Workflow step definitions - provide ONLY on initial call.
           type: "string",
           enum: allToolNames,
           description:
-            "Specify the next action to execute only when the user's request requires additional steps. If no next action is needed, this property **MUST BE OMITTED** from the object.",
+            "Optional: Specify the next action to execute. Only include this when you know additional actions are needed after the current one completes.",
         },
         decision: this.decision(),
         ...depGroups,
