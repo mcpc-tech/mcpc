@@ -25,7 +25,8 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { server } from "./app.ts";
+import { createServer } from "./app.ts";
 
+const server = await createServer();
 const transport = new StdioServerTransport();
 await server.connect(transport);

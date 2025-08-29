@@ -1,123 +1,60 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { generateId } from "ai";
-import type {
-  McpSettingsSchema,
-  ServerConfigSchema,
-} from "../../service/tools.ts";
-import type z from "zod";
-
 import { type CheerioAPI, load } from "cheerio";
-import { smitheryToolNameCompatibale } from "./registory.ts";
-import { ToolNameRegex } from "./provider.ts";
-import { cwd } from "node:process";
-import process from "node:process";
+export { composeMcpDepTools } from "./mcp.ts";
 
-/**
- * Helper type to extract variable names (inside {}) from a template string literal.
- * e.g., ExtractVariables<"Hello {name}! You are {age}."> -> "name" | "age"
- */
 type ExtractVariables<S extends string> = S extends
-  `${string}{${infer Var}}${infer Rest}` ? Var extends `${infer ActualVar}}` // Handle potential extra '}' if no Rest or adjacent braces
-    ? ActualVar | ExtractVariables<Rest>
-  : Var | ExtractVariables<Rest> // Standard case {var}
+  `${string}{${infer Var}}${infer Rest}`
+  ? Var extends `${infer ActualVar}}` ? ActualVar | ExtractVariables<Rest>
+  : Var | ExtractVariables<Rest>
   : never;
 
-/**
- * Type for the input object required by the formatting function.
- * Maps extracted variable names to allowed input types (string, number, boolean).
- */
 type PromptInput<T extends string> = Record<
   ExtractVariables<T>,
   string | number | boolean
 >;
 
-/**
- * Options for the native prompt function (optional).
- */
 interface NativePromptOptions {
-  /**
-   * Defines how to handle missing variables in the input object during formatting.
-   * - 'error': Throw an error.
-   * - 'warn': Print a warning to the console and leave the placeholder unchanged.
-   * - 'ignore': Leave the placeholder unchanged silently.
-   * - 'empty': Replace the placeholder with an empty string.
-   * @default 'warn'
-   */
   missingVariableHandling?: "error" | "warn" | "ignore" | "empty";
 }
 
-/**
- * Creates a formatting function from a template string with type-safe input variables
- * (when the template is provided as a string literal).
- */
 export const p = <T extends string>(
   template: T,
   options: NativePromptOptions = {},
 ): (input: PromptInput<T>) => string => {
   const { missingVariableHandling = "warn" } = options;
 
-  // Pre-compute variable names (at runtime) for the formatting function closure
-  // Note: Type safety comes from PromptInput<T> derived from the *literal* type T
-  const variableNames = new Set<string>();
-  const regex = /\{((\w|\.)+)\}/g; // Simple regex for {alphanumeric_variable}
-  let match;
+  // Precompute variable names from the template
+  const names = new Set<string>();
+  const regex = /\{((\w|\.)+)\}/g;
+  let match: RegExpExecArray | null;
   while ((match = regex.exec(template)) !== null) {
-    variableNames.add(match[1]);
+    names.add(match[1]);
   }
-  const requiredVariables = Array.from(
-    variableNames,
-  ) as (keyof PromptInput<T>)[]; // Runtime list
+  const required = Array.from(names) as (keyof PromptInput<T>)[];
 
-  // Return the formatting function
   return (input: PromptInput<T>): string => {
     let result = template as string;
 
-    for (const variableName of requiredVariables) {
-      const key = variableName as keyof typeof input; // Cast for lookup
+    for (const name of required) {
+      const key = name as keyof typeof input;
       const value = input[key];
+      const re = new RegExp(`\\{${String(name)}\\}`, "g");
 
       if (value !== undefined && value !== null) {
-        // Replace *all* occurrences of this specific variable placeholder
-        const replaceRegex = new RegExp(`\\{${String(variableName)}\\}`, "g");
-        result = result.replace(replaceRegex, String(value));
+        result = result.replace(re, String(value));
       } else {
-        // Handle missing variable based on options
-        const _placeholder = `{${String(variableName)}}`;
         switch (missingVariableHandling) {
-          case "error": {
+          case "error":
             throw new Error(
-              `Missing variable "${
-                String(
-                  variableName,
-                )
-              }" in input for template.`,
+              `Missing variable "${String(name)}" in input for template.`,
             );
-          }
-          case "warn": {
-            // console.warn(
-            //   `Warning: Variable "${
-            //     String(
-            //       variableName,
-            //     )
-            //   }" missing in input. Placeholder "${placeholder}" left unchanged.`,
-            // );
+          case "empty":
+            result = result.replace(re, "");
             break;
-          }
-          case "empty": {
-            const replaceRegex = new RegExp(
-              `\\{${String(variableName)}\\}`,
-              "g",
-            );
-            result = result.replace(replaceRegex, "");
+          case "warn":
+          case "ignore":
+          default:
+            // Leave placeholder unchanged
             break;
-          }
-          case "ignore": {
-            // Do nothing, leave placeholder
-            break;
-          }
         }
       }
     }
@@ -125,6 +62,7 @@ export const p = <T extends string>(
     return result;
   };
 };
+
 export function parseTags(
   htmlString: string,
   tags: Array<string>,
@@ -137,138 +75,4 @@ export function parseTags(
     tagToResults[tag] = elements.toArray();
   }
   return { tagToResults, $ };
-}
-
-/**
- * Compose all the tools from all the MCP servers.
- */
-export async function composeMcpDepTools(
-  mcpConfig: z.infer<typeof McpSettingsSchema>,
-  filterIn?: (params: {
-    action: string;
-    tool: any;
-    mcpName: string;
-    toolNameWithScope: string;
-    internalToolName: string;
-    toolId: string;
-  }) => boolean,
-): Promise<Record<string, any>> {
-  const allTools: Record<string, any> = {};
-  const allClients: Record<string, Client> = {};
-
-  // Process each MCP definition sequentially
-  for (const [name, definition] of Object.entries(mcpConfig.mcpServers)) {
-    const def = definition as z.infer<typeof ServerConfigSchema>;
-
-    if (def.disabled) {
-      continue;
-    }
-
-    let transport:
-      | StdioClientTransport
-      | StreamableHTTPClientTransport
-      | SSEClientTransport;
-    if (def.transportType === "sse") {
-      transport = new SSEClientTransport(new URL(def.url));
-    } else if ("url" in def) {
-      // @ts-expect-error - Support new streamable http transport when url only
-      transport = new StreamableHTTPClientTransport(new URL(def.url));
-    } else if (def.transportType === "stdio" || "command" in def) {
-      transport = new StdioClientTransport({
-        command: def.command,
-        args: def.args,
-        env: {
-          ...(process.env as any),
-          ...def.env,
-        },
-        cwd: cwd(),
-      });
-    } else {
-      throw new Error(`Unsupported transport type: ${JSON.stringify(def)}`);
-    }
-
-    const client = new Client({ name, version: "1.0.0" });
-    const serverId = ToolNameRegex.test(name) ? name : generateId(7);
-
-    try {
-      // Create the MCP client
-      await client.connect(transport, { timeout: 60_000 * 10 });
-      allClients[serverId] = client;
-
-      // Get the tools from the client
-      const { tools } = await client.listTools();
-
-      // Add the tools to the allTools object
-      tools.forEach((tool) => {
-        const { toolNameWithScope, toolName: internalToolName } =
-          smitheryToolNameCompatibale(tool.name, name);
-        // Use serverId as a unique ID to solve tool name collision
-        const toolId = `${serverId}_${internalToolName}`;
-        if (
-          filterIn &&
-          !filterIn({
-            action: internalToolName,
-            tool,
-            mcpName: name,
-            toolNameWithScope,
-            internalToolName,
-            toolId,
-          })
-        ) {
-          return;
-        }
-        // Store client reference in a way that can be cleaned up
-        const clientRef = { current: client as Client | null };
-
-        const execute = (args: Record<string, unknown>) => {
-          if (!clientRef.current) {
-            throw new Error(`Client for tool ${toolId} has been disposed`);
-          }
-          return clientRef.current.callTool({
-            name: internalToolName,
-            arguments: args,
-          });
-        };
-
-        // Create a new tool object to avoid modifying the original
-        const toolWithExecute = {
-          ...tool,
-          execute,
-          // Store cleanup function for this specific tool
-          _cleanup: () => {
-            clientRef.current = null;
-          },
-        };
-
-        allTools[toolId] = toolWithExecute;
-      });
-    } catch (error) {
-      console.error(`Error creating MCP client for ${name}:`, error);
-    }
-  }
-
-  const cleanupClients = async () => {
-    // Cleanup individual tool references
-    Object.values(allTools).forEach((tool: { _cleanup?: () => void }) => {
-      if (tool._cleanup && typeof tool._cleanup === "function") {
-        tool._cleanup();
-      }
-    });
-
-    await Promise.all(
-      Object.values(allClients).map(async (client) => {
-        try {
-          await client.close();
-        } catch (error) {
-          console.error("Error closing MCP client:", error);
-        }
-      }),
-    );
-
-    // Clear references to help GC
-    Object.keys(allTools).forEach((key) => delete allTools[key]);
-    Object.keys(allClients).forEach((key) => delete allClients[key]);
-  };
-
-  return { tools: allTools, clients: allClients, cleanupClients };
 }

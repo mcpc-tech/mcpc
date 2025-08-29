@@ -13,25 +13,11 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { mcpc } from "../mod.ts";
 
-export const server = await mcpc(
-  [
-    {
-      name: "basic-file-manager",
-      version: "1.0.0",
-    },
-    {
-      capabilities: {
-        tools: {
-          listChanged: true,
-        },
-      },
-    },
-  ],
-  [
-    {
-      name: "file-organizer",
-      description:
-        `I am a smart file organizer that helps users manage their files efficiently.
+export const toolDefinitions = [
+  {
+    name: "file-organizer",
+    description:
+      `I am a smart file organizer that helps users manage their files efficiently.
 
 Available tools:
 <tool name="@wonderwhy-er/desktop-commander.list_directory"/>
@@ -50,17 +36,33 @@ I can:
 
 I always ask for confirmation before making destructive changes and provide clear explanations of what I'm doing.`,
 
-      deps: {
-        mcpServers: {
-          "@wonderwhy-er/desktop-commander": {
-            command: "npx",
-            args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
-            transportType: "stdio",
-          },
+    deps: {
+      mcpServers: {
+        "@wonderwhy-er/desktop-commander": {
+          command: "npx",
+          args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+          transportType: "stdio",
+        },
+      },
+    },
+  },
+];
+
+export const server = await mcpc(
+  [
+    {
+      name: "basic-file-manager",
+      version: "1.0.0",
+    },
+    {
+      capabilities: {
+        tools: {
+          listChanged: true,
         },
       },
     },
   ],
+  toolDefinitions,
 );
 
 const transport = new StdioServerTransport();

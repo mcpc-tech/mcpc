@@ -22,9 +22,9 @@ import type { ComposableMCPServer } from "../../mod.ts";
  */
 const transports = new Map<string, SSEServerTransport>();
 
-export function handleConnecting(
+export async function handleConnecting(
   request: Request,
-  server: McpServer | ComposableMCPServer,
+  createServer: () => Promise<McpServer | ComposableMCPServer>,
   incomingMsgRoutePath: string,
 ): Promise<Response> {
   // Check if a session ID is provided in the request
@@ -47,6 +47,8 @@ export function handleConnecting(
       );
     }
   }
+
+  const server = await createServer();
 
   // Create a new transport with the endpoint if no session ID was provided
   const transport = new SSEServerTransport(endpoint);
