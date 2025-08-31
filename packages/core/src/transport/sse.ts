@@ -55,7 +55,6 @@ export async function handleConnecting(
   const newSessionId = transport.sessionId;
   transports.set(newSessionId, transport);
   server.connect(transport);
-  console.log(`Created new SSE transport with sessionId: ${newSessionId}`);
 
   return Promise.resolve(transport.sseResponse);
 }
@@ -127,7 +126,6 @@ export class SSEServerTransport implements Transport {
         this.#controller = controller;
       },
       cancel: () => {
-        console.log("SSE stream cancelled with sessionId: ", this.#sessionId);
         this.#controller = undefined;
         this.close();
       },

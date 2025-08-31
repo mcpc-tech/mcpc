@@ -81,11 +81,8 @@ export interface FinalizeContext {
 
 /** Context for composeEnd hook */
 export interface ComposeEndContext {
-  serverName: string;
-  externalToolNames: string[];
-  internalToolNames: string[];
+  toolName: string | null;
   pluginNames: string[];
-  totalTools: number;
   mode: "agentic" | "agentic_workflow";
   server: any;
 }

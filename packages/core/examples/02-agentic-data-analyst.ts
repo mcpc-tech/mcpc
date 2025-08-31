@@ -65,10 +65,12 @@ My autonomous approach ensures thorough analysis tailored to each unique dataset
           "code-runner": {
             command: "deno",
             args: ["run", "--allow-all", "jsr:@mcpc/code-runner-mcp/bin"],
+            transportType: "stdio",
           },
           "@wonderwhy-er/desktop-commander": {
             command: "npx",
             args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+            transportType: "stdio",
           },
         },
       },

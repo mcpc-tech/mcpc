@@ -54,16 +54,18 @@ export function processToolTags({
     const toolName = toolEl.attribs.name;
 
     if (!toolName || toolName.includes(ALL_TOOLS_PLACEHOLDER)) {
+      $(toolEl).remove();
       return;
     }
 
     const override = toolOverrides.get(toolName);
-    const isHidden = override?.visibility?.hide;
 
-    if (isHidden) {
+    if (override?.visibility?.hide) {
       // Remove the tag completely for hidden tools
       // Manipulate DOM directly instead of brittle string replace
       $(toolEl).remove();
+    } else if (override?.visibility?.global) {
+      $(toolEl).replaceWith(`<tool name="${toolName}"/>`);
     } else {
       const toolId = findToolId(toolName, tools, toolNameMapping);
       if (toolId) {

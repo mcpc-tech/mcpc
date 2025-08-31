@@ -51,3 +51,25 @@ export interface ArgsDefCreator {
     state: import("./utils/state.ts").WorkflowState,
   ) => string;
 }
+
+/**
+ * XML-like tool reference string where only `name` is required.
+ * Examples accepted:
+ * - `<tool name="foo"/>`
+ * - `<tool name="foo" description="desc"/>`
+ * - `<tool name="foo" hide/>`
+ * - `<tool name="foo" global/>`
+ * - `<tool name="foo" description="desc" hide global/>`
+ */
+export type ToolDesc = "" | ` description="${string}"`;
+export type ToolFlags =
+  | ""
+  | " hide"
+  | " global"
+  | " hide global"
+  | " global hide";
+export type ToolEnd = "/>" | " />";
+
+export type ToolRefXml =
+  | `<tool name="${string}"${ToolDesc}${ToolFlags}${ToolEnd}`
+  | `<tool name="${string}"${ToolFlags}${ToolDesc}${ToolEnd}`;

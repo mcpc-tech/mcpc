@@ -21,36 +21,52 @@ export const createLoggingPlugin = (
       if (compact) {
         // Single line compact format with emojis for better readability
         const pluginCount = context.pluginNames.length;
-        const externalCount = context.externalToolNames.length;
-        const internalCount = context.internalToolNames.length;
+        const server = context.server;
+        const externalList = server.getExternalToolNames();
+        const internalList = server.getInternalToolNames();
+        const hiddenList = server.getHiddenToolNames();
+        const publicToolNames = server.getPublicToolNames();
+
+        const externalCount = externalList.length;
+        const internalCount = internalList.length;
+        const hiddenCount = hiddenList.length;
+        const globalCount = publicToolNames.length;
 
         console.log(
-          `🧩 [${context.serverName}] ${pluginCount} plugins • ${externalCount} external tools • ${internalCount} internal tools`,
+          `🧩 [${context.toolName}] ${pluginCount} plugins • ${externalCount} external • ${internalCount} internal • ${hiddenCount} hidden • ${globalCount} global`,
         );
       } else if (verbose) {
-        console.log(`🧩 [${context.serverName}]`);
+        console.log(`🧩 [${context.toolName}]`);
         console.log(`   ├─ Plugins: ${context.pluginNames.join(", ")}`);
 
         // Get all tool information from server
         const server = context.server;
-        const publicTools = (server.tools ?? []) as Array<{ name: string }>;
         const globalToolNames = Array.from(
-          new Set<string>(publicTools.map((t) => String(t.name))),
-        ) as string[];
+          new Set(server.getPublicToolNames().map(String)),
+        );
 
-        // Ensure uniqueness across categories
-        const external = Array.from(new Set<string>(context.externalToolNames));
-        const internal = Array.from(new Set<string>(context.internalToolNames));
+        // Ensure uniqueness across categories and coerce to string[]
+        const external: string[] = Array.from(
+          new Set(server.getExternalToolNames().map(String)),
+        );
+        const internal: string[] = Array.from(
+          new Set(server.getInternalToolNames().map(String)),
+        );
+        const hidden: string[] = Array.from(
+          new Set(server.getHiddenToolNames().map(String)),
+        );
+        const globalNames: string[] = globalToolNames.map(String);
         const totalSet = new Set<string>([
           ...external,
           ...internal,
-          ...globalToolNames,
+          ...globalNames,
         ]);
         const totalList = Array.from(totalSet);
 
         console.log(`   ├─ External: ${external.join(", ") || "none"}`);
         console.log(`   ├─ Internal: ${internal.join(", ") || "none"}`);
         console.log(`   ├─ Global: ${globalToolNames.join(", ") || "none"}`);
+        console.log(`   ├─ Hidden: ${hidden.join(", ") || "none"}`);
         console.log(
           `   └─ Total: ${totalList.length} tools (${totalList.join(", ")})`,
         );

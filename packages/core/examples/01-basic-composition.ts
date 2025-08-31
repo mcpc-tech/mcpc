@@ -11,20 +11,20 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { mcpc } from "../mod.ts";
+import { type ComposeDefinition, mcpc } from "../mod.ts";
 
-export const toolDefinitions = [
+export const toolDefinitions: ComposeDefinition[] = [
   {
     name: "file-organizer",
     description:
       `I am a smart file organizer that helps users manage their files efficiently.
 
 Available tools:
-<tool name="@wonderwhy-er/desktop-commander.list_directory"/>
-<tool name="@wonderwhy-er/desktop-commander.create_directory"/>
+<tool name="@wonderwhy-er/desktop-commander.list_directory" global/>
+<tool name="@wonderwhy-er/desktop-commander.create_directory" hide/>
 <tool name="@wonderwhy-er/desktop-commander.move_file"/>
 <tool name="@wonderwhy-er/desktop-commander.read_file"/>
-<tool name="@wonderwhy-er/desktop-commander.write_file"/>
+<tool name="@wonderwhy-er/desktop-commander.write_file">
 
 I can:
 1. List directory contents to understand the current file structure
@@ -41,7 +41,7 @@ I always ask for confirmation before making destructive changes and provide clea
         "@wonderwhy-er/desktop-commander": {
           command: "npx",
           args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
-          transportType: "stdio",
+          transportType: "stdio" as const,
         },
       },
     },

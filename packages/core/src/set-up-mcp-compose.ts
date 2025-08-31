@@ -6,12 +6,20 @@ import type { MCPSetting } from "./service/tools.ts";
 import process from "node:process";
 import type { SamplingConfig } from "./types.ts";
 import type { ToolPlugin } from "./plugin-types.ts";
+import type { ToolRefXml } from "./types.ts";
 
 export const INCOMING_MSG_ROUTE_PATH = "/core/messages";
 
 export interface ComposeDefinition {
-  name: string;
-  description: string;
+  /**
+   * Name of the composed agentic tool
+   * Set to null to skip creating the composed tool (composition-only mode).
+   */
+  name: string | null;
+  /**
+   * Description of the composed agent's purpose and capabilities.
+   */
+  description?: string;
   deps?: MCPSetting;
 
   /**
@@ -59,8 +67,22 @@ export interface ComposeDefinition {
      * - Ignored when mode is "agentic"
      */
     ensureStepActions?: string[];
+
+    /**
+     * Default references for the dependent mcps
+     *
+     * @example
+     * <tool name="example-tool" hide="true" global="false"/>
+     */
+    /**
+     * References to dependent tools using a compact XML-like string.
+     * Only the `name` attribute is required; other attributes are optional.
+     */
+    refs?: Array<ToolRefXml>;
   };
 }
+
+// ToolRefXml is defined in ./types.ts
 
 export interface ComposibleMCPConfig {
   [key: string]: ComposeDefinition[];
@@ -127,7 +149,7 @@ export async function mcpc(
   for (const mcpcConfig of parsed) {
     await server.compose(
       mcpcConfig.name,
-      mcpcConfig.description,
+      mcpcConfig.description ?? "",
       mcpcConfig.deps,
       mcpcConfig.options,
     );

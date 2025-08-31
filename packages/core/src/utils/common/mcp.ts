@@ -23,28 +23,23 @@ const mcpClientConnecting = new Map<string, Promise<Client>>();
 const shortHash = (s: string) =>
   createHash("sha256").update(s).digest("hex").slice(0, 8);
 
-function defSignature(def: z.infer<typeof ServerConfigSchema>) {
+function defSignature(
+  def: z.input<typeof ServerConfigSchema> | z.infer<typeof ServerConfigSchema>,
+) {
   // KISS: stringify full definition for a stable signature
   return JSON.stringify(def);
 }
 
-function buildServerIdFromDef(def: z.infer<typeof ServerConfigSchema>) {
-  // Purely config-based ID; readable prefix + short hash
-  return `srv_${shortHash(defSignature(def))}`;
-}
-
 async function getOrCreateMcpClient(
   defKey: string,
-  def: z.infer<typeof ServerConfigSchema>,
+  def: z.input<typeof ServerConfigSchema> | z.infer<typeof ServerConfigSchema>,
 ): Promise<Client> {
   const pooled = mcpClientPool.get(defKey);
   if (pooled) {
-    console.log(`Reusing MCP client for key: ${defKey}`);
     pooled.refCount += 1;
     return pooled.client;
   }
 
-  console.log(`Creating new MCP client for key: ${defKey}`);
   const existingConnecting = mcpClientConnecting.get(defKey);
   if (existingConnecting) {
     const client = await existingConnecting;
@@ -57,18 +52,25 @@ async function getOrCreateMcpClient(
     | StdioClientTransport
     | StreamableHTTPClientTransport
     | SSEClientTransport;
-  if (def.transportType === "sse") {
-    transport = new SSEClientTransport(new URL(def.url));
-  } else if ("url" in def) {
-    // @ts-expect-error - Support new streamable http transport when url only
-    transport = new StreamableHTTPClientTransport(new URL(def.url));
-  } else if (def.transportType === "stdio" || "command" in def) {
+  // Runtime type guards for union shape
+  if (
+    typeof (def as any).transportType === "string" &&
+    (def as any).transportType === "sse"
+  ) {
+    transport = new SSEClientTransport(new URL((def as any).url));
+  } else if ("url" in (def as any) && typeof (def as any).url === "string") {
+    transport = new StreamableHTTPClientTransport(new URL((def as any).url));
+  } else if (
+    (typeof (def as any).transportType === "string" &&
+      (def as any).transportType === "stdio") ||
+    ("command" in (def as any))
+  ) {
     transport = new StdioClientTransport({
-      command: def.command,
-      args: def.args,
+      command: (def as any).command,
+      args: (def as any).args,
       env: {
         ...(process.env as any),
-        ...def.env,
+        ...((def as any).env ?? {}),
       },
       cwd: cwd(),
     });
@@ -132,7 +134,9 @@ process.once?.("SIGINT", () => {
 });
 
 export async function composeMcpDepTools(
-  mcpConfig: z.infer<typeof McpSettingsSchema>,
+  mcpConfig:
+    | z.input<typeof McpSettingsSchema>
+    | z.infer<typeof McpSettingsSchema>,
   filterIn?: (params: {
     action: string;
     tool: any;
