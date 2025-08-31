@@ -9,7 +9,7 @@ export const createLoggingPlugin = (
     enabled?: boolean;
     verbose?: boolean;
     compact?: boolean;
-  } = {}
+  } = {},
 ): ToolPlugin => {
   const { enabled = true, verbose = false, compact = true } = options;
 
@@ -33,7 +33,7 @@ export const createLoggingPlugin = (
         const globalCount = publicToolNames.length;
 
         console.log(
-          `🧩 [${context.toolName}] ${pluginCount} plugins • ${externalCount} external • ${internalCount} internal • ${hiddenCount} hidden • ${globalCount} global`
+          `🧩 [${context.toolName}] ${pluginCount} plugins • ${externalCount} external • ${internalCount} internal • ${hiddenCount} hidden • ${globalCount} global`,
         );
       } else if (verbose) {
         console.log(`🧩 [${context.toolName}]`);
@@ -42,18 +42,18 @@ export const createLoggingPlugin = (
         // Get all tool information from server
         const server = context.server;
         const globalToolNames = Array.from(
-          new Set(server.getPublicToolNames().map(String))
+          new Set(server.getPublicToolNames().map(String)),
         );
 
         // Ensure uniqueness across categories and coerce to string[]
         const external: string[] = Array.from(
-          new Set(server.getExternalToolNames().map(String))
+          new Set(server.getExternalToolNames().map(String)),
         );
         const internal: string[] = Array.from(
-          new Set(server.getInternalToolNames().map(String))
+          new Set(server.getInternalToolNames().map(String)),
         );
         const hidden: string[] = Array.from(
-          new Set(server.getHiddenToolNames().map(String))
+          new Set(server.getHiddenToolNames().map(String)),
         );
         const globalNames: string[] = globalToolNames.map(String);
         const totalSet = new Set<string>([
