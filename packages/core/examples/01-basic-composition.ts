@@ -20,8 +20,8 @@ export const toolDefinitions: ComposeDefinition[] = [
       `I am a smart file organizer that helps users manage their files efficiently.
 
 Available tools:
-<tool name="@wonderwhy-er/desktop-commander.list_directory" global/>
-<tool name="@wonderwhy-er/desktop-commander.create_directory" hide/>
+<tool name="@wonderwhy-er/desktop-commander.list_directory"/>
+<tool name="@wonderwhy-er/desktop-commander.create_directory"/>
 <tool name="@wonderwhy-er/desktop-commander.move_file"/>
 <tool name="@wonderwhy-er/desktop-commander.read_file"/>
 <tool name="@wonderwhy-er/desktop-commander.write_file">
