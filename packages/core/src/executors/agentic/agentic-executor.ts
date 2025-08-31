@@ -58,7 +58,7 @@ export class AgenticExecutor {
       });
 
       if (args[nextAction]) {
-        currentResult?.content?.unshift({
+        currentResult?.content?.push({
           type: "text",
           text: CompiledPrompts.actionSuccess({
             toolName: this.name,
@@ -67,7 +67,7 @@ export class AgenticExecutor {
           }),
         });
       } else {
-        currentResult?.content?.unshift({
+        currentResult?.content?.push({
           type: "text",
           text: CompiledPrompts.planningPrompt({
             currentAction: actionName,
@@ -87,19 +87,10 @@ export class AgenticExecutor {
         );
 
         const nextAction = args[this.NEXT_ACTION_KEY] as string;
-        const callToolResult = {
-          content: [
-            {
-              type: "text" as const,
-              text: typeof result === "string"
-                ? result
-                : JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        const callToolResult = (result as CallToolResult) ?? { content: [] };
 
         if (nextAction && this.allToolNames.includes(nextAction)) {
-          callToolResult.content.unshift({
+          callToolResult.content.push({
             type: "text",
             text: CompiledPrompts.actionSuccess({
               toolName: this.name,
@@ -108,7 +99,7 @@ export class AgenticExecutor {
             }),
           });
         } else {
-          callToolResult.content.unshift({
+          callToolResult.content.push({
             type: "text",
             text: CompiledPrompts.planningPrompt({
               currentAction: actionName,

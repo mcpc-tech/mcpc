@@ -441,20 +441,6 @@ export const PromptUtils = {
   formatTimestamp: () => {
     return new Date().toISOString();
   },
-
-  /**
-   * Extract and format text content from CallToolResult
-   */
-  extractActionResultText: (actionResult: {
-    content?: Array<{ type: string; text?: string }>;
-  }) => {
-    return (
-      actionResult.content
-        ?.filter((item) => item.type === "text")
-        ?.map((item) => item.text)
-        ?.join("\n") || "No text content"
-    );
-  },
 };
 
 /**

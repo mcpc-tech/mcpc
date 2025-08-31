@@ -354,24 +354,24 @@ ${this.createArgsDef.forInitialStepDescription(steps, state)}`,
           results.isError = actionResult.isError;
         }
 
-        // Extract text content from action result using prompt utility
-        const extractedText = PromptUtils.extractActionResultText(actionResult);
+        results.content = results.content.concat(actionResult.content ?? []);
 
         results.content.push({
           type: "text",
           text: `Action \`${action}\` executed ${
             actionResult.isError ? "❌ **FAILED**" : "✅ **SUCCESS**"
-          }:\n${extractedText}`,
+          }:`,
         });
       } catch (error) {
         results.content.push({
           type: "text",
-          text: `Action \`${action}\` ❌ **FAILED** with error: `,
+          text: `${(error as Error).message}`,
         });
         results.content.push({
           type: "text",
-          text: `${(error as Error).message}`,
+          text: `Action \`${action}\` ❌ **FAILED** with error: `,
         });
+
         results.isError = true;
       }
     }
