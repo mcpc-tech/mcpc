@@ -485,10 +485,7 @@ export class ComposableMCPServer extends Server {
     options: ComposeDefinition["options"] = { mode: "agentic" },
   ) {
     const refDesc = options.refs?.join("") ?? "";
-    const { tagToResults, $ } = parseTags(description + refDesc, [
-      "tool",
-      "fn",
-    ]);
+    const { tagToResults } = parseTags(description + refDesc, ["tool", "fn"]);
 
     tagToResults.tool.forEach((toolEl) => {
       const toolName = toolEl.attribs.name;
@@ -621,11 +618,11 @@ export class ComposableMCPServer extends Server {
       return;
     }
 
+    const desTags = parseTags(description, ["tool", "fn"]);
     // Replace tool tags with action tags after tool filtering is complete
     description = processToolTags({
+      ...desTags,
       description: description,
-      tagToResults,
-      $,
       tools,
       toolOverrides: this.toolConfigs,
       toolNameMapping: toolNameToIdMapping,
