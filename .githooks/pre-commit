@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+# Run deno precommit task. If deno isn't available, fail to avoid committing unformatted/unchecked code.
+# This script is POSIX shell compatible.
+if command -v deno >/dev/null 2>&1; then
+  deno task precommit
+  status=$?
+  if [ $status -ne 0 ]; then
+    echo "deno precommit task failed (exit $status). Commit aborted."
+    exit $status
+  fi
+else
+  echo "deno not found in PATH. Install Deno or run 'deno task precommit' manually."
+  exit 1
+fi
