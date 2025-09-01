@@ -7,7 +7,7 @@ const BaseConfigSchema: z.ZodObject<Record<string, z.ZodTypeAny>> = z.object({
   autoApprove: AutoApproveSchema.optional(),
   disabled: z.boolean().optional(),
   disabledReason: z.string().optional(),
-  timeout: z.number().optional(),
+  toolCallTimeout: z.number().optional(),
 });
 
 export const SseConfigSchema: z.ZodObject<Record<string, z.ZodTypeAny>> =

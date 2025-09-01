@@ -151,7 +151,7 @@ export async function composeMcpDepTools(
   const acquiredKeys: string[] = [];
 
   for (const [name, definition] of Object.entries(mcpConfig.mcpServers)) {
-    const def = definition as z.infer<typeof ServerConfigSchema>;
+    const def = definition as unknown as z.infer<typeof ServerConfigSchema>;
     if (def.disabled) continue;
 
     const defKey = shortHash(defSignature(def));
@@ -183,10 +183,16 @@ export async function composeMcpDepTools(
         }
 
         const execute = (args: Record<string, unknown>) =>
-          allClients[serverId].callTool({
-            name: internalToolName,
-            arguments: args,
-          });
+          allClients[serverId].callTool(
+            {
+              name: internalToolName,
+              arguments: args,
+            },
+            undefined,
+            {
+              timeout: def.toolCallTimeout,
+            },
+          );
 
         allTools[toolId] = { ...tool, execute };
       });
