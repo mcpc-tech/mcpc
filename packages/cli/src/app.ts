@@ -1,9 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { registerAgent } from "./controllers/register.ts";
-import { mcpc } from "./set-up-mcp-compose.ts";
-import { toolDefinitions } from "../examples/01-basic-composition.ts";
+import { mcpc } from "@mcpc/core";
+import type { ComposableMCPServer } from "@mcpc/core";
 
-export const createServer = async () =>
+export const createServer = async (): Promise<ComposableMCPServer> =>
   await mcpc(
     [
       {
@@ -12,10 +12,11 @@ export const createServer = async () =>
       },
       { capabilities: { tools: {}, sampling: {} } },
     ],
-    toolDefinitions,
+    // TODO: Move example tool definitions here or make configurable
+    [],
   );
 
-export const createApp = () => {
+export const createApp = (): OpenAPIHono => {
   const app = new OpenAPIHono();
 
   // Register routes

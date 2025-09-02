@@ -1,14 +1,10 @@
 import { ComposableMCPServer } from "../mod.ts";
-import minimist from "minimist";
 import { connectToSmitheryServer } from "./utils/common/registory.ts";
 import type { MCPCStep } from "./utils/state.ts";
 import type { MCPSetting } from "./service/tools.ts";
-import process from "node:process";
 import type { SamplingConfig } from "./types.ts";
 import type { ToolPlugin } from "./plugin-types.ts";
 import type { ToolRefXml } from "./types.ts";
-
-export const INCOMING_MSG_ROUTE_PATH = "/core/messages";
 
 export interface ComposeDefinition {
   /**
@@ -91,9 +87,7 @@ export interface ComposibleMCPConfig {
 export function parseMcpcConfigs(
   conf?: ComposeDefinition[],
 ): ComposeDefinition[] {
-  const mcpcConfigRaw = minimist(process.argv.slice(2))?.["mcpc-config"] ??
-    process.env.MCPC_CONFIG;
-  const mcpcConfigs = conf ?? JSON.parse(mcpcConfigRaw);
+  const mcpcConfigs = conf ?? [];
   const newMcpcConfigs = [];
 
   for (const mcpcConfig of mcpcConfigs) {

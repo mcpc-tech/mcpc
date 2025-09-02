@@ -4,7 +4,7 @@
   "tasks": {
     "precommit": "deno lint && deno check && deno fmt"
   },
-  "workspace": ["./packages/core"],
+  "workspace": ["./packages/utils", "./packages/core", "./packages/cli"],
   "imports": {
     "@es-toolkit/es-toolkit": "jsr:@es-toolkit/es-toolkit@^1.37.2",
     "json-schema-faker": "npm:json-schema-faker@^0.5.9",

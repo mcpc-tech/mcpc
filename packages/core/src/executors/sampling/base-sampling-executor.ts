@@ -5,7 +5,7 @@ import { CompiledPrompts } from "../../prompts/index.ts";
 import { Ajv } from "ajv";
 import { AggregateAjvError } from "@segment/ajv-human-errors";
 import addFormats from "ajv-formats";
-import { parseJSON } from "../../utils/common/json.ts";
+import { parseJSON } from "@mcpc/utils";
 import { inspect } from "node:util";
 
 const ajv = new Ajv({

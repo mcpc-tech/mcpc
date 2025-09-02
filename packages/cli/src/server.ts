@@ -1,4 +1,4 @@
-/** MCPC Core Server - HTTP server for MCPC development and testing.
+/** MCPC CLI Server - HTTP server for MCPC development and testing.
  *
  * This module provides a standalone HTTP server that serves the MCPC core
  * application using Hono framework with OpenAPI support. It's primarily
@@ -9,7 +9,7 @@
  * and binds to all interfaces (0.0.0.0) for accessibility.
  *
  * # Set custom port
- * PORT=8080 deno run --allow-net --allow-env packages/core/src/server.ts
+ * PORT=8080 deno run --allow-net --allow-env packages/cli/src/server.ts
  *
  * // The server automatically mounts the core app at /core route
  * // Access OpenAPI docs at: http://localhost:9000/core/docs
@@ -19,9 +19,8 @@
 
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { createApp } from "./app.ts";
-import process from "node:process";
 
-const port = Number(process.env.PORT || 9000);
+const port = Number(Deno.env.get("PORT") || "9000");
 const hostname = "0.0.0.0";
 
 const app = new OpenAPIHono();

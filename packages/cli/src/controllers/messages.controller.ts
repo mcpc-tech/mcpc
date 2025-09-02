@@ -1,7 +1,7 @@
 import { createRoute, type OpenAPIHono } from "@hono/zod-openapi";
 import type { ErrorSchema as _ErrorSchema } from "../schemas/error.ts";
 import { z } from "zod";
-import { handleIncoming } from "../transport/sse.ts";
+import { handleIncoming } from "@mcpc/utils/transport/sse";
 
 export const messageHandler = (app: OpenAPIHono) =>
   app.openapi(

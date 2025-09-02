@@ -1,4 +1,4 @@
-/** MCPC Core STDIO Server - Standard input/output transport for MCP protocol.
+/** MCPC CLI STDIO Server - Standard input/output transport for MCP protocol.
  *
  * This module provides a STDIO-based server transport for the Model Context Protocol (MCP).
  * It enables communication between MCP clients (like Claude Desktop) and the MCPC server
@@ -9,14 +9,14 @@
  * communication method for MCP servers.
  *
  * # Run the STDIO server directly
- * deno run --allow-all packages/core/src/stdio.server.ts
+ * deno run --allow-all packages/cli/src/bin.ts
  *
  * // Example Claude Desktop configuration
  * {
  *   "mcpServers": {
  *     "mcpc": {
  *       "command": "deno",
- *       "args": ["run", "--allow-all", "packages/core/src/stdio.server.ts"]
+ *       "args": ["run", "--allow-all", "packages/cli/src/bin.ts"]
  *     }
  *   }
  * }

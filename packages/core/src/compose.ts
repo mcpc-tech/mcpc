@@ -12,7 +12,8 @@ import {
   type ServerOptions,
 } from "@modelcontextprotocol/sdk/server/index.js";
 import type z from "zod";
-import { composeMcpDepTools, parseTags } from "../mod.ts";
+import { parseTags } from "@mcpc/utils";
+import { composeMcpDepTools } from "./utils/common/mcp.ts";
 import type { ComposeDefinition } from "./set-up-mcp-compose.ts";
 import { updateRefPaths } from "./utils/common/schema.ts";
 import type { JSONSchema, ToolCallback } from "./types.ts";
@@ -487,7 +488,7 @@ export class ComposableMCPServer extends Server {
     const refDesc = options.refs?.join("") ?? "";
     const { tagToResults } = parseTags(description + refDesc, ["tool", "fn"]);
 
-    tagToResults.tool.forEach((toolEl) => {
+    tagToResults.tool.forEach((toolEl: any) => {
       const toolName = toolEl.attribs.name;
       const toolDescription = toolEl.attribs.description;
       const isHidden = toolEl.attribs.hide !== undefined;
@@ -508,7 +509,7 @@ export class ComposableMCPServer extends Server {
     const toolNameToIdMapping = new Map<string, string>();
     const { tools, cleanupClients } = (await composeMcpDepTools(
       depsConfig,
-      ({ mcpName, toolNameWithScope, toolId }) => {
+      ({ mcpName, toolNameWithScope, toolId }: any) => {
         toolNameToIdMapping.set(toolNameWithScope, toolId);
 
         // Populate server-level name mappings for easier resolution at runtime
@@ -536,7 +537,7 @@ export class ComposableMCPServer extends Server {
           return true;
         }
 
-        return tagToResults.tool.find((tool) => {
+        return tagToResults.tool.find((tool: any) => {
           const selectAll =
             tool.attribs.name === `${mcpName}.${ALL_TOOLS_PLACEHOLDER}` ||
             tool.attribs.name === `${mcpName}`;

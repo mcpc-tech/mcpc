@@ -13,7 +13,11 @@ import {
   JSONRPCMessageSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { ServerSentEventStream } from "@std/http/server-sent-event-stream";
-import type { ComposableMCPServer } from "../../mod.ts";
+
+// Use generic server interface to avoid circular dependency
+interface GenericMCPServer {
+  connect(transport: Transport): void;
+}
 
 /**
  * Session Manager: Map of session IDs to SSE server transports
@@ -24,7 +28,7 @@ const transports = new Map<string, SSEServerTransport>();
 
 export async function handleConnecting(
   request: Request,
-  createServer: () => Promise<McpServer | ComposableMCPServer>,
+  createServer: () => Promise<McpServer | GenericMCPServer>,
   incomingMsgRoutePath: string,
 ): Promise<Response> {
   // Check if a session ID is provided in the request
@@ -70,6 +74,7 @@ export async function handleConnecting(
 
   return Promise.resolve(transport.sseResponse);
 }
+
 /**
  * Handles POST messages for all SSE transports
  * @param request The HTTP request object

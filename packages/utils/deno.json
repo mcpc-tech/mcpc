@@ -1,0 +1,18 @@
+{
+  "name": "@mcpc/utils",
+  "version": "0.1.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./json": "./src/json.ts",
+    "./time": "./src/time.ts",
+    "./ai": "./src/ai.ts",
+    "./tool-tags": "./src/tool-tags.ts",
+    "./transport/sse": "./src/transport/sse.ts"
+  },
+  "imports": {
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
+    "@std/http": "jsr:@std/http@^1.0.14",
+    "cheerio": "npm:cheerio@^1.0.0",
+    "jsonrepair": "npm:jsonrepair@^3.13.0"
+  }
+}

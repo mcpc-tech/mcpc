@@ -5,7 +5,7 @@
  * Supports dynamic content replacement and template variables.
  */
 
-import { p } from "../utils/common/ai.ts";
+import { p } from "@mcpc/utils";
 
 export const SystemPrompts = {
   /**
