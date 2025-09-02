@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/core",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "tasks": {
     "server:compile": "echo \"no need to compile\"",
     "test": "deno test --allow-all tests/",

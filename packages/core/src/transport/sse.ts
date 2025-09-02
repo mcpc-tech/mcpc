@@ -56,6 +56,18 @@ export async function handleConnecting(
   transports.set(newSessionId, transport);
   server.connect(transport);
 
+  // Close transport on request abort to ensure reliable cleanup across runtimes.
+  request.signal.addEventListener(
+    "abort",
+    () => {
+      console.log(
+        `HTTP connection aborted for session: ${transport.sessionId}`,
+      );
+      transport.close();
+    },
+    { once: true },
+  );
+
   return Promise.resolve(transport.sseResponse);
 }
 /**
@@ -125,6 +137,7 @@ export class SSEServerTransport implements Transport {
       start: (controller) => {
         this.#controller = controller;
       },
+      // Caveat: cancel() reliably fires on client disconnect in Deno only; use request.signal "abort" for cross-runtime cleanup.
       cancel: () => {
         this.#controller = undefined;
         this.close();
