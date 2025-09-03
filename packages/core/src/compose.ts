@@ -585,15 +585,21 @@ export class ComposableMCPServer extends Server {
 
     const toolNameToDetailList = Object.entries(tools);
 
+    // Tools will be seen by LLM in tools config
     const globalToolNames = this.getPublicToolNames();
-    const externalToolNames = toolNameToDetailList
-      .map(([name]) => name)
-      .filter((n) => !globalToolNames.includes(n));
-    const internalToolNames = this.getInternalToolNames();
+
     const hideToolNames = this.getHiddenToolNames();
+    const internalToolNames = this.getInternalToolNames();
+
+    // Tools will be seen by LLM in agentic tool definition
+    const contextToolNames = toolNameToDetailList
+      .map(([name]) => name)
+      .filter((n) =>
+        !globalToolNames.includes(n) && !hideToolNames.includes(n)
+      );
 
     // For agentic interface: external tools (non-hidden) + internal tools
-    const allToolNames = [...externalToolNames, ...internalToolNames];
+    const allToolNames = [...contextToolNames, ...internalToolNames];
 
     // Add global tools to server
     globalToolNames.forEach((toolId) => {
