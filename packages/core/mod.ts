@@ -41,6 +41,6 @@ export * from "./src/compose.ts";
 
 export * from "./src/utils/common/env.ts";
 export * from "./src/utils/common/json.ts";
-export * from './src/utils/common/mcp.ts';
+export * from "./src/utils/common/mcp.ts";
 
 export * from "./src/set-up-mcp-compose.ts";
