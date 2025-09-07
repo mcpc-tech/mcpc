@@ -594,8 +594,8 @@ export class ComposableMCPServer extends Server {
     // Tools will be seen by LLM in agentic tool definition
     const contextToolNames = toolNameToDetailList
       .map(([name]) => name)
-      .filter((n) =>
-        !globalToolNames.includes(n) && !hideToolNames.includes(n)
+      .filter(
+        (n) => !globalToolNames.includes(n) && !hideToolNames.includes(n),
       );
 
     // For agentic interface: external tools (non-hidden) + internal tools
@@ -637,8 +637,11 @@ export class ComposableMCPServer extends Server {
 
     const depGroups: Record<string, unknown> = {};
     toolNameToDetailList.forEach(([toolName, tool]) => {
-      if (hideToolNames.includes(this.resolveToolName(toolName) ?? "")) {
-        // If the tool is hidden, we can skip it
+      if (
+        hideToolNames.includes(this.resolveToolName(toolName) ?? "") ||
+        globalToolNames.includes(this.resolveToolName(toolName) ?? "")
+      ) {
+        // If the tool is hidden/global, we can skip it
         return;
       }
       if (!tool) {
@@ -651,11 +654,15 @@ export class ComposableMCPServer extends Server {
         );
       }
 
-      const baseSchema = tool.inputSchema || {
-        type: "object",
-        properties: {},
-        required: [],
-      };
+      const baseSchema =
+        // Compatiable with ComposiableleMCPServer.tool() definition
+        (tool.inputSchema.jsonSchema as JSONSchema) ??
+          // Standard definition
+          tool.inputSchema ?? {
+          type: "object",
+          properties: {},
+          required: [],
+        };
 
       const baseProperties =
         baseSchema.type === "object" && baseSchema.properties
