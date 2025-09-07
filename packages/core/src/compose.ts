@@ -45,7 +45,7 @@ export class ComposableMCPServer extends Server {
   > = new Map();
   private toolConfigs: Map<string, ToolConfig> = new Map();
   private globalPlugins: ToolPlugin[] = [];
-  private toolNameMapping: Map<string, string> = new Map();
+  toolNameMapping: Map<string, string> = new Map();
 
   constructor(_serverInfo: Implementation, options: ServerOptions) {
     super(_serverInfo, options);
