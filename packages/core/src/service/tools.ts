@@ -14,11 +14,13 @@ export const SseConfigSchema: z.ZodObject<Record<string, z.ZodTypeAny>> =
   BaseConfigSchema.extend({
     url: z.string().url(),
     transportType: z.literal("sse").optional(),
+    headers: z.record(z.string()).optional(),
   });
 
 export const StreamableHTTPSchema: z.ZodObject<Record<string, z.ZodTypeAny>> =
   BaseConfigSchema.extend({
     url: z.string().url(),
+    headers: z.record(z.string()).optional(),
   });
 
 export const StdioConfigSchema: z.ZodObject<Record<string, z.ZodTypeAny>> =

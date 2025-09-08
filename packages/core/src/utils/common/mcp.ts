@@ -57,9 +57,21 @@ async function getOrCreateMcpClient(
     typeof (def as any).transportType === "string" &&
     (def as any).transportType === "sse"
   ) {
-    transport = new SSEClientTransport(new URL((def as any).url));
+    const options: any = {};
+    if ((def as any).headers) {
+      options.requestInit = { headers: (def as any).headers };
+      options.eventSourceInit = { headers: (def as any).headers };
+    }
+    transport = new SSEClientTransport(new URL((def as any).url), options);
   } else if ("url" in (def as any) && typeof (def as any).url === "string") {
-    transport = new StreamableHTTPClientTransport(new URL((def as any).url));
+    const options: any = {};
+    if ((def as any).headers) {
+      options.requestInit = { headers: (def as any).headers };
+    }
+    transport = new StreamableHTTPClientTransport(
+      new URL((def as any).url),
+      options,
+    );
   } else if (
     (typeof (def as any).transportType === "string" &&
       (def as any).transportType === "stdio") ||
