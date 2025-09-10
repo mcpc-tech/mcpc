@@ -507,10 +507,26 @@ export class ComposableMCPServer extends Server {
 
     // Filter tools and transform scoped tool names to valid action identifiers
     const toolNameToIdMapping = new Map<string, string>();
+    const requestedToolNames = new Set<string>();
+    const availableToolNames = new Set<string>();
+
+    // Collect all requested tool names from XML tags
+    tagToResults.tool.forEach((tool: any) => {
+      if (tool.attribs.name) {
+        requestedToolNames.add(tool.attribs.name);
+      }
+    });
+
     const { tools, cleanupClients } = (await composeMcpDepTools(
       depsConfig,
       ({ mcpName, toolNameWithScope, toolId }: any) => {
         toolNameToIdMapping.set(toolNameWithScope, toolId);
+
+        // Track all available tool names for warning purposes
+        availableToolNames.add(toolNameWithScope);
+        availableToolNames.add(toolId);
+        availableToolNames.add(`${mcpName}.${ALL_TOOLS_PLACEHOLDER}`);
+        availableToolNames.add(mcpName);
 
         // Populate server-level name mappings for easier resolution at runtime
         // 1) Map fully-scoped name (e.g., "server.SearchLog") -> toolId
@@ -555,6 +571,23 @@ export class ComposableMCPServer extends Server {
       tools: Record<string, ComposedTool>;
       cleanupClients: () => Promise<void>;
     };
+
+    // Warn about unmatched tool names and show available options
+    const unmatchedTools = Array.from(requestedToolNames).filter(
+      (toolName) => !availableToolNames.has(toolName),
+    );
+
+    if (unmatchedTools.length > 0) {
+      console.warn(`⚠️  Tool matching warnings for agent "${name}":`);
+      unmatchedTools.forEach((toolName) => {
+        console.warn(`   • Tool not found: "${toolName}"`);
+      });
+      console.warn(
+        `   Available tools: ${
+          Array.from(availableToolNames).sort().join(", ")
+        }`,
+      );
+    }
 
     // Add external tools to registry
     Object.entries(tools).forEach(([toolId, tool]) => {
