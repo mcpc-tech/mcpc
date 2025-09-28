@@ -7,13 +7,18 @@ export const createServer = async (): Promise<ComposableMCPServer> =>
   await mcpc(
     [
       {
-        name: "capi-mcp",
+        name: "large-result-plugin-example",
         version: "0.1.0",
       },
       { capabilities: { tools: {}, sampling: {} } },
     ],
-    // TODO: Move example tool definitions here or make configurable
-    [],
+    [
+      {
+        name: null,
+        description: "",
+        plugins: ["./plugins/large-result.ts?maxSize=8000&previewSize=4000"],
+      },
+    ],
   );
 
 export const createApp = (): OpenAPIHono => {

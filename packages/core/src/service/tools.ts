@@ -20,6 +20,7 @@ export const SseConfigSchema: z.ZodObject<Record<string, z.ZodTypeAny>> =
 export const StreamableHTTPSchema: z.ZodObject<Record<string, z.ZodTypeAny>> =
   BaseConfigSchema.extend({
     url: z.string().url(),
+    transportType: z.literal("streamable-http").optional(),
     headers: z.record(z.string()).optional(),
   });
 

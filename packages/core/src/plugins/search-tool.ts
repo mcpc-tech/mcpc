@@ -7,6 +7,8 @@ import rg from "@mcpc-tech/ripgrep-napi";
 import { tmpdir } from "node:os";
 import { jsonSchema } from "ai";
 import type { ToolPlugin } from "../plugin-types.ts";
+import { resolve } from "node:path";
+import { relative } from "node:path";
 
 /**
  * Configuration options for the search plugin
@@ -42,21 +44,25 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
       // Register the search tool once during plugin initialization
       server.tool(
         "search-tool-result",
-        `Search for text patterns in files and directories. Use this to find specific content, code, or information within files.`,
+        `Search for text patterns in files and directories. Use this to find specific content, code, or information within files. Provide a simple literal string or a regular expression. If your pattern is a regex, ensure it's valid; otherwise use quotes or escape special characters to treat it as a literal string.
+Only search within the allowed directory: ${allowedSearchDir}`,
         jsonSchema<{ pattern: string; path?: string; maxResults?: number }>({
           type: "object",
           properties: {
             pattern: {
               type: "string",
-              description: "Text to search for",
+              description:
+                "Text to search for. Can be a plain string or a regular expression. For regexes, don't include delimiters (e.g. use `^foo` not `/^foo/`). If you get a regex parse error, try escaping special chars or using a simpler literal search.",
             },
             path: {
               type: "string",
-              description: "File or folder path (optional)",
+              description:
+                "File or folder path to limit the search (optional). Must be within the allowed directory.",
             },
             maxResults: {
               type: "number",
-              description: "Max results (optional)",
+              description:
+                "Maximum number of matches to return (optional). Lower this to reduce output size and runtime.",
             },
           },
           required: ["pattern"],
@@ -66,13 +72,34 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
           path?: string;
           maxResults?: number;
         }) => {
+          const isBroad = (raw: string) => {
+            const t = (raw ?? "").trim();
+            if (!t) return true;
+            // only-wildcards when length >=2 (single '*' allowed)
+            if (/^[*.\s]{2,}$/.test(t)) return true;
+            if (t === ".*" || t === "." || t === "^.*$") return true;
+            if (/^\^?\.\*\$?$/.test(t)) return true;
+            if (/^\\s?\*+$/.test(t)) return true;
+            return false;
+          };
+
+          const appendMatchSafely = (
+            current: string,
+            addition: string,
+            limit: number,
+          ) => {
+            if ((current + addition).length > limit) {
+              return { current, added: false };
+            }
+            return { current: current + addition, added: true };
+          };
+
           try {
             const requestedPath = args.path || allowedSearchDir;
             const limit = args.maxResults || maxResults;
 
             // Security check: Validate that the requested path is within allowed directory
             if (args.path) {
-              const { resolve, relative } = await import("node:path");
               const resolvedRequested = resolve(args.path);
               const resolvedAllowed = resolve(allowedSearchDir);
               const relativePath = relative(resolvedAllowed, resolvedRequested);
@@ -88,11 +115,27 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
                         `❌ Path "${args.path}" not allowed. Must be within: ${allowedSearchDir}`,
                     },
                   ],
+                  isError: true,
                 };
               }
             }
 
             const searchPath = requestedPath;
+
+            // Reject overly-broad patterns to avoid expensive/unsafe searches
+            const rawPattern = args.pattern ?? "";
+            if (isBroad(rawPattern)) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text:
+                      `❌ Search pattern too broad: "${rawPattern}"\nProvide a more specific pattern (e.g. include a filename fragment, a keyword, or limit with the "path" parameter). Avoid patterns that only contain wildcards like "*" or ".*".`,
+                  },
+                ],
+                isError: true,
+              };
+            }
 
             // Create timeout promise and keep reference to clear it later
             let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -102,6 +145,7 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
               }, timeoutMs);
             });
 
+            console.log(`Searching for "${args.pattern}" in ${searchPath}`);
             // Create search promise
             const searchPromise = new Promise((resolve, reject) => {
               try {
@@ -144,13 +188,16 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
               const fullMatchText =
                 `${baseMatchText}\`\`\`\n${match.line}\n\`\`\`\n\n`;
 
-              // Check if adding this match would exceed size limit
-              if ((output + fullMatchText).length > maxOutputSize) {
+              const res = appendMatchSafely(
+                output,
+                fullMatchText,
+                maxOutputSize,
+              );
+              if (!res.added) {
                 // If we haven't shown any matches yet, show a truncated version
                 if (matchesIncluded === 0) {
                   const remainingSpace = maxOutputSize - output.length - 100; // Reserve 100 chars for warning
                   if (remainingSpace > 50) {
-                    // Only truncate if we have reasonable space
                     const truncatedLine = match.line.slice(0, remainingSpace);
                     output +=
                       `${baseMatchText}\`\`\`\n${truncatedLine}...\n\`\`\`\n\n`;
@@ -163,7 +210,7 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
                 break;
               }
 
-              output += fullMatchText;
+              output = res.current;
               matchesIncluded++;
             }
 
