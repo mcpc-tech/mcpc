@@ -78,7 +78,7 @@ To perform these actions, you must use the following tools:
 - To read a file's content: <tool name="desktop-commander.read_file" />
 - To write content to a file: <tool name="desktop-commander.write_file" />
 - To find symbol definitions: <tool name="lsmcp.definition" />
-- To create a GitHub pull request: <tool name="github.createPullRequest" />
+- To create a GitHub pull request: <tool name="github.create_pull_request" />
 `;
 
 // 3. Create and start the server

@@ -1,32 +1,27 @@
 #!/bin/sh
 
-# Example 2: Start server with environment variable substitution
-# This demonstrates $VAR_NAME substitution in configuration
+# Example 2: Configuration with environment variable substitution
+# The config uses $GITHUB_PERSONAL_ACCESS_TOKEN which is substituted at runtime
 
 echo "=== Example 2: Environment Variable Substitution ==="
 echo ""
-echo "Setting API_KEY and SERVER_NAME environment variables..."
+echo "The codex-fork.json config uses \$GITHUB_PERSONAL_ACCESS_TOKEN"
+echo "Make sure to set it before running:"
+echo ""
+echo "  export GITHUB_PERSONAL_ACCESS_TOKEN=\"ghp_your_token_here\""
 echo ""
 
-export API_KEY="my-secret-api-key-123"
-export SERVER_NAME="my-custom-server"
+if [ -z "$GITHUB_PERSONAL_ACCESS_TOKEN" ]; then
+  echo "⚠️  Warning: GITHUB_PERSONAL_ACCESS_TOKEN not set"
+  echo "   GitHub integration will not work"
+  echo ""
+fi
 
-export MCPC_CONFIG='[
-  {
-    "name": "$SERVER_NAME-agent",
-    "description": "Agent with API key: $API_KEY",
-    "deps": {
-      "mcpServers": {}
-    }
-  }
-]'
+# Read config file
+CONFIG=$(cat "$(dirname "$0")/configs/codex-fork.json")
 
-echo "Configuration will substitute:"
-echo "  \$SERVER_NAME -> $SERVER_NAME"
-echo "  \$API_KEY -> $API_KEY"
-echo ""
-echo "Starting STDIO server..."
+echo "Starting STDIO server with environment variable substitution..."
 echo "Press Ctrl+C to stop"
 echo ""
 
-deno run --allow-all src/bin.ts
+deno run --allow-all src/bin.ts --config "$CONFIG"

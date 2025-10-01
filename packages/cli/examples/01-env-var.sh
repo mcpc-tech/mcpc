@@ -1,25 +1,18 @@
 #!/bin/sh
 
-# Example 1: Start server with environment variable configuration
-# This demonstrates loading config from MCPC_CONFIG environment variable
+# Example 1: Inline configuration with --config
+# Load config file and pass as inline JSON
 
-echo "=== Example 1: Configuration from Environment Variable ==="
+echo "=== Example 1: Inline Configuration ==="
 echo ""
-echo "Setting MCPC_CONFIG with a simple agent configuration..."
+echo "Reading codex-fork.json and passing as --config argument..."
 echo ""
 
-export MCPC_CONFIG='[
-  {
-    "name": "hello-agent",
-    "description": "A simple hello world agent",
-    "deps": {
-      "mcpServers": {}
-    }
-  }
-]'
+# Read config file
+CONFIG=$(cat "$(dirname "$0")/configs/codex-fork.json")
 
-echo "Starting STDIO server..."
+echo "Starting STDIO server with inline config..."
 echo "Press Ctrl+C to stop"
 echo ""
 
-deno run --allow-all src/bin.ts
+deno run --allow-all src/bin.ts --config "$CONFIG"

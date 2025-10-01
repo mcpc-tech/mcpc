@@ -1,33 +1,22 @@
 #!/bin/sh
 
-# Example 3: Start server with config file
-# This demonstrates loading configuration from a JSON file
+# Example 3: Load configuration from file with --config-file
+# Most straightforward way to use a config file
 
 echo "=== Example 3: Configuration from File ==="
 echo ""
-echo "Creating mcpc.config.json..."
+echo "Using --config-file to load codex-fork.json..."
 echo ""
 
-# Create config file
-cat > mcpc.config.json << 'EOF'
-{
-  "name": "file-based-server",
-  "version": "1.0.0",
-  "agents": [
-    {
-      "name": "file-agent",
-      "description": "Agent loaded from config file",
-      "deps": {
-        "mcpServers": {}
-      }
-    }
-  ]
-}
-EOF
+CONFIG_FILE="$(dirname "$0")/configs/codex-fork.json"
 
-echo "Config file created: mcpc.config.json"
+echo "Config file: $CONFIG_FILE"
 echo ""
-echo "Starting STDIO server (will auto-load mcpc.config.json)..."
+echo "Starting STDIO server..."
+echo "Press Ctrl+C to stop"
+echo ""
+
+deno run --allow-all src/bin.ts --config-file "$CONFIG_FILE"
 echo "Press Ctrl+C to stop"
 echo ""
 

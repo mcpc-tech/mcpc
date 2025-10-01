@@ -4,96 +4,95 @@ CLI server for MCPC with configuration support.
 
 ## Configuration
 
-Load configuration from (in priority order):
+Load configuration using command-line arguments:
 
-1. `MCPC_CONFIG` - JSON string
-2. `MCPC_CONFIG_URL` - Fetch from URL
-3. `MCPC_CONFIG_FILE` - Path to config file
-4. `./mcpc.config.json` - Default file
+- `--config <json>` - Inline JSON configuration string
+- `--config-url <url>` - Fetch from URL (e.g., GitHub raw)
+- `--config-file <path>` - Path to configuration file
+- No arguments - Uses `./mcpc.config.json` if available
 
 ## Usage
 
-**With environment variable:**
+**Inline JSON config:**
 
 ```bash
-export MCPC_CONFIG='[{"name":"my-agent","description":"...","deps":{...}}]'
+deno run --allow-all src/bin.ts --config '[{"name":"my-agent","description":"..."}]'
+```
+
+**From URL:**
+
+```bash
+deno run --allow-all src/bin.ts --config-url https://example.com/config.json
+```
+
+**From file:**
+
+```bash
+deno run --allow-all src/bin.ts --config-file ./my-config.json
+```
+
+**Default (uses ./mcpc.config.json):**
+
+```bash
 deno run --allow-all src/bin.ts
 ```
 
-**With URL (e.g., GitHub raw):**
+**Environment variable substitution:**
 
-```bash
-export MCPC_CONFIG_URL='https://raw.githubusercontent.com/user/repo/main/mcpc.config.json'
-deno run --allow-all src/bin.ts
-```
-
-**With config file:**
+Config files support `$ENV_VAR_NAME` syntax:
 
 ```json
-// mcpc.config.json
 {
-  "name": "my-server",
-  "version": "1.0.0",
-  "agents": [
-    {
-      "name": "my-agent",
-      "description": "Agent with API key: $API_KEY",
-      "deps": { "mcpServers": {} }
+  "agents": [{
+    "deps": {
+      "mcpServers": {
+        "github": {
+          "headers": {
+            "Authorization": "Bearer $GITHUB_PERSONAL_ACCESS_TOKEN"
+          }
+        }
+      }
     }
-  ]
+  }]
 }
 ```
-
-```bash
-export API_KEY="secret123"
-deno run --allow-all src/bin.ts
-```
-
-> **Note:** Config files support `$ENV_VAR_NAME` syntax for environment variable
-> substitution.
 
 **HTTP server:**
 
 ```bash
-deno run --allow-all src/server.ts  # Runs on port 9000
-```
-
-## Claude Desktop
-
-```json
-{
-  "mcpServers": {
-    "mcpc": {
-      "command": "deno",
-      "args": ["run", "--allow-all", "/path/to/src/bin.ts"],
-      "env": {
-        "MCPC_CONFIG": "[{\"name\":\"agent\",\"description\":\"...\",\"deps\":{...}}]"
-      }
-    }
-  }
-}
+deno run --allow-all src/server.ts --config-file ./my-config.json
 ```
 
 ## Examples
 
-Run the example scripts to see different configuration methods:
+### Required Environment Variables
+
+When using the Codex Fork configuration:
+
+- `GITHUB_PERSONAL_ACCESS_TOKEN` - GitHub Personal Access Token for GitHub MCP
+  server
+
+Run the example scripts to see different usage patterns:
 
 ```bash
-# Example 1: Environment variable config
+# P
+export GITHUB_PERSONAL_ACCESS_TOKEN="github_pat_your_token"
+
+# Example 1: Inline configuration
 ./examples/01-env-var.sh
 
 # Example 2: Environment variable substitution
 ./examples/02-env-substitution.sh
 
-# Example 3: Config file
+# Example 3: Configuration from file
 ./examples/03-config-file.sh
 
 # Example 4: HTTP server
 ./examples/04-http-server.sh
 
-# Example 5: Remote URL config (after pushing to GitHub)
+# Example 5: Remote URL config
 ./examples/05-url-config.sh
 ```
 
-See [examples/configs/](examples/configs/) for pre-made configuration files
-including a full Codex Fork example.
+All examples use the same [codex-fork.json](examples/configs/codex-fork.json)
+configuration.

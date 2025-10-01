@@ -42,7 +42,7 @@ Use `<tool name="server.toolname" />` syntax:
 
 ```xml
 <tool name="desktop-commander.execute_command" />
-<tool name="github.createPullRequest" />
+<tool name="github.create_pull_request" />
 ```
 
 That's it. The agent can now call these tools.

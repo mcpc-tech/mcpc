@@ -16,11 +16,22 @@ Includes:
 
 **Requirements:**
 
-- Set `GITHUB_MCP_PAT` environment variable with your GitHub token
+- Set `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable with your GitHub
+  Personal Access Token
+
+**How to get a GitHub Personal Access Token:**
+
+1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens
+   (classic)
+2. Generate new token with these scopes:
+   - `repo` (Full control of private repositories)
+   - `read:org` (Read org and team membership)
+   - `user` (Read user profile data)
+3. Copy the generated token (starts with `ghp_`)
 
 ```bash
 # Use with environment variable substitution
-export GITHUB_MCP_PAT="your-github-token-here"
+export GITHUB_PERSONAL_ACCESS_TOKEN="ghp_your_token_here"
 export MCPC_CONFIG_FILE=examples/configs/codex-fork.json
 deno run --allow-all src/bin.ts
 ```

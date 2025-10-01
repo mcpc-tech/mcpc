@@ -32,8 +32,8 @@ const deps: ComposeDefinition["deps"] = {
       transportType: "streamable-http",
       url: "https://api.githubcopilot.com/mcp/",
       headers: {
-        // Note: You would typically use a secrets manager for API keys.
-        "Authorization": "Bearer ${input:github_mcp_pat}",
+        // Use environment variable for GitHub Personal Access Token
+        "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}",
       },
     },
   },
@@ -47,23 +47,23 @@ const description = `
 
   Workflow:
   1. Project Overview: Use <tool name="lsmcp.get_project_overview"/> to understand the project structure.
-  2. Code Discovery: Locate relevant files using <tool name="lsmcp.search_symbols"/>, <tool name="desktop-commander.search_code"/>, or <tool name="desktop-commander.list_directory"/>.
+  2. Code Discovery: Locate relevant files using <tool name="lsmcp.search_symbols"/>, <tool name="desktop-commander.start_search"/>, or <tool name="desktop-commander.list_directory"/>.
   3. Implementation: Apply changes with <tool name="desktop-commander.edit_block"/> and verify with <tool name="lsmcp.lsp_get_diagnostics"/>.
-  4. Build and Commit: Execute build commands with <tool name="desktop-commander.execute_command"/>, then commit changes.
-  5. Submission: Create pull requests with <tool name="github.createPullRequest"/>.
+  4. Build and Commit: Execute build commands with <tool name="desktop-commander.start_process"/>, then commit changes.
+  5. Submission: Create pull requests with <tool name="github.create_pull_request"/>.
 
   Available tools:
-  <tool name="desktop-commander.execute_command"/>
+  <tool name="desktop-commander.start_process"/>
   <tool name="desktop-commander.read_file"/>
   <tool name="desktop-commander.write_file"/>
   <tool name="desktop-commander.edit_block"/>
-  <tool name="desktop-commander.search_code"/>
+  <tool name="desktop-commander.start_search"/>
   <tool name="desktop-commander.list_directory"/>
   <tool name="lsmcp.get_project_overview"/>
   <tool name="lsmcp.search_symbols"/>
-  <tool name="lsmcp.definition"/>
+  <tool name="lsmcp.lsp_get_definitions"/>
   <tool name="lsmcp.lsp_get_diagnostics"/>
-  <tool name="github.createPullRequest"/>
+  <tool name="github.create_pull_request"/>
 `;
 
 // 3. Finally, Start the Agentic MCP Server
