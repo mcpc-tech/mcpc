@@ -163,7 +163,7 @@ function replaceEnvVarsInConfig(obj: unknown): unknown {
 function normalizeConfig(config: unknown): MCPCConfig {
   // Replace environment variables first
   config = replaceEnvVarsInConfig(config);
-  
+
   // If config is an array, treat it as agents array
   if (Array.isArray(config)) {
     return {

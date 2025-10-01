@@ -14,18 +14,21 @@ Load configuration from (in priority order):
 ## Usage
 
 **With environment variable:**
+
 ```bash
 export MCPC_CONFIG='[{"name":"my-agent","description":"...","deps":{...}}]'
 deno run --allow-all src/bin.ts
 ```
 
 **With URL (e.g., GitHub raw):**
+
 ```bash
 export MCPC_CONFIG_URL='https://raw.githubusercontent.com/user/repo/main/mcpc.config.json'
 deno run --allow-all src/bin.ts
 ```
 
 **With config file:**
+
 ```json
 // mcpc.config.json
 {
@@ -46,9 +49,11 @@ export API_KEY="secret123"
 deno run --allow-all src/bin.ts
 ```
 
-> **Note:** Config files support `$ENV_VAR_NAME` syntax for environment variable substitution.
+> **Note:** Config files support `$ENV_VAR_NAME` syntax for environment variable
+> substitution.
 
 **HTTP server:**
+
 ```bash
 deno run --allow-all src/server.ts  # Runs on port 9000
 ```
@@ -85,4 +90,10 @@ Run the example scripts to see different configuration methods:
 
 # Example 4: HTTP server
 ./examples/04-http-server.sh
+
+# Example 5: Remote URL config (after pushing to GitHub)
+./examples/05-url-config.sh
 ```
+
+See [examples/configs/](examples/configs/) for pre-made configuration files
+including a full Codex Fork example.

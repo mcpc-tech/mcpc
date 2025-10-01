@@ -18,7 +18,7 @@ Deno.test("Bug fix - empty deps object should work", async () => {
   const config = await loadConfig();
   assertExists(config);
   assertEquals(config.agents[0].description, "Key: secret123");
-  
+
   // Verify deps.mcpServers was added
   assertExists(config.agents[0].deps);
   assertExists(config.agents[0].deps.mcpServers);

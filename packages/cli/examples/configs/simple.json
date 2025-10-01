@@ -1,0 +1,13 @@
+{
+  "name": "simple-agent",
+  "version": "1.0.0",
+  "agents": [
+    {
+      "name": "hello-agent",
+      "description": "A simple hello world agent for testing",
+      "deps": {
+        "mcpServers": {}
+      }
+    }
+  ]
+}

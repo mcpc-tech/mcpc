@@ -3,6 +3,6 @@ export { createApp, createServer } from "./src/app.ts";
 export * from "./src/server.ts";
 export {
   loadConfig,
-  validateConfig,
   type MCPCConfig,
+  validateConfig,
 } from "./src/config/loader.ts";

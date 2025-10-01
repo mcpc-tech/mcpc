@@ -1,0 +1,38 @@
+{
+  "name": "codex-fork-agent",
+  "version": "0.1.0",
+  "capabilities": {
+    "tools": {},
+    "sampling": {}
+  },
+  "agents": [
+    {
+      "name": "codex-fork-agent",
+      "description": "You are a \"codex fork\" agent, a world-class AI assistant for coding tasks.\n\nYour capabilities include:\n- Reading and writing files.\n- Searching the codebase using advanced language server features.\n- Executing terminal commands to build, test, and run projects.\n- Interacting with GitHub to create pull requests and manage issues.\n\nTo perform these actions, you must use the following tools:\n- To execute a shell command: <tool name=\"desktop-commander.exec\" />\n- To read a file's content: <tool name=\"desktop-commander.readFile\" />\n- To write content to a file: <tool name=\"desktop-commander.writeFile\" />\n- To find symbol definitions: <tool name=\"lsmcp.definition\" />\n- To create a GitHub pull request: <tool name=\"github.createPullRequest\" />",
+      "options": {
+        "mode": "agentic"
+      },
+      "deps": {
+        "mcpServers": {
+          "desktop-commander": {
+            "command": "npx",
+            "args": ["-y", "@wonderwhy-er/desktop-commander@latest"],
+            "transportType": "stdio"
+          },
+          "lsmcp": {
+            "command": "npx",
+            "args": ["-y", "@mizchi/lsmcp", "-p", "tsgo"],
+            "transportType": "stdio"
+          },
+          "github": {
+            "transportType": "streamable-http",
+            "url": "https://api.githubcopilot.com/mcp/",
+            "headers": {
+              "Authorization": "Bearer $GITHUB_MCP_PAT"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
