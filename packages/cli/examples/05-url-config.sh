@@ -12,7 +12,7 @@ echo ""
 GITHUB_USER="mcpc-tech"
 REPO_NAME="mcpc"
 BRANCH="main"
-CONFIG_PATH="packages/cli/examples/configs/simple.json"
+CONFIG_PATH="packages/cli/examples/configs/codex-fork.json"
 
 export MCPC_CONFIG_URL="https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/${BRANCH}/${CONFIG_PATH}"
 

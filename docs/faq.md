@@ -41,7 +41,7 @@ Code/compatible clients.
 Use `<tool name="server.toolname" />` syntax:
 
 ```xml
-<tool name="desktop-commander.exec" />
+<tool name="desktop-commander.execute_command" />
 <tool name="github.createPullRequest" />
 ```
 

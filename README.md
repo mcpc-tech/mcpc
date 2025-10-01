@@ -74,9 +74,9 @@ Your capabilities include:
 - Interacting with GitHub to create pull requests and manage issues
 
 To perform these actions, you must use the following tools:
-- To execute a shell command: <tool name="desktop-commander.exec" />
-- To read a file's content: <tool name="desktop-commander.readFile" />
-- To write content to a file: <tool name="desktop-commander.writeFile" />
+- To execute a shell command: <tool name="desktop-commander.execute_command" />
+- To read a file's content: <tool name="desktop-commander.read_file" />
+- To write content to a file: <tool name="desktop-commander.write_file" />
 - To find symbol definitions: <tool name="lsmcp.definition" />
 - To create a GitHub pull request: <tool name="github.createPullRequest" />
 `;

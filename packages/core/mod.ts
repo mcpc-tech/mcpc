@@ -23,9 +23,9 @@
  * I am a coding assistant that can read files and run terminal commands.
  *
  * Available tools:
- * <tool name="desktop-commander.exec" />
- * <tool name="desktop-commander.readFile" />
- * <tool name="desktop-commander.writeFile" />
+ * <tool name="desktop-commander.execute_command" />
+ * <tool name="desktop-commander.read_file" />
+ * <tool name="desktop-commander.write_file" />
  * `
  *
  * // Create and start the server
