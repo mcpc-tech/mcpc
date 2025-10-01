@@ -2,61 +2,55 @@
 
 ## Frequently Asked Questions
 
-### Q1: What's the difference between "agentic" mode and "sampling" mode in MCPC?
+### Q1: What is an agentic MCP tool?
 
-**Agentic Mode (Default):** Works through standard, interactive calls where the
-LLM explicitly invokes each tool with distinct arguments. The agent makes
-deliberate tool calls step by step, allowing for full control and transparency
-of each action.
+An MCP tool that acts like an agent. When called, it internally orchestrates
+complex workflows by calling its dependent MCP tools in multiple steps to
+complete the task.
 
-**Sampling Mode (Experimental):** Uses a client-side feature that leverages
-sampling to generate tool calls by requesting responses from the client's local
-LLM. This creates a "mini-agent" that operates inside the tool and requires a
-compatible client like VS Code Copilot. A single call to the agentic tool
-initiates an LLM request loop using the client's LLM.
+**Regular MCP tool**: "Read this file" → returns file content\
+**Agentic MCP tool**: "Analyze this codebase" → internally calls dependent MCP
+tools (file-reader, test-runner, dependency-checker) in multiple steps → returns
+comprehensive analysis
 
-### Q2: How do I reference existing MCP tools in my agent description?
+> 📖 **Learn More**: See [Agentic MCP Tools](../learn-more/agentic-mcp-tools.md)
+> for technical details.
 
-You can reference MCP tools using XML-like syntax in your agent description:
+### Q2: Why build agentic MCP tools instead of agents with LLMs built in?
+
+**Portability**: Write once, run everywhere. Your agent works in Claude Desktop,
+VS Code, Cursor, and any future MCP client without modification.
+
+**Interoperability**: MCP tools compose naturally. Your coding agent can work
+alongside file managers, web scrapers, and API integrators. Embedded LLM agents
+are isolated islands.
+
+> 📖 **Learn More**: See
+> [Achieving Agent Interoperability](../learn-more/achieving-agent-interoperability.md)
+> for detailed technical explanation.
+
+### Q3: What's the difference between "agentic" mode and "sampling" mode?
+
+**Agentic Mode**: LLM calls tools step by step. You see each action.
+
+**Sampling Mode**: Agent runs autonomously in one call. Only works in VS
+Code/compatible clients.
+
+### Q4: How do I reference MCP tools in my agent description?
+
+Use `<tool name="server.toolname" />` syntax:
 
 ```xml
-<tool name="server_name.tool_name" />
 <tool name="desktop-commander.exec" />
 <tool name="github.createPullRequest" />
 ```
 
-The `<tool>` tag supports advanced properties:
+That's it. The agent can now call these tools.
 
-- **name**: Defines which tool to select from a dependent MCP server (syntax:
-  `{mcp_server_name}.{tool_name}`)
-- **global**: (boolean, default false) When true, exposes tools in the MCP tools
-  scope instead of keeping them internal
-- **hide**: (boolean, default false) Commonly used when overriding tools with
-  custom properties or results
+### Q5: What transport types does MCPC support?
 
-### Q3: What MCP transport types does MCPC support?
+All MCP transports work:
 
-MCPC offers full support for all MCP transport protocols:
-
-- **stdio**: Standard input/output transport (most common)
-- **sse**: Server-Sent Events transport
-- **streamable-http**: HTTP-based transport for web APIs
-
-Example configurations:
-
-```typescript
-const deps = {
-  mcpServers: {
-    "local-tool": {
-      command: "npx",
-      args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
-      transportType: "stdio",
-    },
-    "web-api": {
-      transportType: "streamable-http",
-      url: "https://api.example.com/mcp/",
-      headers: { "Authorization": "Bearer ${input:api_token}" },
-    },
-  },
-};
-```
+- **stdio**
+- **streamable-http**
+- **sse**
