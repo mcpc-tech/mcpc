@@ -1,298 +1,103 @@
-# [MCPC](https://mcpc.tech/) &middot; [![JSR](https://jsr.io/badges/@mcpc/code-runner-mcp)](https://jsr.io/@mcpc/core)
+# MCPC
 
-MCPC: One prompt to instantly build scalable agentic MCP servers from thousands
-of dependent MCPs.
+**Build agentic MCP servers by composing existing MCP tools.**
 
-> Read more at
-> [Introducing MCPC: One Prompt for Your Agentic MCP Server, Powered by Thousands](https://x.com/yaoandyan/article/1921532787905237398)
+MCPC lets you create powerful AI agents by combining tools from the MCP
+ecosystem. Write a simple description, select your tools, and get a working MCP
+server.
 
-## ⭐ Key Features
+## What You Can Build
 
-🤖 **Intelligent Execution Modes**
+- **Coding agents** that read files, run commands, and interact with GitHub
+- **Web automation** that controls browsers and processes data
+- **Multi-agent systems** where agents work together on complex tasks
 
-- **Agentic Mode:** Fully autonomous agents with self-orchestration
-- **Workflow Mode:** Structured step-by-step execution with state management
-- **Dynamic Workflows:** Runtime step generation based on context
+## Key Features
 
-🔧 **Advanced Tool Management**
+- **Simple composition**: Reuse existing MCP servers as building blocks
+- **Two execution modes**: Interactive (agentic) or autonomous (sampling)
+- **All transport types**: stdio, HTTP, and server-sent events
+- **Tool selection**: Pick specific tools or use everything from an MCP server
 
-- **Tool Overrides:** Customize descriptions and hide sensitive operations
-- **Internal Tools:** Internal tools for security and audit logging
-- **Wildcard Selection:** Use `__ALL__` to include all tools from an MCP server
-- **Smart Namespacing:** Automatic conflict resolution and organization
+## Quick Start
 
-🌐 **Multi-MCP Integration**
-
-- **Seamless Composition:** Combine multiple MCP servers into unified workflows
-- **Intelligent Orchestration:** Automatic tool coordination across different
-  servers
-- **Dependency Management:** Declarative configuration for external MCP servers
-
-# Getting Started
-
-## 1. Get Started Instantly via Our Website
-
-For the fastest and most straightforward path, simply visit mcpc.tech. Our
-user-friendly online platform provides an intuitive interface where you can
-declare your agentic workflows and provision your MCP servers with ease – all
-just with a few clicks. It's the ideal way to grasp the power of one-prompt
-automation firsthand.
-
-![mcpc-tech-example](./images/mcpc-tech-example.png)
-
-After defining your agentic workflow, simply click the **"Generate" button** to
-effortlessly create your custom Agentic MCP Server. You can then seamlessly copy
-and paste the generated configuration into your preferred MCP client (e.g.,
-Claude Desktop) for rapid integration.
-
-What's more, this powerful workflow configuration can be easily **shared with
-your colleagues or anyone interested**. This not only fosters team collaboration
-and knowledge sharing but also allows more people to experience the automation
-solutions you've built.
-
-## 2. Programmatic Integration
-
-For developers seeking deep integration and customization, MCPC provides a
-comprehensive SDK with powerful composition capabilities:
+### Installation
 
 ```bash
-# Use with deno
-deno install jsr:@mcpc/core
-# Use with pnpm
-pnpm install jsr:@mcpc/core
-# Use with yarn
-yarn add jsr:@mcpc/core
-# Use with npm
+# npm
 npx jsr add @mcpc/core
+# deno  
+deno add jsr:@mcpc/core
+# pnpm
+pnpm add jsr:@mcpc/core
 ```
 
-### Basic Composition Example
+### Examples: Create a Simple Codex/Claude Code Fork
+
+Build your own Codex or Claude Code fork in minutes:
 
 ```typescript
-import { StdioServerTransport } from "@modelcontextprotocol/sdk";
-import { mcpc } from "@mcpc/core";
+import { type ComposeDefinition, mcpc } from "@mcpc/core";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-// 1. Define dependencies
-const dependencies = {
+// 1. Define MCP server dependencies
+const deps: ComposeDefinition["deps"] = {
   mcpServers: {
-    "@wonderwhy-er/desktop-commander": {
+    "desktop-commander": {
       command: "npx",
       args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+      transportType: "stdio",
+    },
+    "lsmcp": {
+      command: "npx",
+      args: ["-y", "@mizchi/lsmcp", "-p", "tsgo"],
+      transportType: "stdio",
+    },
+    "github": {
+      transportType: "streamable-http",
+      url: "https://api.githubcopilot.com/mcp/",
+      headers: {
+        "Authorization": "Bearer ${input:github_mcp_pat}",
+      },
     },
   },
 };
 
-// 2. Write agent description
-const agentDescription =
-  `I am an intelligent file organizer with advanced capabilities.
+// 2. Write agent description with tool references
+const description = `
+You are a coding assistant with advanced capabilities.
 
-Available tools:
-<tool name="@wonderwhy-er/desktop-commander.list_directory"/>
-<tool name="@wonderwhy-er/desktop-commander.create_directory"/>
-<tool name="@wonderwhy-er/desktop-commander.move_file"/>
+Your capabilities include:
+- Reading and writing files
+- Searching the codebase using language server features  
+- Executing terminal commands to build, test, and run projects
+- Interacting with GitHub to create pull requests and manage issues
 
-I can automatically organize files by type, date, and content with smart conflict resolution.`;
-
-// 3. Create server using mcpc API
-export const server = await mcpc(
-  [
-    {
-      name: "smart-file-manager",
-      version: "1.0.0",
-    },
-    { capabilities: { tools: { listChanged: true } } },
-  ],
-  [
-    {
-      name: "file-organizer",
-      description: agentDescription,
-      deps: dependencies,
-    },
-  ],
-);
-
-const transport = new StdioServerTransport();
-await server.connect(transport);
-```
-
-## 🔧 Core Features
-
-### Execution Modes
-
-**Agentic Mode** - Complete autonomy and self-orchestration
-
-```typescript
-{
-  name: "autonomous-analyst",
-  options: { mode: "agentic" },
-  description: `I autonomously analyze data and make decisions...`
-}
-```
-
-**Workflow Mode** - Structured step-by-step execution
-
-```typescript
-{
-  name: "structured-processor",
-  options: {
-    mode: "agentic_workflow",
-    steps: [
-      { description: "Analyze input", actions: ["reasoning"] },
-      { description: "Process data", actions: ["tool1", "tool2"] },
-      { description: "Generate output", actions: ["tool3"] }
-    ]
-  }
-}
-```
-
-**Dynamic Workflows** - Runtime step generation
-
-```typescript
-{
-  options: { mode: "agentic_workflow" }, // No predefined steps
-  description: `I generate workflow steps dynamically based on the task...`
-}
-```
-
-### Tool Management
-
-**Tool Selection**
-
-```typescript
-description: `
-Available tools:
-<tool name="server.specific_tool"/>
-<tool name="server.__ALL__"/>  // Include all tools
-<tool name="tool1" description="Enhanced description"/>
-<tool name="sensitive_tool" hide/>  // Hide from public interface
+To perform these actions, you must use the following tools:
+- To execute a shell command: <tool name="desktop-commander.exec" />
+- To read a file's content: <tool name="desktop-commander.readFile" />
+- To write content to a file: <tool name="desktop-commander.writeFile" />
+- To find symbol definitions: <tool name="lsmcp.definition" />
+- To create a GitHub pull request: <tool name="github.createPullRequest" />
 `;
-```
 
-**Internal Tools and Security**
-
-```typescript
-// Register internal tools
-server.tool("audit-logger", "Internal logging", schema, callback, { internal: true });
-
-// Use internal tools in public interfaces
-server.tool("secure-operation", "Safe operation", schema, async (args) => {
-  await server.callTool("audit-logger", {...});
-  // Secure operation logic
-});
-```
-
-### Multi-MCP Integration
-
-**Seamless Composition**
-
-```typescript
-deps: {
-  mcpServers: {
-    "@microsoft/playwright-mcp": {
-      command: "npx",
-      args: ["@playwright/mcp@latest"]
-    },
-    "code-runner": {
-      command: "deno",
-      args: ["run", "--allow-all", "jsr:@mcpc/code-runner-mcp/bin"]
-    },
-    "@wonderwhy-er/desktop-commander": {
-      command: "npx",
-      args: ["-y", "@wonderwhy-er/desktop-commander@latest"]
-    }
-  }
-}
-```
-
-### Core API Overview
-
-MCPC provides a simple and powerful API for creating intelligent MCP servers.
-The core workflow follows three steps: define dependencies, write agent
-descriptions, and create servers using the mcpc API.
-
-## 📚 Comprehensive Examples
-
-Explore our complete example collection demonstrating all MCPC features:
-
-### Core Examples
-
-- **[Basic File Manager](packages/core/examples/comprehensive-features/01-basic-file-manager.ts)** -
-  Simple composition and tool selection
-- **[Agentic Data Analyst](packages/core/examples/comprehensive-features/02-agentic-data-analyst.ts)** -
-  Autonomous mode with complete flexibility
-- **[Workflow Image Generator](packages/core/examples/comprehensive-features/03-workflow-image-generator.ts)** -
-  Structured workflows with predefined steps
-- **[Dynamic Document Processor](packages/core/examples/comprehensive-features/04-dynamic-workflow-processor.ts)** -
-  Runtime workflow generation
-
-### Advanced Examples
-
-- **[Tool Override Manager](packages/core/examples/comprehensive-features/05-tool-override-manager.ts)** -
-  Advanced tool management and security
-- **[Multi-MCP Web Analyzer](packages/core/examples/comprehensive-features/06-multi-mcp-web-analyzer.ts)** -
-  Complex multi-server integration
-- **[Thinking Middleware Agent](packages/core/examples/comprehensive-features/07-thinking-middleware-agent.ts)** -
-  Transparent AI reasoning
-
-Each example is complete, runnable, and demonstrates specific MCPC capabilities
-with detailed documentation.
-
-## 🚀 Use Cases
-
-### DevOps & Automation
-
-- **CI/CD Pipeline Management:** Orchestrate build, test, and deployment
-  workflows
-- **Infrastructure Monitoring:** Real-time system health and performance
-  tracking
-- **Log Analysis:** Intelligent parsing and alerting for system events
-- **Deployment Automation:** Multi-stage deployment with validation and rollback
-
-### Data Processing & Analytics
-
-- **ETL Pipelines:** Extract, transform, and load data from multiple sources
-- **Report Generation:** Automated analysis and visualization creation
-- **Data Quality Monitoring:** Continuous validation and quality assurance
-- **Machine Learning Workflows:** Model training, evaluation, and deployment
-
-### Content Creation & Management
-
-- **Document Processing:** Intelligent parsing, transformation, and organization
-- **Image Generation:** Dynamic visual content creation with HTML/CSS rendering
-- **Website Analysis:** SEO, performance, and accessibility auditing
-- **Content Optimization:** Automated improvements and recommendations
-
-### Security & Compliance
-
-- **Audit Logging:** Comprehensive tracking for regulatory compliance
-- **Security Scanning:** Automated vulnerability detection and reporting
-- **Access Control:** Role-based permissions and secure operations
-- **Incident Response:** Automated threat detection and mitigation
-
-## 🔗 Integration
-
-### Connect to Claude Desktop
-
-Create your MCPC server file (e.g., `my-server.ts`):
-
-```typescript
-import { mcpc } from "@mcpc/core";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-
+// 3. Create and start the server
 const server = await mcpc(
-  [{ name: "my-assistant", version: "1.0.0" }],
   [
     {
-      name: "intelligent-helper",
-      description: `I can help with various tasks using multiple tools.`,
-      deps: {
-        mcpServers: {
-          "@wonderwhy-er/desktop-commander": {
-            command: "npx",
-            args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
-          },
-        },
+      name: "coding-agent",
+      version: "0.1.0",
+    },
+    { capabilities: { tools: {}, sampling: {} } },
+  ],
+  [
+    {
+      name: "coding-agent",
+      options: {
+        mode: "agentic",
       },
+      description,
+      deps,
     },
   ],
 );
@@ -301,52 +106,75 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 ```
 
-Add to Claude Desktop configuration:
+> 💡 **Complete Example**: See the full
+> [Codex fork tutorial](docs/examples/creating-a-codex-fork.md) for a
+> step-by-step walkthrough.
+
+## How It Works
+
+Three simple steps:
+
+1. **Define dependencies** - List the MCP servers you want to use
+2. **Write agent description** - Describe what your agent does and reference
+   tools
+3. **Create server** - Use `mcpc()` to build and connect your server
+
+## Execution Modes
+
+**Agentic Mode** (default) - Interactive tool calls step by step
+
+```typescript
+{
+  mode: "agentic";
+} // LLM calls tools interactively
+```
+
+**Sampling Mode** - Autonomous execution in compatible clients
+
+```typescript
+{ options: { mode: "agentic", sampling: true } }  // Runs autonomously in VS Code
+```
+
+## Documentation
+
+- **[Getting Started](docs/quickstart/installation.md)** - Installation and
+  first steps
+- **[Creating Your First Agent](docs/quickstart/create-your-first-agentic-mcp.md)** -
+  Complete tutorial
+- **[Examples](docs/examples/)** - Real-world use cases
+- **[FAQ](docs/faq.md)** - Common questions and answers
+
+## Use Cases
+
+- **Coding Assistant** - File management, terminal commands, GitHub integration
+- **Web Automation** - Browser control, data extraction, form filling
+- **DevOps Helper** - Build pipelines, deployment, monitoring
+- **Data Processor** - ETL workflows, analysis, reporting
+
+## Using with AI Clients
+
+Add your server to Claude Desktop, VS Code, or any MCP-compatible client:
 
 ```json
 {
   "mcpServers": {
-    "my-assistant": {
-      "command": "deno",
-      "args": ["run", "--allow-all", "path/to/my-server.ts"]
+    "my-agent": {
+      "command": "npx",
+      "args": ["tsx", "my-server.ts"]
     }
   }
 }
 ```
 
-## 📖 Documentation
+## Examples
 
-- **[Comprehensive Examples](packages/core/examples/comprehensive-features/)** -
-  Complete feature demonstrations
-- **[Core API Reference](packages/core/src/)** - Detailed API documentation
-- **[Integration Guides](packages/core/examples/)** - Platform-specific
-  integration examples
+See working examples in the [examples directory](packages/core/examples/) or
+check out the [Codex fork tutorial](docs/examples/creating-a-codex-fork.md).
 
-## 🛠️ Development
+## Contributing
 
-```bash
-# Clone the repository
-git clone https://github.com/mcpc-tech/mcpc.git
-cd mcpc
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-# Install dependencies
-deno install
-
-# Run examples
-deno run --allow-all packages/core/examples/comprehensive-features/01-basic-file-manager.ts
-```
-
-## 🤝 Contributing
-
-MCPC is an open-source project welcoming contributions. Whether you're building
-new MCP integrations, improving existing features, or creating examples, we'd
-love your help!
-
-- **Report Issues:** [GitHub Issues](https://github.com/mcpc-tech/mcpc/issues)
-- **Feature Requests:**
-  [Discussions](https://github.com/mcpc-tech/mcpc/discussions)
-- **Pull Requests:** [Contributing Guide](CONTRIBUTING.md)
-
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) for details.

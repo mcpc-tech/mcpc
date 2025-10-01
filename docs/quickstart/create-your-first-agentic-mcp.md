@@ -1,0 +1,201 @@
+# Create your first agentic MCP
+
+Normal MCP Servers have tools that excute unit tasks and give feedback to LLM.
+This provides extra context for the LLM to interact with the outer environment.
+
+What if we take this a step further by predefing your task in a single agentic
+tool?
+
+**What benefits do you have?**
+
+- Your built agent is reusable and portable to all major AI Clients/IDEs giving
+  them all support MCP protocol;
+- Reuse existing tools from MCP community with on-demand selecting and
+  fine-tuning, For example:
+
+  - An **MCP for desktop control,** like
+    [desktop-commander](https://github.com/wonderwhy-er/DesktopCommanderMCP) or
+    [claude code](https://docs.claude.com/en/docs/claude-code/mcp#use-claude-code-as-an-mcp-server)
+    gives LLM terminal control, file system search and diff file editing
+    capabilities, perfect for building your coding agent;
+  - An **MCP for browser automation**, like
+    [playwright](https://github.com/microsoft/playwright-mcp) provides LLM with
+    browser automation capabilities, this enables you to build your web
+    automation agent;
+  - An **API Integration MCP,** like
+    [github](https://github.com/github/github-mcp-server) or
+    [notion](https://developers.notion.com/docs/mcp) lets an LLM interact with
+    specific external systems, which is suitable for building **specialized
+    workflow automation agents** (e.g., a DevOps assistant or a knowledge
+    management bot).
+
+**What does an agentic MCP require?**
+
+- **Select the desired tools** and set up their corresponding **MCP transport
+  configurations;**
+- **Write a detailed description** of your target agent. This description should
+  reference the selected tools**;**
+
+See the magic in action 👇
+
+# First Collect Your MCP Server Dependencies
+
+The MCPC framework becomes truly powerful when you reuse and compose existing
+MCP Servers, much like your favorite AI-integrated clients (e.g., Cursor or
+VSCode). We offer full support for the MCP transport protocol, including
+`stdio`, `sse`, and `streamable-http`.
+
+```typescript
+import { type ComposeDefinition, mcpc } from '@mcpc/core'
+
+const deps: ComposeDefinition['deps'] = {
+  mcpServers: {
+    "desktop-commander": {
+      command: "npx",
+      args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+      transportType: "stdio",
+    },
+    "lsmcp": {
+      command: "npx",
+      args: ["-y", "@mizchi/lsmcp", "-p", "tsgo"],
+      transportType: "stdio",
+    },
+    "github": {
+      transportType: "streamable-http",
+      url: "https://api.githubcopilot.com/mcp/",
+      headers: {
+        "Authorization": "Bearer ${input:github_mcp_pat}"
+    }
+  },
+}
+```
+
+# Then write the documentation for your agent
+
+A documentation for your agent helps LLM understand the purpose of the agent,
+when to use it, how to use it
+
+Agent documentation is crucial for telling an LLM what the agent does, when to
+use it, and how to use it. Below is an example of a description of a coding
+agent.
+
+You might be notice the xml-like tool syntax, it's designed for referencing
+dependant MCP tools inside agent docs, `<tool>` tag have following properties:
+
+- name(type string): it defines which tool to select from a dependant MCP
+  server, syntax {mcp_server_name}.{tool_name};
+
+Advanced properties:
+
+- global(type boolean): default is false, referenced tools are cohesed in mcpc
+  internal tools, by setting it to true, you can expose them on the MCP tools
+  scope;
+- hide(type boolean): default is false, it commonly used when you are overiding
+  the tool with custom props or results
+
+# Start the agentic MCP server
+
+Now the denpendent MCPs and agent description are ready, let's start the server
+using `mcpc` function.
+
+## Create the MCP server
+
+The `mcpc` function initializes an MCP server and helps manage its tool
+dependencies. To maintain focus, these tools are hidden from the LLM by default.
+
+You can choose one of two modes for internal tool invocation:
+
+- **agentic (Default):** Works through standard, interactive calls where the
+  agent explicitly invokes each tool with distinct arguments.
+- **sampling (Experimental):** Uses a client-side feature that uses sampling to
+  generate tool calls by requesting a response from the client's local LLM. This
+  requires a compatible client, such as VS Code Copilot or a custom
+  implementation.
+
+```typescript
+// description and deps are declared from abloe
+const serverInitOpts = [
+  {
+    name: "coding-agent",
+    version: "0.1.0",
+  },
+  { capabilities: { tools: {}, sampling: {} } },
+];
+
+const server = mcpc(serverInitOpts, [
+  {
+    name: "coding-agent",
+    options: {
+      mode: "agentic",
+    },
+    description,
+    deps,
+  },
+]);
+```
+
+## Connect to transports
+
+For simplicity, the server will be connected to the MCP `stdio` transport as
+shown below.
+
+```typescript
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+To verify the implementation, execute the following command:
+
+```typescript
+npx tsx server.ts
+```
+
+The server is operating as expected if no output is generated and no errors are
+reported.
+
+## Use it in your AI Clients/IDEs
+
+You can use `coding-agent` inside any MCP-compatible clients.
+
+Generic MCP-compatible clients:
+
+```json
+{
+  "mcpServers": {
+    "coding-agent": {
+      "command": "npx",
+      "args": [
+        "tsx",
+        "server.ts"
+      ]
+    }
+  }
+}
+```
+
+VS Code (supports sampling mode):
+
+```json
+{
+  "servers": {
+    "coding-agent": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "tsx",
+        "server.ts"
+      ]
+    }
+  }
+}
+```
+
+Claude Code:
+
+```bash
+claude mcp add playwright npx tsx server.ts
+```
+
+Alternatively, to run this agent programmatically, we recommend using the
+[AI SDK](./ai-sdk-integration.md) for LLM integration.
