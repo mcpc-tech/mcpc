@@ -8,8 +8,17 @@
  * The server runs on port 9000 by default (configurable via PORT env var)
  * and binds to all interfaces (0.0.0.0) for accessibility.
  *
+ * Configuration:
+ * - PORT: HTTP server port (default: 9000)
+ * - MCPC_CONFIG: JSON string with agent configuration
+ * - MCPC_CONFIG_FILE: Path to JSON config file
+ * - Default: ./mcpc.config.json
+ *
  * # Set custom port
  * PORT=8080 deno run --allow-net --allow-env packages/cli/src/server.ts
+ *
+ * # With configuration
+ * MCPC_CONFIG='[{"name":"my-agent","description":"...","deps":{...}}]' deno run --allow-all packages/cli/src/server.ts
  *
  * // The server automatically mounts the core app at /core route
  * // Access OpenAPI docs at: http://localhost:9000/core/docs
@@ -19,9 +28,20 @@
 
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { createApp } from "./app.ts";
+import { loadConfig } from "./config/loader.ts";
+import process from "node:process";
 
-const port = Number(Deno.env.get("PORT") || "9000");
+const port = Number(process.env.PORT || "9000");
 const hostname = "0.0.0.0";
+
+// Load configuration from environment or file
+const config = await loadConfig();
+
+if (config) {
+  console.log(`Loaded configuration with ${config.agents.length} agent(s)`);
+} else {
+  console.log("No configuration found, using default example configuration");
+}
 
 const app = new OpenAPIHono();
 

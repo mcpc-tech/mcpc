@@ -8,15 +8,26 @@
  * integrated with MCP clients via STDIO transport, which is the most common
  * communication method for MCP servers.
  *
+ * Configuration:
+ * - MCPC_CONFIG: JSON string with agent configuration
+ * - MCPC_CONFIG_FILE: Path to JSON config file
+ * - Default: ./mcpc.config.json
+ *
  * # Run the STDIO server directly
  * deno run --allow-all packages/cli/src/bin.ts
+ *
+ * # With environment variable configuration
+ * MCPC_CONFIG='[{"name":"my-agent","description":"...","deps":{...}}]' deno run --allow-all packages/cli/src/bin.ts
  *
  * // Example Claude Desktop configuration
  * {
  *   "mcpServers": {
  *     "mcpc": {
  *       "command": "deno",
- *       "args": ["run", "--allow-all", "packages/cli/src/bin.ts"]
+ *       "args": ["run", "--allow-all", "packages/cli/src/bin.ts"],
+ *       "env": {
+ *         "MCPC_CONFIG": "[{\"name\":\"my-agent\",\"description\":\"...\",\"deps\":{...}}]"
+ *       }
  *     }
  *   }
  * }
@@ -26,7 +37,17 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer } from "./app.ts";
+import { loadConfig } from "./config/loader.ts";
 
-const server = await createServer();
+// Load configuration from environment or file
+const config = await loadConfig();
+
+if (config) {
+  console.error(`Loaded configuration with ${config.agents.length} agent(s)`);
+} else {
+  console.error("No configuration found, using default example configuration");
+}
+
+const server = await createServer(config || undefined);
 const transport = new StdioServerTransport();
 await server.connect(transport);
