@@ -142,14 +142,7 @@ Three simple steps:
 - **[Creating Your First Agent](docs/quickstart/create-your-first-agentic-mcp.md)** -
   Complete tutorial
 - **[Examples](docs/examples/)** - Real-world use cases
-- **[FAQ](docs/faq.md)** - Common questions and answers
-
-## Use Cases
-
-- **Coding Assistant** - File management, terminal commands, GitHub integration
-- **Web Automation** - Browser control, data extraction, form filling
-- **DevOps Helper** - Build pipelines, deployment, monitoring
-- **Data Processor** - ETL workflows, analysis, reporting
+- **[FAQ](docs/faq.md)** - Common questions and answer
 
 ## Using with AI Clients
 
