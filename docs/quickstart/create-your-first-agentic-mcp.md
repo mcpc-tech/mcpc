@@ -46,9 +46,9 @@ VSCode). We offer full support for the MCP transport protocol, including
 `stdio`, `sse`, and `streamable-http`.
 
 ```typescript
-import { type ComposeDefinition, mcpc } from '@mcpc/core'
+import { type ComposeDefinition, mcpc } from "@mcpc/core";
 
-const deps: ComposeDefinition['deps'] = {
+const deps: ComposeDefinition["deps"] = {
   mcpServers: {
     "desktop-commander": {
       command: "npx",
@@ -64,10 +64,11 @@ const deps: ComposeDefinition['deps'] = {
       transportType: "streamable-http",
       url: "https://api.githubcopilot.com/mcp/",
       headers: {
-        "Authorization": "Bearer ${input:github_mcp_pat}"
-    }
+        "Authorization": `Bearer ${process.env.GITHUB_PERSONAL_ACCESS_TOKEN}`,
+      },
+    },
   },
-}
+};
 ```
 
 # Then write the documentation for your agent

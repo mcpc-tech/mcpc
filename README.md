@@ -2,15 +2,19 @@
 
 **Build agentic MCP servers by composing existing MCP tools.**
 
-MCPC lets you create powerful AI agents by combining tools from the MCP
-ecosystem. Write a simple description, select your tools, and get a working MCP
-server.
+MCPC is the SDK for building agentic MCP (Model Context Protocol) Servers. You
+can use it to:
 
-## What You Can Build
-
-- **Coding agents** that read files, run commands, and interact with GitHub
-- **Web automation** that controls browsers and processes data
-- **Multi-agent systems** where agents work together on complex tasks
+1. **Create Powerful Agentic MCP Tools:** Simply describe your vision in text
+   and reference tools from the
+   [expanding MCP community](https://registry.modelcontextprotocol.io/docs#/operations/list-servers),
+   rapidly transforming your ideas into powerful agents.
+2. **Fine-Tune Existing Tools:** Flexibly modify existing tool descriptions and
+   parameters, or wrap and filter results to precisely adapt them to your
+   specific business scenarios.
+3. **Build Multi-Agent Systems:** By defining each agent as a MCP tool, you can
+   compose and orchestrate them to construct sophisticated, collaborative
+   multi-agent systems.
 
 ## Key Features
 
@@ -57,7 +61,7 @@ const deps: ComposeDefinition["deps"] = {
       transportType: "streamable-http",
       url: "https://api.githubcopilot.com/mcp/",
       headers: {
-        "Authorization": "Bearer ${input:github_mcp_pat}",
+        "Authorization": `Bearer ${process.env.GITHUB_PERSONAL_ACCESS_TOKEN}`,
       },
     },
   },
