@@ -36,6 +36,14 @@ deno add jsr:@mcpc/core
 pnpm add jsr:@mcpc/core
 ```
 
+Or run directly with the CLI (no installation required):
+
+```bash
+# Run with remote configuration
+npx -y deno run -A jsr:@mcpc/cli/bin --config-url \
+  "https://raw.githubusercontent.com/mcpc-tech/mcpc/main/packages/cli/examples/configs/codex-fork.json"
+```
+
 ### Examples: Create a Simple Codex/Claude Code Fork
 
 Build your own Codex or Claude Code fork in minutes:
@@ -114,6 +122,23 @@ await server.connect(transport);
 > [Codex fork tutorial](docs/examples/creating-a-codex-fork.md) for a
 > step-by-step walkthrough.
 
+### Quick Start with CLI
+
+For a faster way to get started, use the CLI to load configuration from a remote
+URL:
+
+```bash
+# Set your GitHub token
+export GITHUB_PERSONAL_ACCESS_TOKEN="ghp_your_token_here"
+
+# Load configuration from URL
+npx -y deno run -A jsr:@mcpc/cli/bin --config-url \
+  "https://raw.githubusercontent.com/mcpc-tech/mcpc/main/packages/cli/examples/configs/codex-fork.json"
+```
+
+See [CLI Usage Guide](docs/quickstart/cli-usage.md) for more configuration
+options.
+
 ## How It Works
 
 Three simple steps:
@@ -145,6 +170,7 @@ Three simple steps:
   first steps
 - **[Creating Your First Agent](docs/quickstart/create-your-first-agentic-mcp.md)** -
   Complete tutorial
+- **[CLI Usage Guide](docs/quickstart/cli-usage.md)** - Using the MCPC CLI
 - **[Examples](docs/examples/)** - Real-world use cases
 - **[FAQ](docs/faq.md)** - Common questions and answer
 

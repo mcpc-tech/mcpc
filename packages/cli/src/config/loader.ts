@@ -54,18 +54,75 @@ export interface MCPCConfig {
 }
 
 /**
+ * Print help message
+ */
+function printHelp(): void {
+  console.log(`
+MCPC CLI - Model Context Protocol Composer
+
+USAGE:
+    npx -y deno run -A jsr:@mcpc/cli/bin [OPTIONS]
+
+OPTIONS:
+    --help, -h              Show this help message
+    --config <json>         Inline JSON configuration string
+    --config-url <url>      Fetch configuration from URL
+    --config-file <path>    Load configuration from file path
+    --request-headers <header>, -H <header>
+                           Add custom HTTP header for URL fetching
+                           Format: "Key: Value" or "Key=Value"
+                           Can be used multiple times
+
+EXAMPLES:
+    # Show help
+    npx -y deno run -A jsr:@mcpc/cli/bin --help
+
+    # Load from URL
+    npx -y deno run -A jsr:@mcpc/cli/bin --config-url \\
+      "https://raw.githubusercontent.com/mcpc-tech/mcpc/main/packages/cli/examples/configs/codex-fork.json"
+
+    # Load from URL with custom headers
+    npx -y deno run -A jsr:@mcpc/cli/bin \\
+      --config-url "https://api.example.com/config.json" \\
+      -H "Authorization: Bearer token123" \\
+      -H "X-Custom-Header: value"
+
+    # Load from file
+    npx -y deno run -A jsr:@mcpc/cli/bin --config-file ./my-config.json
+
+    # Use default configuration (./mcpc.config.json)
+    npx -y deno run -A jsr:@mcpc/cli/bin
+
+CONFIGURATION:
+    Configuration files support environment variable substitution using $VAR_NAME syntax.
+    
+    Priority order:
+    1. --config (inline JSON)
+    2. --config-url (fetch from URL)
+    3. --config-file (file path)
+    4. ./mcpc.config.json (default)
+
+For more information, visit: https://github.com/mcpc-tech/mcpc
+`);
+}
+
+/**
  * Parse command-line arguments
  */
 function parseArgs(): {
   config?: string;
   configUrl?: string;
   configFile?: string;
+  requestHeaders?: Record<string, string>;
+  help?: boolean;
 } {
   const args = process.argv.slice(2);
   const result: {
     config?: string;
     configUrl?: string;
     configFile?: string;
+    requestHeaders?: Record<string, string>;
+    help?: boolean;
   } = {};
 
   for (let i = 0; i < args.length; i++) {
@@ -76,6 +133,27 @@ function parseArgs(): {
       result.configUrl = args[++i];
     } else if (arg === "--config-file" && i + 1 < args.length) {
       result.configFile = args[++i];
+    } else if (
+      (arg === "--request-headers" || arg === "-H") && i + 1 < args.length
+    ) {
+      // Parse header in format "Key: Value" or "Key=Value"
+      const headerStr = args[++i];
+      const colonIdx = headerStr.indexOf(":");
+      const equalIdx = headerStr.indexOf("=");
+      const separatorIdx = colonIdx !== -1
+        ? (equalIdx !== -1 ? Math.min(colonIdx, equalIdx) : colonIdx)
+        : equalIdx;
+
+      if (separatorIdx !== -1) {
+        const key = headerStr.substring(0, separatorIdx).trim();
+        const value = headerStr.substring(separatorIdx + 1).trim();
+        if (!result.requestHeaders) {
+          result.requestHeaders = {};
+        }
+        result.requestHeaders[key] = value;
+      }
+    } else if (arg === "--help" || arg === "-h") {
+      result.help = true;
     }
   }
 
@@ -88,6 +166,12 @@ function parseArgs(): {
  */
 export async function loadConfig(): Promise<MCPCConfig | null> {
   const args = parseArgs();
+
+  // Handle --help
+  if (args.help) {
+    printHelp();
+    process.exit(0);
+  }
 
   // Priority 1: --config (inline JSON string)
   if (args.config) {
@@ -103,7 +187,11 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
   // Priority 2: --config-url (fetch from URL)
   if (args.configUrl) {
     try {
-      const response = await fetch(args.configUrl);
+      const headers: HeadersInit = {
+        "User-Agent": "MCPC-CLI/0.1.0",
+        ...args.requestHeaders,
+      };
+      const response = await fetch(args.configUrl, { headers });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }

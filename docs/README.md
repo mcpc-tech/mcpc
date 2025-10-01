@@ -20,6 +20,8 @@ You can use it to:
 
 [Create your first agentic MCP](./quickstart/create-your-first-agentic-mcp.md)
 
+[CLI Usage Guide](./quickstart/cli-usage.md)
+
 [AI SDK Integration](./quickstart/ai-sdk-integration.md)
 
 # Examples
