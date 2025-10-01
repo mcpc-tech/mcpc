@@ -18,7 +18,7 @@
  *   }
  * }
  *
- * // Write agent description with tool references  
+ * // Write agent description with tool references
  * const description = `
  * I am a coding assistant that can read files and run terminal commands.
  *
@@ -39,7 +39,7 @@
  * ```
  *
  * ## Documentation
- * 
+ *
  * - [Getting Started](https://github.com/mcpc-tech/mcpc/tree/main/docs/quickstart/installation.md)
  * - [Complete Tutorial](https://github.com/mcpc-tech/mcpc/tree/main/docs/quickstart/create-your-first-agentic-mcp.md)
  * - [Examples](https://github.com/mcpc-tech/mcpc/tree/main/docs/examples/)
