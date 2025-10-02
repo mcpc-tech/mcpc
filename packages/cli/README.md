@@ -36,19 +36,19 @@ npx -y deno run -A jsr:@mcpc/cli/bin --help
 **Inline JSON config:**
 
 ```bash
-deno run --allow-all src/bin.ts --config '[{"name":"my-agent","description":"..."}]'
+npx -y deno run -A jsr:@mcpc/cli/bin --config '[{"name":"my-agent","description":"..."}]'
 ```
 
 **From URL:**
 
 ```bash
-deno run --allow-all src/bin.ts --config-url https://example.com/config.json
+npx -y deno run -A jsr:@mcpc/cli/bin --config-url https://example.com/config.json
 ```
 
 **From URL with custom headers:**
 
 ```bash
-deno run --allow-all src/bin.ts \
+npx -y deno run -A jsr:@mcpc/cli/bin \
   --config-url https://api.example.com/config.json \
   -H "Authorization: Bearer token123" \
   -H "X-Custom-Header: value"
@@ -57,13 +57,13 @@ deno run --allow-all src/bin.ts \
 **From file:**
 
 ```bash
-deno run --allow-all src/bin.ts --config-file ./my-config.json
+npx -y deno run -A jsr:@mcpc/cli/bin --config-file ./my-config.json
 ```
 
 **Default (uses ./mcpc.config.json):**
 
 ```bash
-deno run --allow-all src/bin.ts
+npx -y deno run -A jsr:@mcpc/cli/bin
 ```
 
 **Environment variable substitution:**
@@ -89,7 +89,7 @@ Config files support `$ENV_VAR_NAME` syntax:
 **HTTP server:**
 
 ```bash
-deno run --allow-all src/server.ts --config-file ./my-config.json
+npx -y deno run -A jsr:@mcpc/cli/server --config-file ./my-config.json
 ```
 
 ## Examples
