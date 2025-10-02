@@ -28,11 +28,17 @@ can use it to:
 ### Installation
 
 ```bash
-# npm
+# npm (from npm registry)
+npm install @mcpc-tech/core
+# npm (from jsr)
 npx jsr add @mcpc/core
+
 # deno  
 deno add jsr:@mcpc/core
-# pnpm
+
+# pnpm (from npm registry)
+pnpm add @mcpc-tech/core
+# pnpm (from jsr)
 pnpm add jsr:@mcpc/core
 ```
 
