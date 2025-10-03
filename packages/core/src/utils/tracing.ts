@@ -1,16 +1,16 @@
 /**
  * OpenTelemetry Tracing Utility
- * 
+ *
  * Provides tracing capabilities for sampling workflows using OpenTelemetry.
  * Traces can be exported to console, OTLP endpoint, or disabled entirely.
  */
 
 import {
   context,
-  trace,
   type Span,
-  type Tracer,
   SpanStatusCode,
+  trace,
+  type Tracer,
 } from "@opentelemetry/api";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import {
@@ -110,7 +110,10 @@ export function getTracer(): Tracer {
 /**
  * Start a new span
  */
-export function startSpan(name: string, attributes?: Record<string, unknown>): Span {
+export function startSpan(
+  name: string,
+  attributes?: Record<string, unknown>,
+): Span {
   const tracer = getTracer();
   return tracer.startSpan(name, {
     attributes: attributes as Record<string, string | number | boolean>,
@@ -178,7 +181,10 @@ export function addSpanEvent(
 ): void {
   const span = getActiveSpan();
   if (span) {
-    span.addEvent(name, attributes as Record<string, string | number | boolean>);
+    span.addEvent(
+      name,
+      attributes as Record<string, string | number | boolean>,
+    );
   }
 }
 

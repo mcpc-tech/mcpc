@@ -1,9 +1,9 @@
 /**
  * MCP Logging Utility
- * 
+ *
  * Provides a centralized logging interface that uses MCP notifications
  * when a server instance is available, and falls back to console otherwise.
- * 
+ *
  * Logging levels according to MCP spec:
  * - debug, info, notice, warning, error, critical, alert, emergency
  */

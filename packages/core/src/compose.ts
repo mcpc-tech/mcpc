@@ -583,9 +583,9 @@ export class ComposableMCPServer extends Server {
 
     if (unmatchedTools.length > 0) {
       await this.logger.warning(`Tool matching warnings for agent "${name}":`);
-      unmatchedTools.forEach(async (toolName) => {
+      for (const toolName of unmatchedTools) {
         await this.logger.warning(`   • Tool not found: "${toolName}"`);
-      });
+      }
       await this.logger.warning(
         `   Available tools: ${
           Array.from(availableToolNames).sort().join(", ")
@@ -608,11 +608,15 @@ export class ComposableMCPServer extends Server {
     // Cleanup clients when server is closed (pretty-printed to match logging plugin)
     this.onclose = async () => {
       await cleanupClients();
-      await this.logger.info(`[${name}] Event: closed - cleaned up dependent clients`);
+      await this.logger.info(
+        `[${name}] Event: closed - cleaned up dependent clients`,
+      );
     };
 
     this.onerror = async (error) => {
-      await this.logger.error(`[${name}] Event: error - ${error?.stack ?? String(error)}`);
+      await this.logger.error(
+        `[${name}] Event: error - ${error?.stack ?? String(error)}`,
+      );
       await cleanupClients();
       await this.logger.info(`[${name}] Action: cleaned up dependent clients`);
     };

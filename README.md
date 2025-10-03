@@ -177,6 +177,8 @@ Three simple steps:
 - **[Creating Your First Agent](docs/quickstart/create-your-first-agentic-mcp.md)** -
   Complete tutorial
 - **[CLI Usage Guide](docs/quickstart/cli-usage.md)** - Using the MCPC CLI
+- **[Logging and Tracing](docs/LOGGING_AND_TRACING.md)** - MCP logging and
+  OpenTelemetry tracing
 - **[Examples](docs/examples/)** - Real-world use cases
 - **[FAQ](docs/faq.md)** - Common questions and answer
 

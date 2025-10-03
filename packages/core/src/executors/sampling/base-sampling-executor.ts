@@ -9,11 +9,11 @@ import { parseJSON } from "@mcpc/utils";
 import { inspect } from "node:util";
 import { createLogger, type MCPLogger } from "../../utils/logger.ts";
 import {
+  endSpan,
   getTracer,
   initializeTracing,
-  startSpan,
-  endSpan,
   type Span,
+  startSpan,
 } from "../../utils/tracing.ts";
 
 const ajv = new Ajv({
@@ -70,18 +70,23 @@ export abstract class BaseSamplingExecutor {
 
     // Initialize tracing for sampling workflows
     // Check environment variable to enable tracing
-    const tracingConfig = {
-      enabled: Deno.env.get("MCPC_TRACING_ENABLED") === "true",
-      serviceName: `mcpc-sampling-${name}`,
-      exportTo: (Deno.env.get("MCPC_TRACING_EXPORT") || "console") as
-        | "console"
-        | "otlp"
-        | "none",
-      otlpEndpoint: Deno.env.get("MCPC_TRACING_OTLP_ENDPOINT"),
-    };
-    this.tracingEnabled = tracingConfig.enabled;
-    if (this.tracingEnabled) {
-      initializeTracing(tracingConfig);
+    try {
+      const tracingConfig = {
+        enabled: Deno.env.get("MCPC_TRACING_ENABLED") === "true",
+        serviceName: `mcpc-sampling-${name}`,
+        exportTo: (Deno.env.get("MCPC_TRACING_EXPORT") || "console") as
+          | "console"
+          | "otlp"
+          | "none",
+        otlpEndpoint: Deno.env.get("MCPC_TRACING_OTLP_ENDPOINT"),
+      };
+      this.tracingEnabled = tracingConfig.enabled;
+      if (this.tracingEnabled) {
+        initializeTracing(tracingConfig);
+      }
+    } catch {
+      // Environment access may not be available in all runtimes
+      this.tracingEnabled = false;
     }
   }
 
