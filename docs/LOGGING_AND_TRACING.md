@@ -1,16 +1,21 @@
 # MCP Logging and OpenTelemetry Tracing
 
-This document describes the logging and tracing capabilities implemented in MCPC.
+This document describes the logging and tracing capabilities implemented in
+MCPC.
 
 ## MCP Logging
 
-MCPC now implements the Model Context Protocol (MCP) logging specification for structured logging that can be consumed by MCP clients.
+MCPC now implements the Model Context Protocol (MCP) logging specification for
+structured logging that can be consumed by MCP clients.
 
 ### Features
 
-- **MCP Notifications**: Logs are sent as MCP `notifications/message` events
-- **Log Levels**: Supports all MCP log levels: debug, info, notice, warning, error, critical, alert, emergency
-- **Fallback to Console**: Automatically falls back to console logging if MCP server is not available
+- **Always Visible**: Logs are always output to console for visibility
+- **MCP Notifications**: Logs are also sent as MCP `notifications/message`
+  events when a server is available
+- **Log Levels**: Supports all MCP log levels: debug, info, notice, warning,
+  error, critical, alert, emergency
+- **Structured Logging**: Supports both string messages and structured objects
 - **Hierarchical Loggers**: Create child loggers with namespaced names
 
 ### Usage
@@ -32,7 +37,8 @@ await logger.debug({ data: "value" }); // Structured logging
 
 #### In Server Components
 
-The `ComposableMCPServer` automatically creates a logger and sets it up to use MCP notifications:
+The `ComposableMCPServer` automatically creates a logger and sets it up to use
+MCP notifications:
 
 ```typescript
 // In compose.ts
@@ -46,19 +52,23 @@ constructor(_serverInfo: Implementation, options: ServerOptions) {
 
 ### Where It's Used
 
-1. **compose.ts**: Logs server lifecycle events (closed, errors), tool matching warnings
-2. **base-sampling-executor.ts**: Logs iteration progress during sampling workflows
+1. **compose.ts**: Logs server lifecycle events (closed, errors), tool matching
+   warnings
+2. **base-sampling-executor.ts**: Logs iteration progress during sampling
+   workflows
 3. **logging-plugin.ts**: Logs composition completion details
 
 ## OpenTelemetry Tracing
 
-MCPC implements distributed tracing for sampling workflows using OpenTelemetry (OTEL).
+MCPC implements distributed tracing for sampling workflows using OpenTelemetry
+(OTEL).
 
 ### Features
 
 - **Automatic Span Creation**: Creates spans for sampling loops and iterations
 - **Error Tracking**: Captures exceptions and error states in spans
-- **Flexible Export**: Export traces to console, OTLP endpoint, or disable entirely
+- **Flexible Export**: Export traces to console, OTLP endpoint, or disable
+  entirely
 - **Context Propagation**: Maintains trace context across async operations
 
 ### Configuration
@@ -116,14 +126,22 @@ protected async runSamplingLoop(...) {
 For custom tracing needs:
 
 ```typescript
-import { withSpan, startSpan, endSpan } from "./packages/core/src/utils/tracing.ts";
+import {
+  endSpan,
+  startSpan,
+  withSpan,
+} from "./packages/core/src/utils/tracing.ts";
 
 // Async function wrapper
-const result = await withSpan("operation_name", { key: "value" }, async (span) => {
-  // Do work
-  span.addEvent("checkpoint", { progress: 50 });
-  return result;
-});
+const result = await withSpan(
+  "operation_name",
+  { key: "value" },
+  async (span) => {
+    // Do work
+    span.addEvent("checkpoint", { progress: 50 });
+    return result;
+  },
+);
 
 // Manual control
 const span = startSpan("custom_operation", { tool: "my-tool" });
@@ -153,10 +171,12 @@ sampling_loop (root)
 ### Integration with Observability Platforms
 
 OTLP traces can be sent to:
+
 - **Jaeger**: Set endpoint to `http://localhost:4318/v1/traces`
 - **Zipkin**: Compatible via OTLP collector
 - **Grafana Tempo**: Via OTLP
-- **Cloud Providers**: AWS X-Ray, Google Cloud Trace, Azure Monitor (via OTLP collector)
+- **Cloud Providers**: AWS X-Ray, Google Cloud Trace, Azure Monitor (via OTLP
+  collector)
 
 ## Best Practices
 
@@ -169,8 +189,12 @@ OTLP traces can be sent to:
 2. **Structured Logging**
    ```typescript
    // Good: Structured data
-   await logger.info({ operation: "tool_call", tool: "read_file", duration: 150 });
-   
+   await logger.info({
+     operation: "tool_call",
+     tool: "read_file",
+     duration: 150,
+   });
+
    // Also good: Simple messages
    await logger.info("Operation completed successfully");
    ```
@@ -188,7 +212,8 @@ OTLP traces can be sent to:
 
 ## Examples
 
-See the sampling examples in `packages/core/examples/sampling/` for working demonstrations of logging and tracing in action.
+See the sampling examples in `packages/core/examples/sampling/` for working
+demonstrations of logging and tracing in action.
 
 ## References
 

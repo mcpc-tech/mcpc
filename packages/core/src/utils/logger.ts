@@ -1,8 +1,8 @@
 /**
  * MCP Logging Utility
  *
- * Provides a centralized logging interface that uses MCP notifications
- * when a server instance is available, and falls back to console otherwise.
+ * Provides a centralized logging interface that always logs to console
+ * and additionally sends MCP notifications when a server instance is available.
  *
  * Logging levels according to MCP spec:
  * - debug, info, notice, warning, error, critical, alert, emergency
@@ -27,7 +27,7 @@ export interface LogMessage {
 }
 
 /**
- * Logger class that can send MCP notifications or fall back to console
+ * Logger class that always logs to console and optionally sends MCP notifications
  */
 export class MCPLogger {
   private server?: Server;
@@ -46,12 +46,15 @@ export class MCPLogger {
   }
 
   /**
-   * Send a log message via MCP notification or console
+   * Send a log message via MCP notification AND console
    */
   private async log(level: LogLevel, data: unknown): Promise<void> {
+    // Always log to console
+    this.logToConsole(level, data);
+
+    // Also send MCP notification if server is available
     if (this.server) {
       try {
-        // Send MCP notification
         await this.server.notification({
           method: "notifications/message",
           params: {
@@ -61,12 +64,9 @@ export class MCPLogger {
           },
         });
       } catch (error) {
-        // Fallback to console if notification fails
-        this.logToConsole(level, data);
+        // Silently ignore MCP notification failures
+        // (console logging already happened above)
       }
-    } else {
-      // No server available, use console
-      this.logToConsole(level, data);
     }
   }
 
