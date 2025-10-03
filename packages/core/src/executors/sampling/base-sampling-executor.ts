@@ -7,6 +7,14 @@ import { AggregateAjvError } from "@segment/ajv-human-errors";
 import addFormats from "ajv-formats";
 import { parseJSON } from "@mcpc/utils";
 import { inspect } from "node:util";
+import { createLogger, type MCPLogger } from "../../utils/logger.ts";
+import {
+  getTracer,
+  initializeTracing,
+  startSpan,
+  endSpan,
+  type Span,
+} from "../../utils/tracing.ts";
 
 const ajv = new Ajv({
   allErrors: true,
@@ -43,6 +51,8 @@ export abstract class BaseSamplingExecutor {
   protected conversationHistory: ConversationMessage[] = [];
   protected maxIterations: number = 33;
   protected currentIteration: number = 0;
+  protected logger: MCPLogger;
+  protected tracingEnabled: boolean = false;
 
   constructor(
     protected name: string,
@@ -55,6 +65,24 @@ export abstract class BaseSamplingExecutor {
     if (config?.maxIterations) {
       this.maxIterations = config.maxIterations;
     }
+    // Create logger for this sampling executor
+    this.logger = createLogger(`mcpc.sampling.${name}`, server);
+
+    // Initialize tracing for sampling workflows
+    // Check environment variable to enable tracing
+    const tracingConfig = {
+      enabled: Deno.env.get("MCPC_TRACING_ENABLED") === "true",
+      serviceName: `mcpc-sampling-${name}`,
+      exportTo: (Deno.env.get("MCPC_TRACING_EXPORT") || "console") as
+        | "console"
+        | "otlp"
+        | "none",
+      otlpEndpoint: Deno.env.get("MCPC_TRACING_OTLP_ENDPOINT"),
+    };
+    this.tracingEnabled = tracingConfig.enabled;
+    if (this.tracingEnabled) {
+      initializeTracing(tracingConfig);
+    }
   }
 
   protected async runSamplingLoop<TState>(
@@ -65,63 +93,104 @@ export abstract class BaseSamplingExecutor {
     // Initialize conversation
     this.conversationHistory = [];
 
+    // Create a root span for the entire sampling loop
+    const loopSpan = this.tracingEnabled
+      ? startSpan("sampling_loop", {
+        agent: this.name,
+        maxIterations: this.maxIterations,
+      })
+      : null;
+
     try {
       for (
         this.currentIteration = 0;
         this.currentIteration < this.maxIterations;
         this.currentIteration++
       ) {
-        const response = await this.server.createMessage({
-          systemPrompt: systemPrompt(),
-          messages: this.conversationHistory,
-          maxTokens: Number.MAX_SAFE_INTEGER,
-        });
+        // Create a span for each iteration
+        const iterationSpan = this.tracingEnabled
+          ? startSpan("sampling_iteration", {
+            iteration: this.currentIteration + 1,
+            agent: this.name,
+          })
+          : null;
 
-        const responseContent = (response.content.text as string) || "{}";
-
-        // Parse JSON response
-        let parsedData: Record<string, unknown>;
         try {
-          parsedData = parseJSON(responseContent.trim(), true);
-        } catch (parseError) {
-          this.addParsingErrorToHistory(responseContent, parseError);
-          continue;
-        }
-
-        if (parsedData) {
-          this.conversationHistory.push({
-            role: "assistant",
-            content: {
-              type: "text",
-              text: JSON.stringify(parsedData, null, 2),
-            },
+          const response = await this.server.createMessage({
+            systemPrompt: systemPrompt(),
+            messages: this.conversationHistory,
+            maxTokens: Number.MAX_SAFE_INTEGER,
           });
-        }
 
-        // Process the parsed data using subclass implementation
-        const result = await this.processAction(parsedData, schema, state);
-        this.logIterationProgress(parsedData, result);
+          const responseContent = (response.content.text as string) || "{}";
 
-        if (result.isError) {
-          // If processing resulted in an error, add to conversation history
-          this.conversationHistory.push({
-            role: "user",
-            content: {
-              type: "text",
-              text: result.content[0].text as string,
-            },
-          });
-          continue;
-        }
+          // Parse JSON response
+          let parsedData: Record<string, unknown>;
+          try {
+            parsedData = parseJSON(responseContent.trim(), true);
+          } catch (parseError) {
+            if (iterationSpan) {
+              iterationSpan.addEvent("parse_error", {
+                error: String(parseError),
+              });
+            }
+            this.addParsingErrorToHistory(responseContent, parseError);
+            if (iterationSpan) endSpan(iterationSpan);
+            continue;
+          }
 
-        if (result.isComplete) {
-          return result;
+          if (parsedData) {
+            this.conversationHistory.push({
+              role: "assistant",
+              content: {
+                type: "text",
+                text: JSON.stringify(parsedData, null, 2),
+              },
+            });
+          }
+
+          // Process the parsed data using subclass implementation
+          const result = await this.processAction(parsedData, schema, state);
+          this.logIterationProgress(parsedData, result);
+
+          if (iterationSpan) {
+            iterationSpan.setAttributes({
+              isError: result.isError ?? false,
+              isComplete: result.isComplete ?? false,
+            });
+          }
+
+          if (result.isError) {
+            // If processing resulted in an error, add to conversation history
+            this.conversationHistory.push({
+              role: "user",
+              content: {
+                type: "text",
+                text: result.content[0].text as string,
+              },
+            });
+            if (iterationSpan) endSpan(iterationSpan);
+            continue;
+          }
+
+          if (result.isComplete) {
+            if (iterationSpan) endSpan(iterationSpan);
+            if (loopSpan) endSpan(loopSpan);
+            return result;
+          }
+
+          if (iterationSpan) endSpan(iterationSpan);
+        } catch (iterError) {
+          if (iterationSpan) endSpan(iterationSpan, iterError as Error);
+          throw iterError;
         }
       }
 
       // Reached maximum iterations
+      if (loopSpan) endSpan(loopSpan);
       return this.createMaxIterationsError();
     } catch (error) {
+      if (loopSpan) endSpan(loopSpan, error as Error);
       return this.createExecutionError(error);
     }
   }
@@ -225,22 +294,20 @@ ${text}
     parsedData: Record<string, unknown>,
     result: CallToolResult,
   ): void {
-    // Optional: Log iteration progress for debugging
-    console.log(
-      `Iteration ${this.currentIteration + 1}/${this.maxIterations}:`,
-      {
-        parsedData,
-        isError: result.isError,
-        isComplete: result.isComplete,
-        result: inspect(result, {
-          depth: 5,
-          maxArrayLength: 10,
-          breakLength: 120,
-          compact: true,
-          maxStringLength: 120,
-        }),
-      },
-    );
+    // Log iteration progress using MCP logging
+    this.logger.debug({
+      iteration: `${this.currentIteration + 1}/${this.maxIterations}`,
+      parsedData,
+      isError: result.isError,
+      isComplete: result.isComplete,
+      result: inspect(result, {
+        depth: 5,
+        maxArrayLength: 10,
+        breakLength: 120,
+        compact: true,
+        maxStringLength: 120,
+      }),
+    });
   }
 
   // Abstract methods that subclasses must implement

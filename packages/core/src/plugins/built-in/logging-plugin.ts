@@ -1,4 +1,5 @@
 import type { ComposeEndContext, ToolPlugin } from "../../plugin-types.ts";
+import { createLogger } from "../../utils/logger.ts";
 
 /**
  * Built-in plugin that provides composition logging
@@ -15,8 +16,10 @@ export const createLoggingPlugin = (
 
   return {
     name: "built-in-logging",
-    composeEnd: (context: ComposeEndContext) => {
+    composeEnd: async (context: ComposeEndContext) => {
       if (!enabled) return;
+
+      const logger = createLogger("mcpc.plugin.logging", context.server);
 
       if (compact) {
         // Single line compact format with emojis for better readability
@@ -32,12 +35,12 @@ export const createLoggingPlugin = (
         const hiddenCount = hiddenList.length;
         const globalCount = publicToolNames.length;
 
-        console.log(
-          `🧩 [${context.toolName}] ${pluginCount} plugins • ${externalCount} external • ${internalCount} internal • ${hiddenCount} hidden • ${globalCount} global`,
+        await logger.info(
+          `[${context.toolName}] ${pluginCount} plugins • ${externalCount} external • ${internalCount} internal • ${hiddenCount} hidden • ${globalCount} global`,
         );
       } else if (verbose) {
-        console.log(`🧩 [${context.toolName}]`);
-        console.log(`   ├─ Plugins: ${context.pluginNames.join(", ")}`);
+        await logger.info(`[${context.toolName}] Composition complete`);
+        await logger.info(`   ├─ Plugins: ${context.pluginNames.join(", ")}`);
 
         // Get all tool information from server
         const server = context.server;
@@ -64,19 +67,19 @@ export const createLoggingPlugin = (
         const totalList = Array.from(totalSet);
 
         if (external.length > 0) {
-          console.log(`   ├─ External: ${external.join(", ")}`);
+          await logger.info(`   ├─ External: ${external.join(", ")}`);
         }
         if (internal.length > 0) {
-          console.log(`   ├─ Internal: ${internal.join(", ")}`);
+          await logger.info(`   ├─ Internal: ${internal.join(", ")}`);
         }
         if (globalNames.length > 0) {
-          console.log(`   ├─ Global: ${globalNames.join(", ")}`);
+          await logger.info(`   ├─ Global: ${globalNames.join(", ")}`);
         }
         if (hidden.length > 0) {
-          console.log(`   ├─ Hidden: ${hidden.join(", ")}`);
+          await logger.info(`   ├─ Hidden: ${hidden.join(", ")}`);
         }
         if (totalList.length > 0) {
-          console.log(`   └─ Total: ${totalList.length} tools`);
+          await logger.info(`   └─ Total: ${totalList.length} tools`);
         }
       }
     },
