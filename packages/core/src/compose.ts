@@ -3,6 +3,7 @@ import {
   type CallToolResult,
   type Implementation,
   ListToolsRequestSchema,
+  SetLevelRequestSchema,
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { jsonSchema, type Schema } from "ai";
@@ -50,8 +51,17 @@ export class ComposableMCPServer extends Server {
   private logger = createLogger("mcpc.compose");
 
   constructor(_serverInfo: Implementation, options: ServerOptions) {
-    super(_serverInfo, options);
-    // Set server instance for logger to send MCP notifications
+    // Automatically add common capabilities
+    const enhancedOptions = {
+      ...options,
+      capabilities: {
+        logging: {},
+        tools: {},
+        sampling: {},
+        ...options.capabilities,
+      },
+    };
+    super(_serverInfo, enhancedOptions);
     this.logger.setServer(this);
   }
 
@@ -165,6 +175,13 @@ export class ComposableMCPServer extends Server {
         "output",
         args,
       ) as CallToolResult;
+    });
+
+    // Handle logging/setLevel requests from MCP clients
+    this.setRequestHandler(SetLevelRequestSchema, (request) => {
+      const { level } = request.params;
+      this.logger.setLevel(level);
+      return {};
     });
   }
 

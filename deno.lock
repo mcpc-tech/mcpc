@@ -19,6 +19,7 @@
     "npm:@hono/zod-openapi@~0.19.2": "0.19.10_hono@4.9.5_zod@3.25.76",
     "npm:@mcpc-tech/ripgrep-napi@*": "0.0.4",
     "npm:@mcpc-tech/ripgrep-napi@^0.0.4": "0.0.4",
+    "npm:@modelcontextprotocol/sdk@1.19.1": "1.19.1_express@5.1.0_zod@3.25.76",
     "npm:@modelcontextprotocol/sdk@^1.8.0": "1.17.4_express@5.1.0_zod@3.25.76",
     "npm:@opentelemetry/api@^1.9.0": "1.9.0",
     "npm:@opentelemetry/exporter-trace-otlp-http@0.56": "0.56.0_@opentelemetry+api@1.9.0",
@@ -310,6 +311,23 @@
     },
     "@modelcontextprotocol/sdk@1.17.4_express@5.1.0_zod@3.25.76": {
       "integrity": "sha512-zq24hfuAmmlNZvik0FLI58uE5sriN0WWsQzIlYnzSuKDAHFqJtBFrl/LfB1NLgJT5Y7dEBzaX4yAKqOPrcetaw==",
+      "dependencies": [
+        "ajv@6.12.6",
+        "content-type",
+        "cors",
+        "cross-spawn",
+        "eventsource",
+        "eventsource-parser",
+        "express",
+        "express-rate-limit",
+        "pkce-challenge",
+        "raw-body",
+        "zod",
+        "zod-to-json-schema"
+      ]
+    },
+    "@modelcontextprotocol/sdk@1.19.1_express@5.1.0_zod@3.25.76": {
+      "integrity": "sha512-3Y2h3MZKjec1eAqSTBclATlX+AbC6n1LgfVzRMJLt3v6w0RCYgwLrjbxPDbhsYHt6Wdqc/aCceNJYgj448ELQQ==",
       "dependencies": [
         "ajv@6.12.6",
         "content-type",

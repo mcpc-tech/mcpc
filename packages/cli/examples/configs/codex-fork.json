@@ -1,10 +1,6 @@
 {
   "name": "codex-fork-agent",
   "version": "0.1.0",
-  "capabilities": {
-    "tools": {},
-    "sampling": {}
-  },
   "agents": [
     {
       "name": "codex-fork-agent",

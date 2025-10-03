@@ -8,13 +8,8 @@ import addFormats from "ajv-formats";
 import { parseJSON } from "@mcpc/utils";
 import { inspect } from "node:util";
 import { createLogger, type MCPLogger } from "../../utils/logger.ts";
-import {
-  endSpan,
-  getTracer,
-  initializeTracing,
-  type Span,
-  startSpan,
-} from "../../utils/tracing.ts";
+import type { Span } from "@opentelemetry/api";
+import { endSpan, initializeTracing, startSpan } from "../../utils/tracing.ts";
 
 const ajv = new Ajv({
   allErrors: true,
@@ -99,8 +94,8 @@ export abstract class BaseSamplingExecutor {
     this.conversationHistory = [];
 
     // Create a root span for the entire sampling loop
-    const loopSpan = this.tracingEnabled
-      ? startSpan("sampling_loop", {
+    const loopSpan: Span | null = this.tracingEnabled
+      ? startSpan("mcpc.sampling_loop", {
         agent: this.name,
         maxIterations: this.maxIterations,
       })
@@ -113,11 +108,15 @@ export abstract class BaseSamplingExecutor {
         this.currentIteration++
       ) {
         // Create a span for each iteration
-        const iterationSpan = this.tracingEnabled
-          ? startSpan("sampling_iteration", {
-            iteration: this.currentIteration + 1,
-            agent: this.name,
-          })
+        const iterationSpan: Span | null = this.tracingEnabled
+          ? startSpan(
+            "mcpc.sampling_iteration",
+            {
+              iteration: this.currentIteration + 1,
+              agent: this.name,
+            },
+            loopSpan ?? undefined,
+          )
           : null;
 
         try {
@@ -159,10 +158,21 @@ export abstract class BaseSamplingExecutor {
           this.logIterationProgress(parsedData, result);
 
           if (iterationSpan) {
-            iterationSpan.setAttributes({
-              isError: result.isError ?? false,
-              isComplete: result.isComplete ?? false,
-            });
+            // Simplified: store full raw JSON, raw LLM response, and full tool result if present (no truncation)
+            let rawJson = "{}";
+            try {
+              rawJson = parsedData ? JSON.stringify(parsedData) : "{}";
+            } catch { /* ignore serialization errors */ }
+            const attr: Record<string, string | number | boolean> = {
+              isError: !!result.isError,
+              isComplete: !!result.isComplete,
+              iteration: this.currentIteration + 1,
+              maxIterations: this.maxIterations,
+              parsed: rawJson,
+              samplingResponse: responseContent,
+              toolResult: JSON.stringify(result),
+            };
+            iterationSpan.setAttributes(attr);
           }
 
           if (result.isError) {
@@ -284,11 +294,11 @@ ${text}
           details += "\n```json\n" + JSON.stringify(parsed, null, 2) + "\n```";
         } catch {
           // Not JSON, show as text
-          details += "\n```\n" + message.content.text + "\n```";
+          details += "\n" + message.content.text + "\n";
         }
       } else {
         // User message
-        details += "\n```\n" + message.content.text + "\n```";
+        details += "\n" + message.content.text + "\n";
       }
     });
 

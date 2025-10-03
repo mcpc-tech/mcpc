@@ -113,11 +113,20 @@ export function getTracer(): Tracer {
 export function startSpan(
   name: string,
   attributes?: Record<string, unknown>,
+  parent?: Span,
 ): Span {
   const tracer = getTracer();
-  return tracer.startSpan(name, {
-    attributes: attributes as Record<string, string | number | boolean>,
-  });
+  // If a parent span is provided, create a context with that parent so the
+  // new span becomes a child of the provided parent. Otherwise use the
+  // currently active context.
+  const ctx = parent ? trace.setSpan(context.active(), parent) : undefined;
+  return tracer.startSpan(
+    name,
+    {
+      attributes: attributes as Record<string, string | number | boolean>,
+    },
+    ctx,
+  );
 }
 
 /**

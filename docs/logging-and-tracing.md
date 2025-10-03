@@ -5,18 +5,23 @@ MCPC.
 
 ## MCP Logging
 
-MCPC now implements the Model Context Protocol (MCP) logging specification for
-structured logging that can be consumed by MCP clients.
+MCPC implements the
+[Model Context Protocol (MCP) logging specification](https://modelcontextprotocol.io/specification/2025-03-26/server/utilities/logging)
+for structured logging that can be consumed by MCP clients.
 
 ### Features
 
 - **Always Visible**: Logs are always output to console for visibility
-- **MCP Notifications**: Logs are also sent as MCP `notifications/message`
-  events when a server is available
+- **MCP Logging Messages**: Logs are sent using `server.sendLoggingMessage()`
+  method for proper MCP protocol compliance
+- **Log Level Control**: Supports `logging/setLevel` requests from clients to
+  dynamically adjust minimum log level
 - **Log Levels**: Supports all MCP log levels: debug, info, notice, warning,
   error, critical, alert, emergency
 - **Structured Logging**: Supports both string messages and structured objects
 - **Hierarchical Loggers**: Create child loggers with namespaced names
+- **Automatic Capability Declaration**: The `logging` capability is
+  automatically added to server capabilities
 
 ### Usage
 
@@ -49,6 +54,33 @@ constructor(_serverInfo: Implementation, options: ServerOptions) {
   this.logger.setServer(this); // Enable MCP notifications
 }
 ```
+
+#### Log Level Control
+
+Clients can dynamically control the minimum log level using the
+`logging/setLevel` MCP request. The server automatically handles this request:
+
+```typescript
+// Set minimum log level programmatically
+logger.setLevel("warning"); // Only warning and higher will be logged
+
+// Get current log level
+const currentLevel = logger.getLevel();
+```
+
+The log level hierarchy (from lowest to highest priority):
+
+- debug (0)
+- info (1)
+- notice (2)
+- warning (3)
+- error (4)
+- critical (5)
+- alert (6)
+- emergency (7)
+
+When a minimum level is set, only messages at that level or higher will be
+logged.
 
 ### Where It's Used
 

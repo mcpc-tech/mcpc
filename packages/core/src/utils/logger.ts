@@ -20,88 +20,73 @@ export type LogLevel =
   | "alert"
   | "emergency";
 
-export interface LogMessage {
-  level: LogLevel;
-  logger?: string;
-  data: unknown;
-}
+const LOG_LEVELS: Record<LogLevel, number> = {
+  debug: 0,
+  info: 1,
+  notice: 2,
+  warning: 3,
+  error: 4,
+  critical: 5,
+  alert: 6,
+  emergency: 7,
+};
 
-/**
- * Logger class that always logs to console and optionally sends MCP notifications
- */
 export class MCPLogger {
   private server?: Server;
   private loggerName: string;
+  private minLevel: LogLevel = "debug";
 
   constructor(loggerName: string = "mcpc", server?: Server) {
     this.loggerName = loggerName;
     this.server = server;
   }
 
-  /**
-   * Set the server instance for sending notifications
-   */
   setServer(server: Server): void {
     this.server = server;
   }
 
-  /**
-   * Send a log message via MCP notification AND console
-   */
+  setLevel(level: LogLevel): void {
+    this.minLevel = level;
+  }
+
   private async log(level: LogLevel, data: unknown): Promise<void> {
+    // Filter by minimum level
+    if (LOG_LEVELS[level] < LOG_LEVELS[this.minLevel]) {
+      return;
+    }
+
     // Always log to console
     this.logToConsole(level, data);
 
-    // Also send MCP notification if server is available
+    // Also send to MCP server if available
     if (this.server) {
       try {
-        await this.server.notification({
-          method: "notifications/message",
-          params: {
-            level,
-            logger: this.loggerName,
-            data,
-          },
+        await this.server.sendLoggingMessage({
+          level,
+          logger: this.loggerName,
+          data,
         });
-      } catch (error) {
-        // Silently ignore MCP notification failures
-        // (console logging already happened above)
+      } catch {
+        // Ignore MCP failures
       }
     }
   }
 
-  /**
-   * Fallback to console logging
-   */
   private logToConsole(level: LogLevel, data: unknown): void {
-    const prefix = `[${this.loggerName}]`;
     const message = typeof data === "string" ? data : JSON.stringify(data);
+    const prefix = `[${this.loggerName}]`;
 
-    switch (level) {
-      case "debug":
-        console.debug(prefix, message);
-        break;
-      case "info":
-      case "notice":
-        console.info(prefix, message);
-        break;
-      case "warning":
-        console.warn(prefix, message);
-        break;
-      case "error":
-      case "critical":
-      case "alert":
-      case "emergency":
-        console.error(prefix, message);
-        break;
-      default:
-        console.log(prefix, message);
+    if (level === "debug") {
+      console.debug(prefix, message);
+    } else if (level === "info" || level === "notice") {
+      console.info(prefix, message);
+    } else if (level === "warning") {
+      console.warn(prefix, message);
+    } else {
+      console.error(prefix, message);
     }
   }
 
-  /**
-   * Convenience methods for each log level
-   */
   debug(data: unknown): Promise<void> {
     return this.log("debug", data);
   }
@@ -134,22 +119,15 @@ export class MCPLogger {
     return this.log("emergency", data);
   }
 
-  /**
-   * Create a child logger with a specific name
-   */
   child(name: string): MCPLogger {
-    return new MCPLogger(`${this.loggerName}.${name}`, this.server);
+    const child = new MCPLogger(`${this.loggerName}.${name}`, this.server);
+    child.setLevel(this.minLevel);
+    return child;
   }
 }
 
-/**
- * Global logger instance - can be configured with a server
- */
 export const logger = new MCPLogger("mcpc");
 
-/**
- * Create a logger for a specific component
- */
 export function createLogger(name: string, server?: Server): MCPLogger {
   return new MCPLogger(name, server);
 }
