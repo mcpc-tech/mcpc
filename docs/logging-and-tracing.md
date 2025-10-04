@@ -66,7 +66,8 @@ const currentLevel = logger.getLevel();
 
 ## OpenTelemetry Tracing
 
-MCPC uses OpenTelemetry for distributed tracing in sampling workflows.
+MCPC uses OpenTelemetry for distributed tracing in both sampling and agentic
+workflows.
 
 ### Configuration
 
@@ -80,34 +81,63 @@ export MCPC_TRACING_OTLP_ENDPOINT=http://localhost:4318/v1/traces
 
 ### Implementation
 
-Tracing is automatically initialized in `BaseSamplingExecutor`:
+Tracing is automatically enabled when you set the environment variables. It
+works for:
 
-```typescript
-import process from "node:process";
+- **Sampling Mode** (`mode: "agentic"` with `sampling: true`): Traces the entire
+  autonomous execution loop
+- **Agentic Mode** (`mode: "agentic"`): Traces each individual tool call made by
+  the LLM
 
-constructor(...) {
-  const tracingConfig = {
-    enabled: process.env.MCPC_TRACING_ENABLED === "true",
-    serviceName: `mcpc-sampling-${name}`,
-    exportTo: process.env.MCPC_TRACING_EXPORT ?? "otlp",
-    otlpEndpoint: process.env.MCPC_TRACING_OTLP_ENDPOINT ?? 'http://localhost:4318/v1/traces',
-  };
-  
-  if (tracingConfig.enabled) {
-    initializeTracing(tracingConfig);
-  }
-}
-```
+No code changes required - just configure the environment variables.
 
 ### Trace Structure
 
+#### Sampling Mode
+
+Traces the complete autonomous execution loop:
+
 ```
-mcpc.sampling_loop (root)
-├─ mcpc.sampling_iteration.lsmcp_get_project_overview
-│  └─ attributes: iteration, isError, isComplete, parsed, samplingResponse
-├─ mcpc.sampling_iteration.desktop-commander_read_file
+mcpc.sampling_loop (root span)
+├─ mcpc.sampling_iteration.read_file
+├─ mcpc.sampling_iteration.write_file
 └─ mcpc.sampling_iteration.complete
 ```
+
+**Recorded data per iteration:**
+
+- Action executed
+- Iteration number
+- Success/error status
+- Complete tool result (no truncation)
+- LLM response
+
+#### Agentic Mode
+
+Traces each LLM tool call independently:
+
+```
+mcpc.agentic_execute.read_file (standalone span)
+mcpc.agentic_execute.write_file (standalone span)
+mcpc.agentic_execute.list_dir (standalone span)
+```
+
+**Recorded data per tool call:**
+
+- Agent name
+- Action name
+- Next action (if any)
+- Input arguments (complete JSON)
+- Tool type (internal/external)
+- Success/error status
+- Complete tool result (no truncation)
+
+**Key Differences:**
+
+- **Sampling**: Single trace covering entire autonomous session (all iterations
+  connected)
+- **Agentic**: Independent traces per tool call (useful for debugging individual
+  LLM decisions)
 
 ### Manual Tracing
 
