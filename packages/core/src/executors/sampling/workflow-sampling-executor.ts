@@ -83,7 +83,7 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
     const toolCallData = parsedData as Record<string, unknown>;
 
     if (toolCallData.decision === "complete") {
-      return this.createCompletionResult("Task completed");
+      return await this.createCompletionResult("Task completed");
     }
 
     try {

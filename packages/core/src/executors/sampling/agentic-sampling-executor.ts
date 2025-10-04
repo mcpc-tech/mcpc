@@ -110,7 +110,7 @@ export class SamplingExecutor extends BaseSamplingExecutor {
     const toolCallData = parsedData;
 
     if (toolCallData.decision === "complete") {
-      return this.createCompletionResult("Task completed");
+      return await this.createCompletionResult("Task completed");
     }
 
     try {

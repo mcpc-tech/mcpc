@@ -58,7 +58,7 @@ export class ComposableMCPServer extends Server {
         logging: {},
         tools: {},
         sampling: {},
-        ...options.capabilities,
+        ...(options?.capabilities ?? {}),
       },
     };
     super(_serverInfo, enhancedOptions);
@@ -605,7 +605,9 @@ export class ComposableMCPServer extends Server {
       }
       await this.logger.warning(
         `   Available tools: ${
-          Array.from(availableToolNames).sort().join(", ")
+          Array.from(availableToolNames)
+            .sort()
+            .join(", ")
         }`,
       );
     }

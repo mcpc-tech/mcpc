@@ -1,74 +1,25 @@
 # MCP Logging and OpenTelemetry Tracing
 
-This document describes the logging and tracing capabilities implemented in
-MCPC.
+This document describes the logging and tracing capabilities in MCPC.
 
 ## MCP Logging
 
 MCPC implements the
-[Model Context Protocol (MCP) logging specification](https://modelcontextprotocol.io/specification/2025-03-26/server/utilities/logging)
-for structured logging that can be consumed by MCP clients.
+[Model Context Protocol (MCP) logging specification](https://modelcontextprotocol.io/specification/2025-03-26/server/utilities/logging).
 
 ### Features
 
-- **Always Visible**: Logs are always output to console for visibility
-- **MCP Logging Messages**: Logs are sent using `server.sendLoggingMessage()`
-  method for proper MCP protocol compliance
-- **Log Level Control**: Supports `logging/setLevel` requests from clients to
-  dynamically adjust minimum log level
-- **Log Levels**: Supports all MCP log levels: debug, info, notice, warning,
-  error, critical, alert, emergency
-- **Structured Logging**: Supports both string messages and structured objects
+- **Always Visible**: Logs output to console for immediate visibility
+- **MCP Protocol**: Logs sent via `server.sendLoggingMessage()` for client
+  consumption
+- **Dynamic Level Control**: Clients can adjust log levels via
+  `logging/setLevel` requests
+- **Structured Logging**: Supports both string messages and objects
 - **Hierarchical Loggers**: Create child loggers with namespaced names
-- **Automatic Capability Declaration**: The `logging` capability is
-  automatically added to server capabilities
 
-### Usage
+### Log Levels
 
-#### Basic Logging
-
-```typescript
-import { createLogger } from "./packages/core/src/utils/logger.ts";
-
-// Create a logger
-const logger = createLogger("my-component", server);
-
-// Log at different levels
-await logger.info("Application started");
-await logger.warning("Resource usage high");
-await logger.error("Operation failed");
-await logger.debug({ data: "value" }); // Structured logging
-```
-
-#### In Server Components
-
-The `ComposableMCPServer` automatically creates a logger and sets it up to use
-MCP notifications:
-
-```typescript
-// In compose.ts
-private logger = createLogger("mcpc.compose");
-
-constructor(_serverInfo: Implementation, options: ServerOptions) {
-  super(_serverInfo, options);
-  this.logger.setServer(this); // Enable MCP notifications
-}
-```
-
-#### Log Level Control
-
-Clients can dynamically control the minimum log level using the
-`logging/setLevel` MCP request. The server automatically handles this request:
-
-```typescript
-// Set minimum log level programmatically
-logger.setLevel("warning"); // Only warning and higher will be logged
-
-// Get current log level
-const currentLevel = logger.getLevel();
-```
-
-The log level hierarchy (from lowest to highest priority):
+From lowest to highest priority:
 
 - debug (0)
 - info (1)
@@ -79,173 +30,175 @@ The log level hierarchy (from lowest to highest priority):
 - alert (6)
 - emergency (7)
 
-When a minimum level is set, only messages at that level or higher will be
-logged.
+### Usage
+
+```typescript
+import { createLogger } from "./packages/core/src/utils/logger.ts";
+
+const logger = createLogger("my-component", server);
+
+// Simple messages
+await logger.info("Application started");
+await logger.warning("Resource usage high");
+await logger.error("Operation failed");
+
+// Structured data
+await logger.debug({
+  operation: "tool_call",
+  tool: "read_file",
+  duration: 150,
+});
+
+// Child loggers
+const childLogger = logger.child("subcomponent");
+await childLogger.info("Message"); // Logs as "my-component.subcomponent"
+
+// Level control
+logger.setLevel("warning"); // Only warning and higher
+const currentLevel = logger.getLevel();
+```
 
 ### Where It's Used
 
-1. **compose.ts**: Logs server lifecycle events (closed, errors), tool matching
-   warnings
-2. **base-sampling-executor.ts**: Logs iteration progress during sampling
-   workflows
-3. **logging-plugin.ts**: Logs composition completion details
+- **compose.ts**: Server lifecycle events, tool matching warnings
+- **base-sampling-executor.ts**: Iteration progress, summarization failures
+- **logging-plugin.ts**: Composition completion details
 
 ## OpenTelemetry Tracing
 
-MCPC implements distributed tracing for sampling workflows using OpenTelemetry
-(OTEL).
-
-### Features
-
-- **Automatic Span Creation**: Creates spans for sampling loops and iterations
-- **Error Tracking**: Captures exceptions and error states in spans
-- **Flexible Export**: Export traces to console, OTLP endpoint, or disable
-  entirely
-- **Context Propagation**: Maintains trace context across async operations
+MCPC uses OpenTelemetry for distributed tracing in sampling workflows.
 
 ### Configuration
 
-Enable tracing via environment variables:
+Enable via environment variables:
 
 ```bash
-# Enable tracing
 export MCPC_TRACING_ENABLED=true
-
-# Configure export destination (console, otlp, or none)
-export MCPC_TRACING_EXPORT=console
-
-# For OTLP export, specify endpoint
+export MCPC_TRACING_EXPORT=console  # console, otlp, or none
 export MCPC_TRACING_OTLP_ENDPOINT=http://localhost:4318/v1/traces
 ```
 
-### Usage
+### Implementation
 
-#### In Sampling Executors
-
-Tracing is automatically enabled in `BaseSamplingExecutor`:
+Tracing is automatically initialized in `BaseSamplingExecutor`:
 
 ```typescript
-// Constructor initializes tracing
+import process from "node:process";
+
 constructor(...) {
   const tracingConfig = {
-    enabled: Deno.env.get("MCPC_TRACING_ENABLED") === "true",
+    enabled: process.env.MCPC_TRACING_ENABLED === "true",
     serviceName: `mcpc-sampling-${name}`,
-    exportTo: Deno.env.get("MCPC_TRACING_EXPORT") || "console",
+    exportTo: process.env.MCPC_TRACING_EXPORT ?? "otlp",
+    otlpEndpoint: process.env.MCPC_TRACING_OTLP_ENDPOINT ?? 'http://localhost:4318/v1/traces',
   };
+  
   if (tracingConfig.enabled) {
     initializeTracing(tracingConfig);
   }
-}
-
-// Sampling loop creates spans automatically
-protected async runSamplingLoop(...) {
-  const loopSpan = startSpan("sampling_loop", { agent: this.name });
-  
-  for (each iteration) {
-    const iterationSpan = startSpan("sampling_iteration", { 
-      iteration: this.currentIteration 
-    });
-    // ... work ...
-    endSpan(iterationSpan);
-  }
-  
-  endSpan(loopSpan);
-}
-```
-
-#### Manual Span Creation
-
-For custom tracing needs:
-
-```typescript
-import {
-  endSpan,
-  startSpan,
-  withSpan,
-} from "./packages/core/src/utils/tracing.ts";
-
-// Async function wrapper
-const result = await withSpan(
-  "operation_name",
-  { key: "value" },
-  async (span) => {
-    // Do work
-    span.addEvent("checkpoint", { progress: 50 });
-    return result;
-  },
-);
-
-// Manual control
-const span = startSpan("custom_operation", { tool: "my-tool" });
-try {
-  // Do work
-  endSpan(span); // Marks as successful
-} catch (error) {
-  endSpan(span, error); // Marks as error
-  throw error;
 }
 ```
 
 ### Trace Structure
 
-The sampling workflow creates the following trace hierarchy:
-
 ```
-sampling_loop (root)
-├─ sampling_iteration (iteration 1)
-│  ├─ parse_error (event, if applicable)
-│  └─ attributes: iteration, isError, isComplete
-├─ sampling_iteration (iteration 2)
-│  └─ ...
-└─ sampling_iteration (iteration N)
+mcpc.sampling_loop (root)
+├─ mcpc.sampling_iteration.lsmcp_get_project_overview
+│  └─ attributes: iteration, isError, isComplete, parsed, samplingResponse
+├─ mcpc.sampling_iteration.desktop-commander_read_file
+└─ mcpc.sampling_iteration.complete
 ```
 
-### Integration with Observability Platforms
+### Manual Tracing
 
-OTLP traces can be sent to:
+```typescript
+import { endSpan, startSpan, withSpan } from "./utils/tracing.ts";
 
-- **Jaeger**: Set endpoint to `http://localhost:4318/v1/traces`
-- **Zipkin**: Compatible via OTLP collector
+// Async wrapper
+const result = await withSpan("operation", { key: "value" }, async (span) => {
+  span.addEvent("checkpoint", { progress: 50 });
+  return result;
+});
+
+// Manual control
+const span = startSpan("custom_operation", { tool: "my-tool" });
+try {
+  // Do work
+  endSpan(span);
+} catch (error) {
+  endSpan(span, error);
+  throw error;
+}
+```
+
+### Integration
+
+Export traces to:
+
+- **Jaeger**: `http://localhost:4318/v1/traces`
 - **Grafana Tempo**: Via OTLP
-- **Cloud Providers**: AWS X-Ray, Google Cloud Trace, Azure Monitor (via OTLP
-  collector)
+- **Cloud Providers**: AWS X-Ray, Google Cloud Trace, Azure Monitor
 
 ## Best Practices
 
-1. **Use Appropriate Log Levels**
-   - `debug`: Detailed diagnostic information
-   - `info`: General informational messages
-   - `warning`: Warning messages, non-critical issues
-   - `error`: Error conditions that need attention
+### Logging
 
-2. **Structured Logging**
-   ```typescript
-   // Good: Structured data
-   await logger.info({
-     operation: "tool_call",
-     tool: "read_file",
-     duration: 150,
-   });
+**Use appropriate levels:**
 
-   // Also good: Simple messages
-   await logger.info("Operation completed successfully");
-   ```
+```typescript
+// Debug: Detailed diagnostics
+await logger.debug({ parsedData, iteration: 5 });
 
-3. **Enable Tracing for Debugging**
-   - Use console export during development
-   - Use OTLP export in production for centralized monitoring
-   - Disable tracing in performance-critical scenarios
+// Info: General information
+await logger.info("Server started on port 3000");
 
-4. **Child Loggers**
-   ```typescript
-   const componentLogger = logger.child("subcomponent");
-   await componentLogger.info("Message"); // Logs as "parent.subcomponent"
-   ```
+// Warning: Non-critical issues
+await logger.warning("Cache miss, fetching from remote");
+
+// Error: Issues requiring attention
+await logger.error({ error: err.message, operation: "fetch" });
+```
+
+**Structured over strings:**
+
+```typescript
+// Good
+await logger.info({
+  operation: "tool_call",
+  tool: "read_file",
+  duration: 150,
+  success: true,
+});
+
+// Also good for simple messages
+await logger.info("Operation completed");
+```
+
+### Tracing
+
+**Development:**
+
+```bash
+export MCPC_TRACING_ENABLED=true
+export MCPC_TRACING_EXPORT=console
+```
+
+**Production:**
+
+```bash
+export MCPC_TRACING_ENABLED=true
+export MCPC_TRACING_EXPORT=otlp
+export MCPC_TRACING_OTLP_ENDPOINT=http://your-collector:4318/v1/traces
+```
+
+**Performance:**
+
+- Disable tracing for latency-sensitive workloads
+- Use `none` export mode to collect metrics without sending
 
 ## Examples
 
-See the sampling examples in `packages/core/examples/sampling/` for working
-demonstrations of logging and tracing in action.
+See `packages/core/examples/sampling/` for working demonstrations.
 
 ## References
 

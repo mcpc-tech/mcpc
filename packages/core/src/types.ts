@@ -4,6 +4,11 @@ export type ToolCallback = (args: unknown, extra?: unknown) => unknown;
 
 export interface SamplingConfig {
   maxIterations?: number;
+  /**
+   * Use LLM to summarize sub-agent results (default: true).
+   * Set to false to return full conversation history for debugging.
+   */
+  summarize?: boolean;
 }
 
 export interface RegisterToolParams {
