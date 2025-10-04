@@ -7,8 +7,9 @@ can use it to:
 
 1. **Create Powerful Agentic MCP Tools:** Simply describe your vision in text
    and reference tools from the
-   [expanding MCP community](https://registry.modelcontextprotocol.io/docs#/operations/list-servers),
-   rapidly transforming your ideas into powerful agents.
+   [expanding MCP community](https://registry.modelcontextprotocol.io/docs#/operations/list-servers).
+   As standard MCP tools, your agents work everywhere and collaborate
+   seamlessly.
 2. **Fine-Tune Existing Tools:** Flexibly modify existing tool descriptions and
    parameters, or wrap and filter results to precisely adapt them to your
    specific business scenarios.
@@ -18,10 +19,15 @@ can use it to:
 
 ## Key Features
 
-- **Simple composition**: Reuse existing MCP servers as building blocks
-- **Two execution modes**: Interactive (agentic) or autonomous (sampling)
-- **All transport types**: stdio, HTTP, and server-sent events
-- **Tool selection**: Pick specific tools or use everything from an MCP server
+- **Portability and agent interoperability**: Build once, run everywhere as MCP
+  tools - agents work across all MCP clients and can discover and collaborate
+  with each other through standard MCP interfaces
+- **Simple composition and fine-tuning**: Compose MCP servers as building
+  blocks, select and customize tools, or modify their descriptions and
+  parameters
+- **Two agentic tool modes**: Interactive (agentic) or autonomous (sampling)
+- **Logging and tracing**: Built-in MCP logging and OpenTelemetry tracing
+  support
 
 ## Quick Start
 
