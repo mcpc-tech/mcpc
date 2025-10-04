@@ -1,6 +1,7 @@
 /** Configuration Loader for MCPC CLI
  *
- * This module provides utilities to load MCPC configuration from command-line arguments or files.
+ * This module provides utilities to load MCPC configuration from command-line arguments,
+ * environment variables, or files.
  *
  * Command-line arguments:
  * - `--config <json>` - Inline JSON configuration string
@@ -8,10 +9,26 @@
  * - `--config-file <path>` - Path to configuration file
  * - No arguments - Uses ./mcpc.config.json if available
  *
+ * Environment variables:
+ * - `MCPC_CONFIG` - Inline JSON configuration string (same as --config)
+ * - `MCPC_CONFIG_URL` - URL to fetch configuration from (same as --config-url)
+ * - `MCPC_CONFIG_FILE` - Path to configuration file (same as --config-file)
+ *
+ * Priority order:
+ * 1. --config (inline JSON)
+ * 2. MCPC_CONFIG environment variable
+ * 3. --config-url or MCPC_CONFIG_URL
+ * 4. --config-file or MCPC_CONFIG_FILE
+ * 5. ./mcpc.config.json (default)
+ *
  * @example
  * ```bash
  * # Inline JSON config
  * deno run --allow-all src/bin.ts --config '[{"name":"my-agent","description":"..."}]'
+ *
+ * # Using environment variable
+ * export MCPC_CONFIG='[{"name":"my-agent","description":"..."}]'
+ * deno run --allow-all src/bin.ts
  *
  * # From URL
  * deno run --allow-all src/bin.ts --config-url https://example.com/config.json
@@ -73,6 +90,11 @@ OPTIONS:
                            Format: "Key: Value" or "Key=Value"
                            Can be used multiple times
 
+ENVIRONMENT VARIABLES:
+    MCPC_CONFIG            Inline JSON configuration (same as --config)
+    MCPC_CONFIG_URL        URL to fetch config from (same as --config-url)
+    MCPC_CONFIG_FILE       Path to config file (same as --config-file)
+
 EXAMPLES:
     # Show help
     npx -y deno run -A jsr:@mcpc/cli/bin --help
@@ -90,6 +112,10 @@ EXAMPLES:
     # Load from file
     npx -y deno run -A jsr:@mcpc/cli/bin --config-file ./my-config.json
 
+    # Using environment variable
+    export MCPC_CONFIG='[{"name":"agent","description":"..."}]'
+    npx -y deno run -A jsr:@mcpc/cli/bin
+
     # Use default configuration (./mcpc.config.json)
     npx -y deno run -A jsr:@mcpc/cli/bin
 
@@ -98,9 +124,10 @@ CONFIGURATION:
     
     Priority order:
     1. --config (inline JSON)
-    2. --config-url (fetch from URL)
-    3. --config-file (file path)
-    4. ./mcpc.config.json (default)
+    2. MCPC_CONFIG environment variable
+    3. --config-url or MCPC_CONFIG_URL
+    4. --config-file or MCPC_CONFIG_FILE
+    5. ./mcpc.config.json (default)
 
 For more information, visit: https://github.com/mcpc-tech/mcpc
 `);
@@ -161,7 +188,7 @@ function parseArgs(): {
 }
 
 /**
- * Load configuration from command-line arguments or default file
+ * Load configuration from command-line arguments, environment variables, or default file
  * @returns Configuration object or null if no configuration found
  */
 export async function loadConfig(): Promise<MCPCConfig | null> {
@@ -184,14 +211,26 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
     }
   }
 
-  // Priority 2: --config-url (fetch from URL)
-  if (args.configUrl) {
+  // Priority 2: MCPC_CONFIG environment variable (for testing and scripting)
+  if (process.env.MCPC_CONFIG) {
+    try {
+      const parsed = JSON.parse(process.env.MCPC_CONFIG);
+      return normalizeConfig(parsed);
+    } catch (error) {
+      console.error("Failed to parse MCPC_CONFIG environment variable:", error);
+      throw error;
+    }
+  }
+
+  // Priority 3: --config-url or MCPC_CONFIG_URL (fetch from URL)
+  const configUrl = args.configUrl || process.env.MCPC_CONFIG_URL;
+  if (configUrl) {
     try {
       const headers: HeadersInit = {
         "User-Agent": "MCPC-CLI/0.1.0",
         ...args.requestHeaders,
       };
-      const response = await fetch(args.configUrl, { headers });
+      const response = await fetch(configUrl, { headers });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -199,29 +238,30 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
       const parsed = JSON.parse(content);
       return normalizeConfig(parsed);
     } catch (error) {
-      console.error(`Failed to fetch config from ${args.configUrl}:`, error);
+      console.error(`Failed to fetch config from ${configUrl}:`, error);
       throw error;
     }
   }
 
-  // Priority 3: --config-file (file path)
-  if (args.configFile) {
+  // Priority 4: --config-file or MCPC_CONFIG_FILE (file path)
+  const configFile = args.configFile || process.env.MCPC_CONFIG_FILE;
+  if (configFile) {
     try {
-      const content = await readFile(args.configFile, "utf-8");
+      const content = await readFile(configFile, "utf-8");
       const parsed = JSON.parse(content);
       return normalizeConfig(parsed);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-        console.error(`Config file not found: ${args.configFile}`);
+        console.error(`Config file not found: ${configFile}`);
         throw error;
       } else {
-        console.error(`Failed to load config from ${args.configFile}:`, error);
+        console.error(`Failed to load config from ${configFile}:`, error);
         throw error;
       }
     }
   }
 
-  // Priority 4: ./mcpc.config.json in current directory
+  // Priority 5: ./mcpc.config.json in current directory
   const defaultConfigPath = resolve(process.cwd(), "mcpc.config.json");
   try {
     const content = await readFile(defaultConfigPath, "utf-8");

@@ -1,4 +1,4 @@
-import { assertExists } from "jsr:@std/assert";
+import { assertExists } from "@std/assert";
 import { createServer } from "../src/app.ts";
 import type { MCPCConfig } from "../src/config/loader.ts";
 

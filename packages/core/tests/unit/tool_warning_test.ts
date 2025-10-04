@@ -1,4 +1,4 @@
-import { mcpc } from "../mod.ts";
+import { mcpc } from "../../mod.ts";
 
 Deno.test(
   "Tool warning system - shows warning for non-existent tools",

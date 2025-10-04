@@ -4,6 +4,7 @@ import type { SamplingConfig } from "../../types.ts";
 import { CompiledPrompts } from "../../prompts/index.ts";
 import { AgenticExecutor } from "../agentic/agentic-executor.ts";
 import { createArgsDefFactory } from "../../factories/args-def-factory.ts";
+import type { Span } from "@opentelemetry/api";
 import {
   BaseSamplingExecutor,
   type ExternalTool,
@@ -49,8 +50,8 @@ export class SamplingExecutor extends BaseSamplingExecutor {
           ...tool.inputSchema,
         };
       } else {
-        // Check if it's an internal tool
-        const toolSchema = this.server.getInternalToolSchema(toolName);
+        // Check if it's a hidden tool
+        const toolSchema = this.server.getHiddenToolSchema(toolName);
         if (toolSchema) {
           depGroups[toolName] = {
             ...toolSchema.schema,
@@ -105,12 +106,14 @@ export class SamplingExecutor extends BaseSamplingExecutor {
   protected async processAction(
     parsedData: Record<string, unknown>,
     schema: Record<string, unknown>,
+    _state?: unknown,
+    parentSpan?: Span | null,
   ): Promise<CallToolResult> {
     // Define the expected tool call data structure
     const toolCallData = parsedData;
 
     if (toolCallData.decision === "complete") {
-      return await this.createCompletionResult("Task completed");
+      return await this.createCompletionResult("Task completed", parentSpan);
     }
 
     try {
@@ -141,7 +144,7 @@ export class SamplingExecutor extends BaseSamplingExecutor {
       return toolResult;
     } catch (error) {
       // Handle execution errors
-      return this.createExecutionError(error);
+      return this.createExecutionError(error, parentSpan);
     }
   }
 
@@ -154,7 +157,7 @@ export class SamplingExecutor extends BaseSamplingExecutor {
         const tool = this.toolNameToDetailList.find(
           ([toolName]) => toolName === name,
         );
-        const toolSchema = this.server.getInternalToolSchema(name);
+        const toolSchema = this.server.getHiddenToolSchema(name);
 
         if (tool && tool[1]) {
           return `- ${name}: ${tool[1].description || `Tool: ${name}`}`;

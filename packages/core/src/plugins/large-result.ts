@@ -1,5 +1,6 @@
 /**
- * Large Result Plugin - Simple plugin to handle tool results that exceed context limits
+ * Large Result Plugin - Handles tool results that exceed context limits
+ * Enhanced with better resource management and error handling
  */
 
 import { mkdtemp, writeFile } from "node:fs/promises";
@@ -25,8 +26,9 @@ export function createLargeResultPlugin(
   const maxSize = options.maxSize || 8000;
   const previewSize = options.previewSize || 4000;
   let tempDir: string | null = options.tempDir || null;
-  // Track servers that already received the search plugin to avoid duplicates per server
-  const serversConfigured = new WeakSet<object>();
+
+  // Use Map to track configured servers by reference
+  const configuredServers = new Map<object, boolean>();
 
   const searchConfig: SearchOptions = {
     maxResults: options.search?.maxResults || 15,
@@ -36,45 +38,54 @@ export function createLargeResultPlugin(
 
   return {
     name: "plugin-large-result-handler",
+    version: "1.0.0",
+    dependencies: [], // Search plugin will be added dynamically
+
     configureServer: async (server) => {
       // Add search plugin for this specific server (once per server)
-      if (!serversConfigured.has(server)) {
+      if (!configuredServers.has(server)) {
         const searchPlugin = createSearchPlugin(searchConfig);
         await server.addPlugin(searchPlugin);
-        serversConfigured.add(server);
+        configuredServers.set(server, true);
       }
     },
+
     transformTool: (tool, context) => {
       const originalExecute = tool.execute;
 
       tool.execute = async (args: unknown) => {
-        const result = await originalExecute(args);
+        try {
+          const result = await originalExecute(args);
 
-        const resultText = JSON.stringify(result);
-        if (resultText.length <= maxSize) {
-          return result;
-        }
+          const resultText = JSON.stringify(result);
+          if (resultText.length <= maxSize) {
+            return result;
+          }
 
-        if (!tempDir) {
-          tempDir = await mkdtemp(join(tmpdir(), "mcpc-results-"));
-        }
+          // Create temp directory if needed
+          if (!tempDir) {
+            tempDir = await mkdtemp(join(tmpdir(), "mcpc-results-"));
+          }
 
-        // Sanitize tool name for safe filename usage (avoid creating nested paths)
-        const safeToolName = encodeURIComponent(context.toolName ?? "tool");
-        const fileName = `${safeToolName}-${Date.now()}.txt`;
-        const filePath = join(tempDir, fileName);
-        await writeFile(filePath, resultText);
+          // Sanitize tool name for safe filename usage
+          const safeToolName = encodeURIComponent(context.toolName ?? "tool");
+          const fileName = `${safeToolName}-${Date.now()}.txt`;
+          const filePath = join(tempDir, fileName);
 
-        const preview = resultText.slice(0, previewSize);
-        return {
-          content: [
-            {
-              type: "text",
-              text:
-                `**Result too large (${resultText.length} chars), saved to file**
+          await writeFile(filePath, resultText);
+
+          const preview = resultText.slice(0, previewSize);
+          const sizeKB = (resultText.length / 1024).toFixed(1);
+
+          return {
+            content: [
+              {
+                type: "text",
+                text:
+                  `**Result too large (${resultText.length} chars), saved to file**
 
 📁 **File:** ${filePath}
-📊 **Size:** ${(resultText.length / 1024).toFixed(1)} KB
+📊 **Size:** ${sizeKB} KB
 
 **Preview (${previewSize} chars):**
 \`\`\`
@@ -84,12 +95,29 @@ ${preview}
 **To read/understand the full content:**
 - Use the \`search-tool-result\` tool with pattern: \`search-tool-result {"pattern": "your-search-term"}\`
 - Search supports regex patterns for advanced queries`,
-            },
-          ],
-        };
+              },
+            ],
+          };
+        } catch (error) {
+          // If transformation fails, return original error
+          const errorMsg = error instanceof Error
+            ? error.message
+            : String(error);
+          console.error(
+            `Large result plugin error for ${context.toolName}: ${errorMsg}`,
+          );
+          throw error;
+        }
       };
 
       return tool;
+    },
+
+    dispose: () => {
+      // Cleanup: clear server tracking
+      configuredServers.clear();
+      // Note: temp files are in system temp dir and will be cleaned by OS
+      tempDir = null;
     },
   };
 }

@@ -16,6 +16,7 @@ export const createLoggingPlugin = (
 
   return {
     name: "built-in-logging",
+    version: "1.0.0",
     composeEnd: async (context: ComposeEndContext) => {
       if (!enabled) return;
 
@@ -24,63 +25,33 @@ export const createLoggingPlugin = (
       if (compact) {
         // Single line compact format with emojis for better readability
         const pluginCount = context.pluginNames.length;
-        const server = context.server;
-        const externalList = server.getExternalToolNames();
-        const internalList = server.getInternalToolNames();
-        const hiddenList = server.getHiddenToolNames();
-        const publicToolNames = server.getPublicToolNames();
-
-        const externalCount = externalList.length;
-        const internalCount = internalList.length;
-        const hiddenCount = hiddenList.length;
-        const globalCount = publicToolNames.length;
+        const { stats } = context;
 
         await logger.info(
-          `[${context.toolName}] ${pluginCount} plugins • ${externalCount} external • ${internalCount} internal • ${hiddenCount} hidden • ${globalCount} global`,
+          `[${context.toolName}] ${pluginCount} plugins • ${stats.publicTools} public • ${stats.hiddenTools} hidden`,
         );
       } else if (verbose) {
         await logger.info(`[${context.toolName}] Composition complete`);
         await logger.info(`   ├─ Plugins: ${context.pluginNames.join(", ")}`);
 
-        // Get all tool information from server
+        const { stats } = context;
+
+        // Get detailed tool lists
         const server = context.server;
-        const globalToolNames = Array.from(
+        const publicTools = Array.from(
           new Set(server.getPublicToolNames().map(String)),
         );
-
-        // Ensure uniqueness across categories and coerce to string[]
-        const external: string[] = Array.from(
-          new Set(server.getExternalToolNames().map(String)),
-        );
-        const internal: string[] = Array.from(
-          new Set(server.getInternalToolNames().map(String)),
-        );
-        const hidden: string[] = Array.from(
+        const hiddenTools = Array.from(
           new Set(server.getHiddenToolNames().map(String)),
         );
-        const globalNames: string[] = globalToolNames.map(String);
-        const totalSet = new Set<string>([
-          ...external,
-          ...internal,
-          ...globalNames,
-        ]);
-        const totalList = Array.from(totalSet);
 
-        if (external.length > 0) {
-          await logger.info(`   ├─ External: ${external.join(", ")}`);
+        if (publicTools.length > 0) {
+          await logger.info(`   ├─ Public: ${publicTools.join(", ")}`);
         }
-        if (internal.length > 0) {
-          await logger.info(`   ├─ Internal: ${internal.join(", ")}`);
+        if (hiddenTools.length > 0) {
+          await logger.info(`   ├─ Hidden: ${hiddenTools.join(", ")}`);
         }
-        if (globalNames.length > 0) {
-          await logger.info(`   ├─ Global: ${globalNames.join(", ")}`);
-        }
-        if (hidden.length > 0) {
-          await logger.info(`   ├─ Hidden: ${hidden.join(", ")}`);
-        }
-        if (totalList.length > 0) {
-          await logger.info(`   └─ Total: ${totalList.length} tools`);
-        }
+        await logger.info(`   └─ Total: ${stats.totalTools} tools`);
       }
     },
   };
