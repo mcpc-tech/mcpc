@@ -1,4 +1,3 @@
-import type { ComposableMCPServer } from "../../compose.ts";
 import type { ToolPlugin, TransformContext } from "../../plugin-types.ts";
 
 /**
@@ -7,9 +6,10 @@ import type { ToolPlugin, TransformContext } from "../../plugin-types.ts";
  */
 export const createToolNameMappingPlugin = (): ToolPlugin => ({
   name: "built-in-tool-name-mapping",
+  version: "1.0.0",
   enforce: "pre", // Apply early to establish mappings
   transformTool: (tool, context: TransformContext) => {
-    const server = context.server as ComposableMCPServer;
+    const server = context.server;
     const toolName = context.toolName;
 
     // Create bidirectional mapping between dot and underscore notation

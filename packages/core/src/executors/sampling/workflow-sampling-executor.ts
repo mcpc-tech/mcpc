@@ -5,6 +5,7 @@ import { CompiledPrompts } from "../../prompts/index.ts";
 import { WorkflowExecutor } from "../workflow/workflow-executor.ts";
 import type { MCPCStep, WorkflowState } from "../../utils/state.ts";
 import type { ArgsDefCreator } from "../../types.ts";
+import type { Span } from "@opentelemetry/api";
 import {
   BaseSamplingExecutor,
   type ExternalTool,
@@ -74,6 +75,7 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
     parsedData: Record<string, unknown>,
     _schema: Record<string, unknown>,
     state: TState,
+    parentSpan?: Span | null,
   ): Promise<CallToolResult> {
     const workflowState = state as WorkflowState;
     if (!workflowState) {
@@ -83,7 +85,7 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
     const toolCallData = parsedData as Record<string, unknown>;
 
     if (toolCallData.decision === "complete") {
-      return await this.createCompletionResult("Task completed");
+      return await this.createCompletionResult("Task completed", parentSpan);
     }
 
     try {
@@ -111,7 +113,7 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
       return workflowResult;
     } catch (error) {
       // Handle execution errors using base class method
-      return this.createExecutionError(error);
+      return this.createExecutionError(error, parentSpan);
     }
   }
 

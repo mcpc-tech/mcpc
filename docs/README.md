@@ -34,6 +34,10 @@ You can use it to:
 
 [Achieving Agent Interoperability](./learn-more/achieving-agent-interoperability.md)
 
+[Plugin System](./plugins.md)
+
+[Logging and Tracing](./logging-and-tracing.md)
+
 # FAQ
 
 [FAQ](./faq.md)

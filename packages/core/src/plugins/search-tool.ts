@@ -1,6 +1,7 @@
 /**
  * Search Tool Plugin
  * Adds ripgrep search functionality with result size limits
+ * Enhanced with better timeout management and error handling
  */
 
 import rg from "@mcpc-tech/ripgrep-napi";
@@ -38,8 +39,13 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
   const timeoutMs = options.timeoutMs || 30000;
   const global = options.global ?? true;
 
+  // Track active timeouts for cleanup
+  const activeTimeouts = new Set<ReturnType<typeof setTimeout>>();
+
   return {
     name: "plugin-search",
+    version: "1.0.0",
+
     configureServer: (server) => {
       // Register the search tool once during plugin initialization
       server.tool(
@@ -94,6 +100,8 @@ Only search within the allowed directory: ${allowedSearchDir}`,
             return { current: current + addition, added: true };
           };
 
+          let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
           try {
             const requestedPath = args.path || allowedSearchDir;
             const limit = args.maxResults || maxResults;
@@ -105,7 +113,6 @@ Only search within the allowed directory: ${allowedSearchDir}`,
               const relativePath = relative(resolvedAllowed, resolvedRequested);
 
               // Check if requested path is outside allowed directory
-              // Empty string means same directory, anything starting with '..' means parent directory
               if (relativePath && relativePath.startsWith("..")) {
                 return {
                   content: [
@@ -122,7 +129,7 @@ Only search within the allowed directory: ${allowedSearchDir}`,
 
             const searchPath = requestedPath;
 
-            // Reject overly-broad patterns to avoid expensive/unsafe searches
+            // Reject overly-broad patterns
             const rawPattern = args.pattern ?? "";
             if (isBroad(rawPattern)) {
               return {
@@ -137,15 +144,14 @@ Only search within the allowed directory: ${allowedSearchDir}`,
               };
             }
 
-            // Create timeout promise and keep reference to clear it later
-            let timeoutId: ReturnType<typeof setTimeout> | undefined;
+            // Create timeout promise with cleanup tracking
             const timeoutPromise = new Promise((_, reject) => {
               timeoutId = setTimeout(() => {
                 reject(new Error(`Search timeout after ${timeoutMs}ms`));
               }, timeoutMs);
+              activeTimeouts.add(timeoutId);
             });
 
-            console.log(`Searching for "${args.pattern}" in ${searchPath}`);
             // Create search promise
             const searchPromise = new Promise((resolve, reject) => {
               try {
@@ -162,8 +168,11 @@ Only search within the allowed directory: ${allowedSearchDir}`,
               timeoutPromise,
             ])) as any;
 
-            // Clear timeout to avoid leaking timers
-            if (timeoutId) clearTimeout(timeoutId);
+            // Clear timeout immediately after completion
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              activeTimeouts.delete(timeoutId);
+            }
 
             if (!result.success || !result.matches?.length) {
               return {
@@ -196,7 +205,7 @@ Only search within the allowed directory: ${allowedSearchDir}`,
               if (!res.added) {
                 // If we haven't shown any matches yet, show a truncated version
                 if (matchesIncluded === 0) {
-                  const remainingSpace = maxOutputSize - output.length - 100; // Reserve 100 chars for warning
+                  const remainingSpace = maxOutputSize - output.length - 100;
                   if (remainingSpace > 50) {
                     const truncatedLine = match.line.slice(0, remainingSpace);
                     output +=
@@ -234,6 +243,12 @@ Only search within the allowed directory: ${allowedSearchDir}`,
               ],
             };
           } catch (error) {
+            // Clean up timeout on error
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              activeTimeouts.delete(timeoutId);
+            }
+
             const errorMsg = error instanceof Error
               ? error.message
               : String(error);
@@ -255,6 +270,14 @@ Only search within the allowed directory: ${allowedSearchDir}`,
         },
         { internal: !global },
       );
+    },
+
+    dispose: () => {
+      // Clean up any remaining timeouts
+      for (const timeoutId of activeTimeouts) {
+        clearTimeout(timeoutId);
+      }
+      activeTimeouts.clear();
     },
   };
 }

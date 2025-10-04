@@ -6,9 +6,10 @@ import type { ToolPlugin, TransformContext } from "../../plugin-types.ts";
  */
 export const createConfigPlugin = (): ToolPlugin => ({
   name: "built-in-config",
+  version: "1.0.0",
   enforce: "pre",
   transformTool: (tool, context: TransformContext) => {
-    const server = context.server as any; // Access to findToolConfig method
+    const server = context.server;
     const config = server.findToolConfig?.(context.toolName);
 
     if (config?.description) {

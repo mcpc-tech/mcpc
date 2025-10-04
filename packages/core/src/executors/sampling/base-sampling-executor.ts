@@ -185,7 +185,12 @@ export abstract class BaseSamplingExecutor {
           }
 
           // Process the parsed data using subclass implementation
-          const result = await this.processAction(parsedData, schema, state);
+          const result = await this.processAction(
+            parsedData,
+            schema,
+            state,
+            loopSpan,
+          );
           this.logIterationProgress(parsedData, result);
 
           if (iterationSpan) {
@@ -459,6 +464,7 @@ ${history}`,
     parsedData: Record<string, unknown>,
     schema: Record<string, unknown>,
     state?: TState,
+    parentSpan?: Span | null,
   ): Promise<CallToolResult>;
 
   protected injectJsonInstruction({

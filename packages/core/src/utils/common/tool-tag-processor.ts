@@ -60,11 +60,11 @@ export function processToolTags({
 
     const override = toolOverrides.get(toolName);
 
-    if (override?.visibility?.hide) {
+    if (override?.visibility?.hidden) {
       // Remove the tag completely for hidden tools
       // Manipulate DOM directly instead of brittle string replace
       $(toolEl).remove();
-    } else if (override?.visibility?.global) {
+    } else if (override?.visibility?.public) {
       $(toolEl).replaceWith(`<tool name="${toolName}"/>`);
     } else {
       const toolId = findToolId(toolName, tools, toolNameMapping);

@@ -1,6 +1,6 @@
-import { mcpc } from "../mod.ts";
+import { mcpc } from "../../mod.ts";
 import { jsonSchema } from "ai";
-import { createLargeResultPlugin } from "../src/plugins/large-result.ts";
+import { createLargeResultPlugin } from "../../src/plugins/large-result.ts";
 
 Deno.test("large-result plugin truncates and enables search", async () => {
   const plugin = createLargeResultPlugin({
