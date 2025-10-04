@@ -3,7 +3,7 @@
  * Tests the classification system for external, internal, hidden, and global tools
  */
 
-import { assertEquals } from "jsr:@std/assert";
+import { assertEquals } from "@std/assert";
 import { mcpc } from "../../mod.ts";
 import type { ComposeEndContext } from "../../src/plugin-types.ts";
 import { jsonSchema } from "ai";

@@ -4,6 +4,7 @@
     "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.39.10",
     "jsr:@std/assert@*": "1.0.12",
     "jsr:@std/assert@1": "1.0.14",
+    "jsr:@std/assert@^1.0.14": "1.0.14",
     "jsr:@std/cli@^1.0.21": "1.0.21",
     "jsr:@std/encoding@^1.0.10": "1.0.10",
     "jsr:@std/fmt@^1.0.8": "1.0.8",
@@ -1556,6 +1557,7 @@
         "dependencies": [
           "jsr:@mcpc/core@~0.2.0-beta.1",
           "jsr:@mcpc/utils@0.1",
+          "jsr:@std/assert@^1.0.14",
           "jsr:@std/http@^1.0.14",
           "npm:@hono/zod-openapi@~0.19.2",
           "npm:@mcpc-tech/ripgrep-napi@^0.0.4",

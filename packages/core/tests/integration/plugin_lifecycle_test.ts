@@ -3,7 +3,7 @@
  * Tests the full lifecycle: configureServer → composeStart → transformTool → finalizeComposition → composeEnd
  */
 
-import { assertEquals } from "jsr:@std/assert";
+import { assertEquals } from "@std/assert";
 import { mcpc } from "../../mod.ts";
 import type { ToolPlugin } from "../../src/plugin-types.ts";
 import { jsonSchema } from "ai";

@@ -3,7 +3,7 @@
  * Tests plugin registration, validation, and lifecycle management
  */
 
-import { assertEquals, assertRejects } from "jsr:@std/assert";
+import { assertEquals, assertRejects } from "@std/assert";
 import { mcpc } from "../../mod.ts";
 import type { ToolPlugin } from "../../src/plugin-types.ts";
 

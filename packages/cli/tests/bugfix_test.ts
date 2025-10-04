@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "jsr:@std/assert";
+import { assertEquals, assertExists } from "@std/assert";
 import { loadConfig } from "../src/config/loader.ts";
 import { createServer } from "../src/app.ts";
 import process from "node:process";

@@ -3,7 +3,7 @@
  * Tests tool registration, configuration, and name resolution
  */
 
-import { assertEquals } from "jsr:@std/assert";
+import { assertEquals } from "@std/assert";
 import { mcpc } from "../../mod.ts";
 import { jsonSchema } from "ai";
 
