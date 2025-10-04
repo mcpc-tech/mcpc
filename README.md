@@ -18,10 +18,12 @@ can use it to:
 
 ## Key Features
 
-- **Simple composition**: Reuse existing MCP servers as building blocks
-- **Two execution modes**: Interactive (agentic) or autonomous (sampling)
-- **All transport types**: stdio, HTTP, and server-sent events
-- **Tool selection**: Pick specific tools or use everything from an MCP server
+- **Simple composition and fine-tuning**: Compose MCP servers as building
+  blocks, select and customize tools, or modify their descriptions and
+  parameters
+- **Two agentic tool modes**: Interactive (agentic) or autonomous (sampling)
+- **Logging and tracing**: Built-in MCP logging and OpenTelemetry tracing
+  support
 
 ## Quick Start
 
