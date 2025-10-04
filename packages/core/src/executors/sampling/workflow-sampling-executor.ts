@@ -132,8 +132,15 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
     });
 
     // Create workflow-specific sampling prompt using existing patterns
+    let contextInfo = "";
+    if (
+      args.context && typeof args.context === "object" &&
+      Object.keys(args.context).length > 0
+    ) {
+      contextInfo = `\n\nContext:\n${JSON.stringify(args.context, null, 2)}`;
+    }
     const workflowPrompt =
-      `\n\nCurrent Task: <user_request>${args.userRequest}</user_request>`;
+      `\n\nCurrent Task: <user_request>${args.userRequest}</user_request>${contextInfo}`;
 
     // Use JSON instruction injection pattern
     return this.injectJsonInstruction({

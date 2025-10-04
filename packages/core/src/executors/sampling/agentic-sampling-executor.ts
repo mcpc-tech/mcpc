@@ -99,6 +99,9 @@ export class SamplingExecutor extends BaseSamplingExecutor {
     const systemPrompt = this.buildSystemPrompt(
       args.userRequest as string,
       agenticSchema,
+      (args.context && typeof args.context === "object")
+        ? args.context as Record<string, unknown>
+        : undefined,
     );
     return this.runSamplingLoop(() => systemPrompt, agenticSchema);
   }
@@ -151,6 +154,7 @@ export class SamplingExecutor extends BaseSamplingExecutor {
   private buildSystemPrompt(
     userRequest: string,
     agenticSchema: Record<string, unknown>,
+    context?: Record<string, unknown>,
   ): string {
     const toolList = this.allToolNames
       .map((name) => {
@@ -168,7 +172,12 @@ export class SamplingExecutor extends BaseSamplingExecutor {
       })
       .join("\n");
 
-    // Build the complete schema using forAgentic
+    let contextInfo = "";
+    if (
+      context && typeof context === "object" && Object.keys(context).length > 0
+    ) {
+      contextInfo = `\n\nContext:\n${JSON.stringify(context, null, 2)}`;
+    }
 
     // Use compiled sampling prompt
     const basePrompt = CompiledPrompts.samplingExecution({
@@ -180,7 +189,7 @@ export class SamplingExecutor extends BaseSamplingExecutor {
     const taskPrompt = `
 
 ## Current Task
-I will now use agentic sampling to complete the following task: "${userRequest}"
+I will now use agentic sampling to complete the following task: "${userRequest}"${contextInfo}
 
 When I need to use a tool, I should specify the tool name in 'action' and provide tool-specific parameters as additional properties.
 When the task is complete, I should use "action": "complete".`;

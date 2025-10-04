@@ -154,8 +154,14 @@ Workflow step definitions - provide ONLY on initial call.
             description:
               "The task or request that should be completed autonomously by the agentic system using available tools",
           },
+          context: {
+            type: "object",
+            description:
+              "Necessary context for the request, e.g., the absolute path of the current working directory. This is just an example; any relevant context fields are allowed.",
+            additionalProperties: true,
+          },
         },
-        required: ["userRequest"],
+        required: ["userRequest", "context"],
       };
     },
 
