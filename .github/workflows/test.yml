@@ -78,7 +78,7 @@ jobs:
 
       - name: Run Tests with Coverage
         working-directory: packages/core
-        run: deno test --allow-env --allow-read --coverage=coverage tests/
+        run: deno test --allow-all --coverage=coverage tests/
 
       - name: Generate Coverage Report
         working-directory: packages/core

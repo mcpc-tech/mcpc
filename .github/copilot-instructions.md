@@ -4,6 +4,10 @@ MCPC lets you build agentic MCP servers by composing existing MCP tools. Think
 of it as creating AI agents from reusable tool libraries, the agent itself is a
 MCP tool too.
 
+## Rules
+
+NEVER use deno specific APIs in code, use node compatible APIs only.
+
 ## Core Pattern
 
 Every MCPC server follows the same simple pattern:

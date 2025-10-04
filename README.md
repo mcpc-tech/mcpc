@@ -33,7 +33,7 @@ npm install @mcpc-tech/core
 # npm (from jsr)
 npx jsr add @mcpc/core
 
-# deno  
+# deno
 deno add jsr:@mcpc/core
 
 # pnpm (from npm registry)
@@ -66,16 +66,16 @@ const deps: ComposeDefinition["deps"] = {
       args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
       transportType: "stdio",
     },
-    "lsmcp": {
+    lsmcp: {
       command: "npx",
       args: ["-y", "@mizchi/lsmcp", "-p", "tsgo"],
       transportType: "stdio",
     },
-    "github": {
+    github: {
       transportType: "streamable-http",
       url: "https://api.githubcopilot.com/mcp/",
       headers: {
-        "Authorization": `Bearer ${process.env.GITHUB_PERSONAL_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${process.env.GITHUB_PERSONAL_ACCESS_TOKEN}`,
       },
     },
   },
@@ -177,6 +177,8 @@ Three simple steps:
 - **[Creating Your First Agent](docs/quickstart/create-your-first-agentic-mcp.md)** -
   Complete tutorial
 - **[CLI Usage Guide](docs/quickstart/cli-usage.md)** - Using the MCPC CLI
+- **[Logging and Tracing](docs/logging-and-tracing.md)** - MCP logging and
+  OpenTelemetry tracing
 - **[Examples](docs/examples/)** - Real-world use cases
 - **[FAQ](docs/faq.md)** - Common questions and answer
 

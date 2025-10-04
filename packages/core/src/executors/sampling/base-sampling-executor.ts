@@ -7,6 +7,10 @@ import { AggregateAjvError } from "@segment/ajv-human-errors";
 import addFormats from "ajv-formats";
 import { parseJSON } from "@mcpc/utils";
 import { inspect } from "node:util";
+import process from "node:process";
+import { createLogger, type MCPLogger } from "../../utils/logger.ts";
+import type { Span } from "@opentelemetry/api";
+import { endSpan, initializeTracing, startSpan } from "../../utils/tracing.ts";
 
 const ajv = new Ajv({
   allErrors: true,
@@ -43,6 +47,9 @@ export abstract class BaseSamplingExecutor {
   protected conversationHistory: ConversationMessage[] = [];
   protected maxIterations: number = 33;
   protected currentIteration: number = 0;
+  protected logger: MCPLogger;
+  protected tracingEnabled: boolean = false;
+  protected summarize: boolean = true;
 
   constructor(
     protected name: string,
@@ -55,6 +62,32 @@ export abstract class BaseSamplingExecutor {
     if (config?.maxIterations) {
       this.maxIterations = config.maxIterations;
     }
+    if (config?.summarize !== undefined) {
+      this.summarize = config.summarize;
+    }
+    // Create logger for this sampling executor
+    this.logger = createLogger(`mcpc.sampling.${name}`, server);
+
+    // Initialize tracing for sampling workflows
+    try {
+      const tracingConfig = {
+        enabled: process.env.MCPC_TRACING_ENABLED === "true",
+        serviceName: `mcpc-sampling-${name}`,
+        exportTo: (process.env.MCPC_TRACING_EXPORT ?? "otlp") as
+          | "console"
+          | "otlp"
+          | "none",
+        otlpEndpoint: process.env.MCPC_TRACING_OTLP_ENDPOINT ??
+          "http://localhost:4318/v1/traces",
+      };
+      this.tracingEnabled = tracingConfig.enabled;
+      if (this.tracingEnabled) {
+        initializeTracing(tracingConfig);
+      }
+    } catch {
+      // Environment access may not be available in all runtimes
+      this.tracingEnabled = false;
+    }
   }
 
   protected async runSamplingLoop<TState>(
@@ -65,64 +98,149 @@ export abstract class BaseSamplingExecutor {
     // Initialize conversation
     this.conversationHistory = [];
 
+    // Create a root span for the entire sampling loop
+    const loopSpan: Span | null = this.tracingEnabled
+      ? startSpan("mcpc.sampling_loop", {
+        agent: this.name,
+        maxIterations: this.maxIterations,
+        systemPrompt: systemPrompt(),
+      })
+      : null;
+
     try {
       for (
         this.currentIteration = 0;
         this.currentIteration < this.maxIterations;
         this.currentIteration++
       ) {
-        const response = await this.server.createMessage({
-          systemPrompt: systemPrompt(),
-          messages: this.conversationHistory,
-          maxTokens: Number.MAX_SAFE_INTEGER,
-        });
+        // Create a span for each iteration
+        const iterationSpan: Span | null = this.tracingEnabled
+          ? startSpan(
+            "mcpc.sampling_iteration",
+            {
+              iteration: this.currentIteration + 1,
+              agent: this.name,
+              systemPrompt: systemPrompt(),
+              maxTokens: String(Number.MAX_SAFE_INTEGER),
+              maxIterations: this.maxIterations,
+              messages: JSON.stringify(this.conversationHistory),
+            },
+            loopSpan ?? undefined,
+          )
+          : null;
 
-        const responseContent = (response.content.text as string) || "{}";
-
-        // Parse JSON response
-        let parsedData: Record<string, unknown>;
         try {
-          parsedData = parseJSON(responseContent.trim(), true);
-        } catch (parseError) {
-          this.addParsingErrorToHistory(responseContent, parseError);
-          continue;
-        }
-
-        if (parsedData) {
-          this.conversationHistory.push({
-            role: "assistant",
-            content: {
-              type: "text",
-              text: JSON.stringify(parsedData, null, 2),
-            },
+          const response = await this.server.createMessage({
+            systemPrompt: systemPrompt(),
+            messages: this.conversationHistory,
+            maxTokens: Number.MAX_SAFE_INTEGER,
           });
-        }
 
-        // Process the parsed data using subclass implementation
-        const result = await this.processAction(parsedData, schema, state);
-        this.logIterationProgress(parsedData, result);
+          const responseContent = (response.content.text as string) || "{}";
 
-        if (result.isError) {
-          // If processing resulted in an error, add to conversation history
-          this.conversationHistory.push({
-            role: "user",
-            content: {
-              type: "text",
-              text: result.content[0].text as string,
-            },
-          });
-          continue;
-        }
+          // Parse JSON response
+          let parsedData: Record<string, unknown>;
+          try {
+            parsedData = parseJSON(responseContent.trim(), true);
+          } catch (parseError) {
+            if (iterationSpan) {
+              iterationSpan.addEvent("parse_error", {
+                error: String(parseError),
+              });
+            }
+            this.addParsingErrorToHistory(responseContent, parseError);
+            if (iterationSpan) endSpan(iterationSpan);
+            continue;
+          }
 
-        if (result.isComplete) {
-          return result;
+          if (parsedData) {
+            this.conversationHistory.push({
+              role: "assistant",
+              content: {
+                type: "text",
+                text: JSON.stringify(parsedData, null, 2),
+              },
+            });
+          }
+
+          const action = parsedData["action"];
+
+          // If an action name is present, record it as an attribute on the iteration span for easier tracing/debugging.
+          if (action && typeof action === "string") {
+            // Update the span name to include the action for clearer traces.
+            try {
+              const safeAction = String(action).replace(/\s+/g, "_");
+              // updateName is part of the OpenTelemetry Span API
+              if (
+                iterationSpan &&
+                typeof (iterationSpan as any).updateName === "function"
+              ) {
+                (iterationSpan as any).updateName(
+                  `mcpc.sampling_iteration.${safeAction}`,
+                );
+              }
+            } catch {
+              // Ignore any errors while updating span name
+            }
+          }
+
+          // Process the parsed data using subclass implementation
+          const result = await this.processAction(parsedData, schema, state);
+          this.logIterationProgress(parsedData, result);
+
+          if (iterationSpan) {
+            // Simplified: store full raw JSON, raw LLM response, and full tool result if present (no truncation)
+            let rawJson = "{}";
+            try {
+              rawJson = parsedData ? JSON.stringify(parsedData) : "{}";
+            } catch {
+              /* ignore serialization errors */
+            }
+            const attr: Record<string, string | number | boolean> = {
+              isError: !!result.isError,
+              isComplete: !!result.isComplete,
+              iteration: this.currentIteration + 1,
+              maxIterations: this.maxIterations,
+              parsed: rawJson,
+              action: typeof action === "string" ? action : String(action),
+              samplingResponse: responseContent,
+              toolResult: JSON.stringify(result),
+            };
+            iterationSpan.setAttributes(attr);
+          }
+
+          if (result.isError) {
+            // If processing resulted in an error, add to conversation history
+            this.conversationHistory.push({
+              role: "user",
+              content: {
+                type: "text",
+                text: result.content[0].text as string,
+              },
+            });
+            if (iterationSpan) endSpan(iterationSpan);
+            continue;
+          }
+
+          if (result.isComplete) {
+            if (iterationSpan) endSpan(iterationSpan);
+            if (loopSpan) endSpan(loopSpan);
+            return result;
+          }
+
+          if (iterationSpan) endSpan(iterationSpan);
+        } catch (iterError) {
+          if (iterationSpan) endSpan(iterationSpan, iterError as Error);
+          throw iterError;
         }
       }
 
       // Reached maximum iterations
-      return this.createMaxIterationsError();
+      if (loopSpan) endSpan(loopSpan);
+      return await this.createMaxIterationsError(loopSpan);
     } catch (error) {
-      return this.createExecutionError(error);
+      if (loopSpan) endSpan(loopSpan, error as Error);
+      return await this.createExecutionError(error, loopSpan);
     }
   }
 
@@ -153,41 +271,51 @@ export abstract class BaseSamplingExecutor {
     });
   }
 
-  protected createMaxIterationsError(): CallToolResult {
-    const result = this.createCompletionResult(
-      `Action argument validation failed: Execution reached maximum iterations (${this.maxIterations}). Please try with a more specific request or break down the task into smaller parts.`,
+  protected async createMaxIterationsError(
+    parentSpan?: Span | null,
+  ): Promise<CallToolResult> {
+    const result = await this.createCompletionResult(
+      `Reached max iterations (${this.maxIterations}). Try a more specific request.`,
+      parentSpan,
     );
-    return {
-      ...result,
-      isError: true,
-      isComplete: false,
-    };
+    result.isError = true;
+    result.isComplete = false;
+    return result;
   }
 
-  protected createExecutionError(error: unknown): CallToolResult {
-    const errorMessage = `Sampling execution error: ${
-      error instanceof Error ? error.message : String(error)
-    }`;
-    const result = this.createCompletionResult(errorMessage);
-    return {
-      ...result,
-      isError: true,
-      isComplete: false,
-    };
+  protected async createExecutionError(
+    error: unknown,
+    parentSpan?: Span | null,
+  ): Promise<CallToolResult> {
+    const result = await this.createCompletionResult(
+      `Execution error: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      parentSpan,
+    );
+    result.isError = true;
+    result.isComplete = false;
+    return result;
   }
 
-  protected createCompletionResult(text: string): CallToolResult {
-    const conversationDetails = this.getConversationDetails();
+  protected async createCompletionResult(
+    text: string,
+    parentSpan?: Span | null,
+  ): Promise<CallToolResult> {
+    const summary = this.summarize
+      ? await this.summarizeConversation(parentSpan)
+      : this.formatConversation();
 
     return {
       content: [
         {
           type: "text",
-          text: `Task Completed
-${text}
+          text: `${text}
+
 **Execution Summary:**
 - Iterations used: ${this.currentIteration + 1}/${this.maxIterations}
-- Agent: ${this.name}${conversationDetails}`,
+- Agent: ${this.name}
+${summary}`,
         },
       ],
       isError: false,
@@ -195,52 +323,135 @@ ${text}
     };
   }
 
-  protected getConversationDetails(): string {
+  // Use LLM to create high-signal summary for parent agent
+  protected async summarizeConversation(
+    parentSpan?: Span | null,
+  ): Promise<string> {
     if (this.conversationHistory.length === 0) {
-      return "\n\n**No conversation history available**";
+      return "\n\n**No conversation history**";
     }
 
-    let details = "\n\n**Detailed Conversation History:**";
+    // Short conversations don't need summarization
+    if (this.conversationHistory.length <= 3) {
+      return this.formatConversation();
+    }
 
-    this.conversationHistory.forEach((message) => {
-      if (message.role === "assistant") {
-        // Try to parse JSON and format nicely
-        try {
-          const parsed = JSON.parse(message.content.text);
-          details += "\n```json\n" + JSON.stringify(parsed, null, 2) + "\n```";
-        } catch {
-          // Not JSON, show as text
-          details += "\n```\n" + message.content.text + "\n```";
+    const summarizeSpan = this.tracingEnabled
+      ? startSpan(
+        "mcpc.sampling_summarize",
+        {
+          agent: this.name,
+          messageCount: this.conversationHistory.length,
+        },
+        parentSpan ?? undefined,
+      )
+      : null;
+
+    try {
+      this.logger.debug({
+        message: "Starting conversation summarization",
+        messageCount: this.conversationHistory.length,
+      });
+
+      const history = this.conversationHistory
+        .map((msg, i) => {
+          const prefix = `[${i + 1}] ${msg.role.toUpperCase()}`;
+          return `${prefix}:\n${msg.content.text}`;
+        })
+        .join("\n\n---\n\n");
+
+      const response = await this.server.createMessage({
+        systemPrompt: `Summarize this agent execution:
+
+Final Decision: (include complete JSON if present)
+Key Findings: (most important)
+Actions Taken: (high-level flow)
+Errors/Warnings: (if any)
+
+${history}`,
+        messages: [],
+        maxTokens: 3000,
+      });
+
+      const summary = "\n\n" + (response.content.text as string);
+
+      this.logger.debug({
+        message: "Summarization completed",
+        summaryLength: summary.length,
+      });
+
+      if (summarizeSpan) {
+        summarizeSpan.setAttributes({
+          summaryLength: summary.length,
+          summary: summary,
+          success: true,
+        });
+        endSpan(summarizeSpan);
+      }
+
+      return summary;
+    } catch (error) {
+      this.logger.warning({
+        message: "Summarization failed, falling back to full history",
+        error: String(error),
+      });
+
+      if (summarizeSpan) {
+        endSpan(summarizeSpan, error as Error);
+      }
+
+      return this.formatConversation();
+    }
+  }
+
+  // Format full conversation history (for debugging)
+  protected formatConversation(): string {
+    if (this.conversationHistory.length === 0) {
+      return "\n\n**No conversation history**";
+    }
+
+    const messages = this.conversationHistory.map((msg, i) => {
+      const header = `### Message ${i + 1}: ${msg.role}`;
+
+      try {
+        const parsed = JSON.parse(msg.content.text);
+        // For parsed JSON, show compact single-line for short content
+        if (JSON.stringify(parsed).length < 100) {
+          return `${header}\n${JSON.stringify(parsed)}`;
         }
-      } else {
-        // User message
-        details += "\n```\n" + message.content.text + "\n```";
+        return `${header}\n\`\`\`json\n${
+          JSON.stringify(
+            parsed,
+            null,
+            2,
+          )
+        }\n\`\`\``;
+      } catch {
+        return `${header}\n${msg.content.text}`;
       }
     });
 
-    return details;
+    return "\n\n**Conversation History:**\n" + messages.join("\n\n");
   }
 
   protected logIterationProgress(
     parsedData: Record<string, unknown>,
     result: CallToolResult,
   ): void {
-    // Optional: Log iteration progress for debugging
-    console.log(
-      `Iteration ${this.currentIteration + 1}/${this.maxIterations}:`,
-      {
-        parsedData,
-        isError: result.isError,
-        isComplete: result.isComplete,
-        result: inspect(result, {
-          depth: 5,
-          maxArrayLength: 10,
-          breakLength: 120,
-          compact: true,
-          maxStringLength: 120,
-        }),
-      },
-    );
+    // Log iteration progress using MCP logging
+    this.logger.debug({
+      iteration: `${this.currentIteration + 1}/${this.maxIterations}`,
+      parsedData,
+      isError: result.isError,
+      isComplete: result.isComplete,
+      result: inspect(result, {
+        depth: 5,
+        maxArrayLength: 10,
+        breakLength: 120,
+        compact: true,
+        maxStringLength: 120,
+      }),
+    });
   }
 
   // Abstract methods that subclasses must implement

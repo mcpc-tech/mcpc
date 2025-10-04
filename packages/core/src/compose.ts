@@ -3,6 +3,7 @@ import {
   type CallToolResult,
   type Implementation,
   ListToolsRequestSchema,
+  SetLevelRequestSchema,
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { jsonSchema, type Schema } from "ai";
@@ -21,6 +22,7 @@ import { registerAgenticTool } from "./executors/agentic/agentic-tool-registrar.
 import { registerAgenticWorkflowTool } from "./executors/workflow/workflow-tool-registrar.ts";
 import { processToolTags } from "./utils/common/tool-tag-processor.ts";
 import { getBuiltInPlugins } from "./plugins/built-in/index.ts";
+import { createLogger } from "./utils/logger.ts";
 
 // Import plugin types and utilities
 import type {
@@ -46,9 +48,21 @@ export class ComposableMCPServer extends Server {
   private toolConfigs: Map<string, ToolConfig> = new Map();
   private globalPlugins: ToolPlugin[] = [];
   toolNameMapping: Map<string, string> = new Map();
+  private logger = createLogger("mcpc.compose");
 
   constructor(_serverInfo: Implementation, options: ServerOptions) {
-    super(_serverInfo, options);
+    // Automatically add common capabilities
+    const enhancedOptions = {
+      ...options,
+      capabilities: {
+        logging: {},
+        tools: {},
+        sampling: {},
+        ...(options?.capabilities ?? {}),
+      },
+    };
+    super(_serverInfo, enhancedOptions);
+    this.logger.setServer(this);
   }
 
   /**
@@ -161,6 +175,13 @@ export class ComposableMCPServer extends Server {
         "output",
         args,
       ) as CallToolResult;
+    });
+
+    // Handle logging/setLevel requests from MCP clients
+    this.setRequestHandler(SetLevelRequestSchema, (request) => {
+      const { level } = request.params;
+      this.logger.setLevel(level);
+      return {};
     });
   }
 
@@ -578,13 +599,15 @@ export class ComposableMCPServer extends Server {
     );
 
     if (unmatchedTools.length > 0) {
-      console.warn(`⚠️  Tool matching warnings for agent "${name}":`);
-      unmatchedTools.forEach((toolName) => {
-        console.warn(`   • Tool not found: "${toolName}"`);
-      });
-      console.warn(
+      await this.logger.warning(`Tool matching warnings for agent "${name}":`);
+      for (const toolName of unmatchedTools) {
+        await this.logger.warning(`   • Tool not found: "${toolName}"`);
+      }
+      await this.logger.warning(
         `   Available tools: ${
-          Array.from(availableToolNames).sort().join(", ")
+          Array.from(availableToolNames)
+            .sort()
+            .join(", ")
         }`,
       );
     }
@@ -604,16 +627,17 @@ export class ComposableMCPServer extends Server {
     // Cleanup clients when server is closed (pretty-printed to match logging plugin)
     this.onclose = async () => {
       await cleanupClients();
-      console.log(`🧩 [${name}]`);
-      console.log(`   ├─ Event: closed`);
-      console.log(`   └─ Action: cleaned up dependent clients`);
+      await this.logger.info(
+        `[${name}] Event: closed - cleaned up dependent clients`,
+      );
     };
 
     this.onerror = async (error) => {
-      console.log(`🧩 [${name}]`);
-      console.log(`   ├─ Event: error, ${error?.stack ?? String(error)}`);
+      await this.logger.error(
+        `[${name}] Event: error - ${error?.stack ?? String(error)}`,
+      );
       await cleanupClients();
-      console.log(`   └─ Action: cleaned up dependent clients`);
+      await this.logger.info(`[${name}] Action: cleaned up dependent clients`);
     };
 
     const toolNameToDetailList = Object.entries(tools);
