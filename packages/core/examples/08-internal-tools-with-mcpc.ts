@@ -7,7 +7,7 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { jsonSchema } from "ai";
+import { jsonSchema } from "../mod.ts";
 import { mcpc } from "../mod.ts";
 
 export const server = await mcpc(

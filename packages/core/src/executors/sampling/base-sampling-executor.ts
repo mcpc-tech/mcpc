@@ -6,7 +6,6 @@ import { Ajv } from "ajv";
 import { AggregateAjvError } from "@segment/ajv-human-errors";
 import addFormats from "ajv-formats";
 import { parseJSON } from "@mcpc/utils";
-import { inspect } from "node:util";
 import process from "node:process";
 import { createLogger, type MCPLogger } from "../../utils/logger.ts";
 import type { Span } from "@opentelemetry/api";
@@ -36,6 +35,8 @@ export interface ResponseContent {
 export interface LLMResponse {
   content: ResponseContent[];
   stopReason?: string;
+  model: string;
+  role: "user" | "assistant";
 }
 
 export interface ExternalTool {
@@ -45,7 +46,7 @@ export interface ExternalTool {
 
 export abstract class BaseSamplingExecutor {
   protected conversationHistory: ConversationMessage[] = [];
-  protected maxIterations: number = 33;
+  protected maxIterations: number = 55;
   protected currentIteration: number = 0;
   protected logger: MCPLogger;
   protected tracingEnabled: boolean = false;
@@ -95,8 +96,16 @@ export abstract class BaseSamplingExecutor {
     schema: Record<string, unknown>,
     state?: TState,
   ) {
-    // Initialize conversation
-    this.conversationHistory = [];
+    // Initialize conversation with an initial user message
+    // Ensure at least one message (Claude requirement) and enforce JSON-only output
+    this.conversationHistory = [{
+      role: "user",
+      content: {
+        type: "text",
+        text:
+          'Return ONLY raw JSON (no code fences or explanations). The JSON MUST include action and decision. Example: {"action":"<tool>","decision":"proceed|complete","<tool>":{}}',
+      },
+    }];
 
     // Create a root span for the entire sampling loop
     const loopSpan: Span | null = this.tracingEnabled
@@ -113,41 +122,39 @@ export abstract class BaseSamplingExecutor {
         this.currentIteration < this.maxIterations;
         this.currentIteration++
       ) {
-        // Create a span for each iteration
-        const iterationSpan: Span | null = this.tracingEnabled
-          ? startSpan(
-            "mcpc.sampling_iteration",
-            {
-              iteration: this.currentIteration + 1,
-              agent: this.name,
-              systemPrompt: systemPrompt(),
-              maxTokens: String(Number.MAX_SAFE_INTEGER),
-              maxIterations: this.maxIterations,
-              messages: JSON.stringify(this.conversationHistory),
-            },
-            loopSpan ?? undefined,
-          )
-          : null;
+        let iterationSpan: Span | null = null;
 
         try {
           const response = await this.server.createMessage({
             systemPrompt: systemPrompt(),
             messages: this.conversationHistory,
-            maxTokens: Number.MAX_SAFE_INTEGER,
+            maxTokens: 55_000,
           });
 
           const responseContent = (response.content.text as string) || "{}";
+          const model = response.model;
+          const stopReason = response.stopReason;
+          const role = response.role;
 
           // Parse JSON response
           let parsedData: Record<string, unknown>;
           try {
             parsedData = parseJSON(responseContent.trim(), true);
           } catch (parseError) {
-            if (iterationSpan) {
-              iterationSpan.addEvent("parse_error", {
-                error: String(parseError),
-              });
-            }
+            // Create span for parse error iteration
+            iterationSpan = this.tracingEnabled
+              ? startSpan(
+                "mcpc.sampling_iteration.parse_error",
+                {
+                  iteration: this.currentIteration + 1,
+                  agent: this.name,
+                  error: String(parseError),
+                  maxIterations: this.maxIterations,
+                },
+                loopSpan ?? undefined,
+              )
+              : null;
+
             this.addParsingErrorToHistory(responseContent, parseError);
             if (iterationSpan) endSpan(iterationSpan);
             continue;
@@ -165,23 +172,40 @@ export abstract class BaseSamplingExecutor {
 
           const action = parsedData["action"];
 
-          // If an action name is present, record it as an attribute on the iteration span for easier tracing/debugging.
-          if (action && typeof action === "string") {
-            // Update the span name to include the action for clearer traces.
-            try {
-              const safeAction = String(action).replace(/\s+/g, "_");
-              // updateName is part of the OpenTelemetry Span API
-              if (
-                iterationSpan &&
-                typeof (iterationSpan as any).updateName === "function"
-              ) {
-                (iterationSpan as any).updateName(
-                  `mcpc.sampling_iteration.${safeAction}`,
-                );
-              }
-            } catch {
-              // Ignore any errors while updating span name
-            }
+          // Create span with action name
+          const actionStr = action && typeof action === "string"
+            ? String(action)
+            : "unknown_action";
+          const spanName = `mcpc.sampling_iteration.${actionStr}`;
+
+          iterationSpan = this.tracingEnabled
+            ? startSpan(
+              spanName,
+              {
+                iteration: this.currentIteration + 1,
+                agent: this.name,
+                action: actionStr,
+                systemPrompt: systemPrompt(),
+                maxTokens: String(Number.MAX_SAFE_INTEGER),
+                maxIterations: this.maxIterations,
+                messages: JSON.stringify(this.conversationHistory),
+              },
+              loopSpan ?? undefined,
+            )
+            : null;
+
+          // Minimal self-healing: ensure required fields exist
+          if (!action || typeof parsedData["decision"] !== "string") {
+            this.conversationHistory.push({
+              role: "user",
+              content: {
+                type: "text",
+                text:
+                  'Required fields missing: action or decision. Return ONLY raw JSON, no code fences or explanations. Example: {"action":"<tool>","decision":"proceed|complete","<tool>":{}}',
+              },
+            });
+            if (iterationSpan) endSpan(iterationSpan);
+            continue;
           }
 
           // Process the parsed data using subclass implementation
@@ -191,7 +215,13 @@ export abstract class BaseSamplingExecutor {
             state,
             loopSpan,
           );
-          this.logIterationProgress(parsedData, result);
+          this.logIterationProgress(
+            parsedData,
+            result,
+            model,
+            stopReason,
+            role,
+          );
 
           if (iterationSpan) {
             // Simplified: store full raw JSON, raw LLM response, and full tool result if present (no truncation)
@@ -210,7 +240,12 @@ export abstract class BaseSamplingExecutor {
               action: typeof action === "string" ? action : String(action),
               samplingResponse: responseContent,
               toolResult: JSON.stringify(result),
+              model: model,
+              role: role,
             };
+            if (stopReason) {
+              attr.stopReason = stopReason;
+            }
             iterationSpan.setAttributes(attr);
           }
 
@@ -374,7 +409,13 @@ Actions Taken: (high-level flow)
 Errors/Warnings: (if any)
 
 ${history}`,
-        messages: [],
+        messages: [{
+          role: "user",
+          content: {
+            type: "text",
+            text: "Please provide a concise summary.",
+          },
+        }],
         maxTokens: 3000,
       });
 
@@ -442,6 +483,9 @@ ${history}`,
   protected logIterationProgress(
     parsedData: Record<string, unknown>,
     result: CallToolResult,
+    model?: string,
+    stopReason?: string,
+    role?: string,
   ): void {
     // Log iteration progress using MCP logging
     this.logger.debug({
@@ -449,13 +493,10 @@ ${history}`,
       parsedData,
       isError: result.isError,
       isComplete: result.isComplete,
-      result: inspect(result, {
-        depth: 5,
-        maxArrayLength: 10,
-        breakLength: 120,
-        compact: true,
-        maxStringLength: 120,
-      }),
+      model,
+      stopReason,
+      role,
+      result,
     });
   }
 

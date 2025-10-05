@@ -1,5 +1,5 @@
 import { mcpc } from "../../mod.ts";
-import { jsonSchema } from "ai";
+import { jsonSchema } from "../../src/utils/schema.ts";
 
 Deno.test("callTool resolves tools from registry (no config)", async () => {
   const server = await mcpc(

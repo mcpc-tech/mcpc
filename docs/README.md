@@ -22,8 +22,6 @@ You can use it to:
 
 [CLI Usage Guide](./quickstart/cli-usage.md)
 
-[AI SDK Integration](./quickstart/ai-sdk-integration.md)
-
 # Examples
 
 [Creating a codex fork](./examples/creating-a-codex-fork.md)
@@ -37,6 +35,8 @@ You can use it to:
 [Plugin System](./plugins.md)
 
 [Logging and Tracing](./logging-and-tracing.md)
+
+[AI SDK Integration](./quickstart/ai-sdk-integration.md)
 
 # FAQ
 

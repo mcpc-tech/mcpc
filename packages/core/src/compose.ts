@@ -4,8 +4,9 @@ import {
   type Implementation,
   ListToolsRequestSchema,
   SetLevelRequestSchema,
+  type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-import { jsonSchema, type Schema } from "ai";
+import { extractJsonSchema, jsonSchema, type Schema } from "./utils/schema.ts";
 import type { McpSettingsSchema } from "./service/tools.ts";
 import {
   Server,
@@ -148,14 +149,19 @@ export class ComposableMCPServer extends Server {
   tool<T>(
     name: string,
     description: string,
-    paramsSchema: Schema<T>,
+    paramsSchema: Schema<T> | JSONSchema,
     cb: (args: T, extra?: unknown) => unknown,
     options: { internal?: boolean; plugins?: ToolPlugin[] } = {},
   ) {
+    // Extract JSON Schema from wrapped or unwrapped format
+    const jsonSchemaObj = extractJsonSchema(
+      paramsSchema as Schema<T>,
+    );
+
     this.toolManager.registerTool(
       name,
       description,
-      paramsSchema.jsonSchema as JSONSchema,
+      jsonSchemaObj,
       cb as ToolCallback,
       options,
     );
@@ -166,7 +172,7 @@ export class ComposableMCPServer extends Server {
       this.toolManager.addPublicTool(
         name,
         description,
-        paramsSchema.jsonSchema as JSONSchema,
+        jsonSchemaObj,
       );
     }
 
@@ -261,6 +267,13 @@ export class ComposableMCPServer extends Server {
    */
   getPublicToolNames(): string[] {
     return this.toolManager.getPublicToolNames();
+  }
+
+  /**
+   * Get all public tools (for AI SDK integration)
+   */
+  getPublicTools(): Tool[] {
+    return this.toolManager.getPublicTools();
   }
 
   /**

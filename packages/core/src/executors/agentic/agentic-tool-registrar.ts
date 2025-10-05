@@ -1,4 +1,4 @@
-import { jsonSchema, type Schema } from "ai";
+import { jsonSchema, type Schema } from "../../utils/schema.ts";
 import type { RegisterToolParams } from "../../types.ts";
 import { createGoogleCompatibleJSONSchema } from "../../utils/common/provider.ts";
 import type { ComposableMCPServer } from "../../compose.ts";

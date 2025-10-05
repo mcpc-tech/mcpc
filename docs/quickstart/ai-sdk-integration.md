@@ -1,176 +1,171 @@
 # AI SDK Integration
 
-MCPC provides an AI SDK provider implementation that allows you to use MCP
-(Model Context Protocol) sampling capabilities through the
-[AI SDK](https://ai-sdk.dev/)'s standard provider interface.
+The AI SDK by Vercel provides excellent support for Model Context Protocol (MCP)
+tools. This guide shows you how to integrate your MCPC agentic server with the
+AI SDK to build powerful AI applications.
 
-## Package: @mcpc/ai-sdk-provider
+## Integration Methods
 
-The `@mcpc/ai-sdk-provider` package enables you to:
+There are two ways to integrate MCPC with the AI SDK:
 
-- **Use MCP servers with AI SDK**: Access MCP sampling through the familiar AI
-  SDK interface
-- **Leverage AI SDK features**: Use streaming, tool calling, and multi-turn
-  conversations
-- **Reuse agent capabilities**: Combine AI SDK's agent features with MCP servers
-- **Seamless integration**: Switch between different LLM providers and MCP
-  servers easily
+1. **Transport-based Integration** (This guide): Connect to MCPC server through
+   MCP transport protocols (stdio, HTTP, SSE). Best for distributed systems and
+   external clients.
+2. **[Direct Server Integration](./direct-server-integration.md)**: Use the MCPC
+   server instance directly in the same process. Best for standalone
+   applications and maximum performance.
 
-## Installation
+## Overview
+
+MCPC servers can be used as MCP servers in the AI SDK ecosystem. The AI SDK's
+`experimental_createMCPClient` function allows you to connect to any MCP server,
+including your MCPC agentic tools, and use them seamlessly in your AI
+applications.
+
+## Prerequisites
+
+First, install the required dependencies:
 
 ```bash
-# Using Deno
-deno add @mcpc/ai-sdk-provider
-
-# Using npm
-npm install @mcpc/ai-sdk-provider
+npm install ai @ai-sdk/openai @modelcontextprotocol/sdk
 ```
 
-## Quick Start
+## Setting Up Your MCPC Server
+
+Before connecting from the AI SDK, you need a running MCPC server. Here's a
+simple example:
 
 ```typescript
-import { createMCPProvider } from "@mcpc/ai-sdk-provider";
-import { generateText } from "ai";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+// server.ts
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { mcpc } from "@mcpc/core";
 
-// Create MCP client
-const client = new Client({
-  name: "my-app",
-  version: "1.0.0",
-}, {
-  capabilities: {
-    sampling: {},
-  },
+const server = await mcpc(
+  [
+    {
+      name: "coding-agent",
+      version: "0.1.0",
+    },
+    { capabilities: { tools: {} } },
+  ],
+  [
+    {
+      name: "coding-agent",
+      description: `You are a coding assistant that helps with file operations.
+
+Available tools:
+<tool name="desktop-commander.read_file"/>
+<tool name="desktop-commander.write_file"/>
+<tool name="desktop-commander.list_directory"/>`,
+      options: {
+        mode: "agentic",
+      },
+      deps: {
+        mcpServers: {
+          "desktop-commander": {
+            command: "npx",
+            args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+            transportType: "stdio",
+          },
+        },
+      },
+    },
+  ],
+);
+
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+## Connecting with AI SDK
+
+### Stdio Transport (Local Development)
+
+For local development, use the stdio transport to connect to your MCPC server:
+
+```typescript
+import { experimental_createMCPClient as createMCPClient } from "ai";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+
+const mcpClient = await createMCPClient({
+  transport: new StdioClientTransport({
+    command: "npx",
+    args: ["tsx", "server.ts"], // or 'node', 'dist/server.js' for compiled code
+  }),
 });
+```
 
-// Connect to your MCP server
-await client.connect(transport);
+## Using MCPC Tools
 
-// Create provider
-const mcp = createMCPProvider({ client });
+### Schema Discovery (Automatic)
+
+The simplest approach is to let the AI SDK automatically discover all tools from
+your MCPC server:
+
+```typescript
+import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+// Get all tools from MCPC server
+const tools = await mcpClient.tools();
 
 // Use with AI SDK
 const result = await generateText({
-  model: mcp("my-agent-tool"),
-  prompt: "What can you help me with?",
+  model: openai("gpt-4o"),
+  tools,
+  prompt: "List all files in the current directory and analyze their contents",
 });
 
 console.log(result.text);
 ```
 
-## Using with MCPC Agents
+### Schema Definition (Type-Safe)
 
-You can use MCPC agentic tools as models in the AI SDK:
+For better TypeScript support and explicit control, define tool schemas:
 
 ```typescript
-import { mcpc } from "@mcpc/core";
-import { createMCPProvider } from "@mcpc/ai-sdk-provider";
+import { z } from "zod";
 
-// Create MCPC server with sampling capability
-const server = await mcpc(
-  [{
-    name: "my-agent-server",
-    version: "1.0.0",
-  }, {
-    capabilities: {
-      tools: {},
-      sampling: {},
+const tools = await mcpClient.tools({
+  schemas: {
+    "coding-agent": {
+      inputSchema: z.object({
+        userRequest: z.string().describe(
+          "The task or request for the coding agent",
+        ),
+        context: z.object({
+          workingDirectory: z.string().optional(),
+        }).optional(),
+      }),
     },
-  }],
-  [{
-    name: "code-analyzer",
-    description: `Analyze code using available tools.
-      <tool name="filesystem.read_file"/>
-      <tool name="filesystem.list_directory"/>`,
-    deps: {
-      mcpServers: {
-        filesystem: {
-          command: "npx",
-          args: ["-y", "@modelcontextprotocol/server-filesystem"],
-          transportType: "stdio",
-        },
-      },
-    },
-    options: {
-      mode: "agentic",
-    },
-  }],
-);
-
-// In your client application
-const mcp = createMCPProvider({ client });
-const result = await generateText({
-  model: mcp("code-analyzer"),
-  prompt: "Analyze the project structure",
+  },
 });
-```
-
-## Features
-
-### Streaming Support
-
-```typescript
-import { streamText } from "ai";
-
-const result = await streamText({
-  model: mcp("my-agent"),
-  prompt: "Tell me about this project",
-});
-
-for await (const chunk of result.textStream) {
-  process.stdout.write(chunk);
-}
-```
-
-**Note**: MCP sampling doesn't natively support streaming, so the implementation
-returns the full response as a single chunk.
-
-### System Prompts
-
-```typescript
-const result = await generateText({
-  model: mcp("my-agent"),
-  system: "You are a helpful assistant focused on code quality.",
-  prompt: "Review this code",
-});
-```
-
-### Multi-turn Conversations
-
-```typescript
-const messages = [
-  { role: "user", content: "Read package.json" },
-  { role: "assistant", content: "..." },
-  { role: "user", content: "What are the dependencies?" },
-];
 
 const result = await generateText({
-  model: mcp("my-agent"),
-  messages: messages,
+  model: openai("gpt-4o"),
+  tools,
+  prompt: "Create a new README.md file with project documentation",
 });
 ```
 
-## Benefits
+## When to Use Transport-based Integration
 
-1. **Standardized Interface**: Use the same AI SDK patterns you're familiar with
-2. **Provider Agnostic**: Easily switch between MCP servers and other AI
-   providers
-3. **Rich Ecosystem**: Access AI SDK's tools, helpers, and integrations
-4. **Flexible Architecture**: Combine MCP's composability with AI SDK's features
+Use this transport-based approach when:
 
-## Documentation
+- Your MCPC server runs as a separate service or process
+- You need to share the server across multiple clients
+- You're integrating with external AI clients (VS Code, Claude Desktop, etc.)
+- You need language-agnostic access to your tools
 
-For detailed documentation, see the
-[@mcpc/ai-sdk-provider README](../../packages/ai-sdk-provider/README.md).
+For same-process integration with better performance, see
+[Direct Server Integration](./direct-server-integration.md).
 
-## Examples
+## Additional Resources
 
-- [Basic Usage](../../packages/ai-sdk-provider/examples/01-basic-usage.ts)
-- [MCPC Integration](../../packages/ai-sdk-provider/examples/02-mcpc-integration.ts)
-
-## Related
-
-- [AI SDK Documentation](https://ai-sdk.dev/)
-- [AI SDK Providers](https://ai-sdk.dev/providers/ai-sdk-providers)
-- [MCP Specification](https://modelcontextprotocol.io/)
-- [MCPC Framework](https://github.com/mcpc-tech/mcpc)
+- [Direct Server Integration](./direct-server-integration.md) - Use MCPC server
+  directly without transport layer
+- [AI SDK Documentation](https://ai-sdk.dev/docs)
+- [AI SDK MCP Tools Guide](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools)
+- [MCP Cookbook Example](https://ai-sdk.dev/cookbook/node/mcp-tools)
+- [MCPC CLI Usage](./cli-usage.md)
+- [Create Your First Agentic MCP](./create-your-first-agentic-mcp.md)

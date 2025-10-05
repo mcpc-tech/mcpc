@@ -72,7 +72,7 @@ await server.compose(
 );
 
 // Add internal tools for internal security operations
-import { jsonSchema } from "ai";
+import { jsonSchema } from "../mod.ts";
 
 server.tool(
   "audit-logger",

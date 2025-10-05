@@ -15,7 +15,7 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { type ComposeDefinition, mcpc } from "../mod.ts";
-import { jsonSchema } from "ai";
+import { jsonSchema } from "../mod.ts";
 
 export const toolDefinitions: ComposeDefinition[] = [
   {
