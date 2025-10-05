@@ -1,9 +1,9 @@
 # Create your first agentic MCP
 
-Normal MCP Servers have tools that excute unit tasks and give feedback to LLM.
+Normal MCP Servers have tools that execute unit tasks and give feedback to LLM.
 This provides extra context for the LLM to interact with the outer environment.
 
-What if we take this a step further by predefing your task in a single agentic
+What if we take this a step further by predefining your task in a single agentic
 tool?
 
 **What benefits do you have?**
@@ -80,10 +80,10 @@ Agent documentation is crucial for telling an LLM what the agent does, when to
 use it, and how to use it. Below is an example of a description of a coding
 agent.
 
-You might be notice the xml-like tool syntax, it's designed for referencing
-dependant MCP tools inside agent docs, `<tool>` tag have following properties:
+You might notice the xml-like tool syntax, it's designed for referencing
+dependent MCP tools inside agent docs, `<tool>` tag has following properties:
 
-- name(type string): it defines which tool to select from a dependant MCP
+- name(type string): it defines which tool to select from a dependent MCP
   server, syntax {mcp_server_name}.{tool_name};
 
 Advanced properties:
@@ -91,12 +91,36 @@ Advanced properties:
 - global(type boolean): default is false, referenced tools are cohesed in mcpc
   internal tools, by setting it to true, you can expose them on the MCP tools
   scope;
-- hide(type boolean): default is false, it commonly used when you are overiding
+- hide(type boolean): default is false, it commonly used when you are overriding
   the tool with custom props or results
+
+```typescript
+const description = `You are a "codex fork" agent, a world-class AI assistant for coding tasks.
+
+Workflow:
+1. Project Overview: Use <tool name="lsmcp.get_project_overview"/> to understand the project structure.
+2. Code Discovery: Locate relevant files using <tool name="lsmcp.search_symbols"/>, <tool name="desktop-commander.start_search"/>, or <tool name="desktop-commander.list_directory"/>.
+3. Implementation: Apply changes with <tool name="desktop-commander.edit_block"/> and verify with <tool name="lsmcp.lsp_get_diagnostics"/>.
+4. Build and Commit: Execute build commands with <tool name="desktop-commander.start_process"/>, then commit changes.
+5. Submission: Create pull requests with <tool name="github.create_pull_request"/>.
+
+Available tools:
+<tool name="desktop-commander.start_process"/>
+<tool name="desktop-commander.read_file"/>
+<tool name="desktop-commander.write_file"/>
+<tool name="desktop-commander.edit_block"/>
+<tool name="desktop-commander.start_search"/>
+<tool name="desktop-commander.list_directory"/>
+<tool name="lsmcp.get_project_overview"/>
+<tool name="lsmcp.search_symbols"/>
+<tool name="lsmcp.lsp_get_definitions"/>
+<tool name="lsmcp.lsp_get_diagnostics"/>
+<tool name="github.create_pull_request"/>`;
+```
 
 # Start the agentic MCP server
 
-Now the denpendent MCPs and agent description are ready, let's start the server
+Now the dependent MCPs and agent description are ready, let's start the server
 using `mcpc` function.
 
 ## Create the MCP server
@@ -114,7 +138,7 @@ You can choose one of two modes for internal tool invocation:
   implementation.
 
 ```typescript
-// description and deps are declared from abloe
+// description and deps are declared from above
 const serverInitOpts = [
   {
     name: "coding-agent",
@@ -195,7 +219,7 @@ VS Code (supports sampling mode):
 Claude Code:
 
 ```bash
-claude mcp add playwright npx tsx server.ts
+claude mcp add codex-fork -- npx tsx server.ts
 ```
 
 Alternatively, to run this agent programmatically, we recommend using the
