@@ -122,21 +122,7 @@ export abstract class BaseSamplingExecutor {
         this.currentIteration < this.maxIterations;
         this.currentIteration++
       ) {
-        // Create a span for each iteration
-        const iterationSpan: Span | null = this.tracingEnabled
-          ? startSpan(
-            "mcpc.sampling_iteration",
-            {
-              iteration: this.currentIteration + 1,
-              agent: this.name,
-              systemPrompt: systemPrompt(),
-              maxTokens: String(Number.MAX_SAFE_INTEGER),
-              maxIterations: this.maxIterations,
-              messages: JSON.stringify(this.conversationHistory),
-            },
-            loopSpan ?? undefined,
-          )
-          : null;
+        let iterationSpan: Span | null = null;
 
         try {
           const response = await this.server.createMessage({
@@ -155,11 +141,20 @@ export abstract class BaseSamplingExecutor {
           try {
             parsedData = parseJSON(responseContent.trim(), true);
           } catch (parseError) {
-            if (iterationSpan) {
-              iterationSpan.addEvent("parse_error", {
-                error: String(parseError),
-              });
-            }
+            // Create span for parse error iteration
+            iterationSpan = this.tracingEnabled
+              ? startSpan(
+                "mcpc.sampling_iteration.parse_error",
+                {
+                  iteration: this.currentIteration + 1,
+                  agent: this.name,
+                  error: String(parseError),
+                  maxIterations: this.maxIterations,
+                },
+                loopSpan ?? undefined,
+              )
+              : null;
+
             this.addParsingErrorToHistory(responseContent, parseError);
             if (iterationSpan) endSpan(iterationSpan);
             continue;
@@ -177,24 +172,27 @@ export abstract class BaseSamplingExecutor {
 
           const action = parsedData["action"];
 
-          // If an action name is present, record it as an attribute on the iteration span for easier tracing/debugging.
-          if (action && typeof action === "string") {
-            // Update the span name to include the action for clearer traces.
-            try {
-              const safeAction = String(action).replace(/\s+/g, "_");
-              // updateName is part of the OpenTelemetry Span API
-              if (
-                iterationSpan &&
-                typeof (iterationSpan as any).updateName === "function"
-              ) {
-                (iterationSpan as any).updateName(
-                  `mcpc.sampling_iteration.${safeAction}`,
-                );
-              }
-            } catch {
-              // Ignore any errors while updating span name
-            }
-          }
+          // Create span with action name
+          const actionStr = action && typeof action === "string"
+            ? String(action)
+            : "unknown_action";
+          const spanName = `mcpc.sampling_iteration.${actionStr}`;
+
+          iterationSpan = this.tracingEnabled
+            ? startSpan(
+              spanName,
+              {
+                iteration: this.currentIteration + 1,
+                agent: this.name,
+                action: actionStr,
+                systemPrompt: systemPrompt(),
+                maxTokens: String(Number.MAX_SAFE_INTEGER),
+                maxIterations: this.maxIterations,
+                messages: JSON.stringify(this.conversationHistory),
+              },
+              loopSpan ?? undefined,
+            )
+            : null;
 
           // Minimal self-healing: ensure required fields exist
           if (!action || typeof parsedData["decision"] !== "string") {
