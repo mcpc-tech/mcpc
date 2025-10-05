@@ -36,6 +36,8 @@ export interface ResponseContent {
 export interface LLMResponse {
   content: ResponseContent[];
   stopReason?: string;
+  model: string;
+  role: "user" | "assistant";
 }
 
 export interface ExternalTool {
@@ -95,8 +97,16 @@ export abstract class BaseSamplingExecutor {
     schema: Record<string, unknown>,
     state?: TState,
   ) {
-    // Initialize conversation
-    this.conversationHistory = [];
+    // Initialize conversation with an initial user message
+    // Ensure at least one message (Claude requirement) and enforce JSON-only output
+    this.conversationHistory = [{
+      role: "user",
+      content: {
+        type: "text",
+        text:
+          'Return ONLY raw JSON (no code fences or explanations). The JSON MUST include action and decision. Example: {"action":"<tool>","decision":"proceed|complete","<tool>":{}}',
+      },
+    }];
 
     // Create a root span for the entire sampling loop
     const loopSpan: Span | null = this.tracingEnabled
@@ -133,10 +143,13 @@ export abstract class BaseSamplingExecutor {
           const response = await this.server.createMessage({
             systemPrompt: systemPrompt(),
             messages: this.conversationHistory,
-            maxTokens: Number.MAX_SAFE_INTEGER,
+            maxTokens: 55_000,
           });
 
           const responseContent = (response.content.text as string) || "{}";
+          const model = response.model;
+          const stopReason = response.stopReason;
+          const role = response.role;
 
           // Parse JSON response
           let parsedData: Record<string, unknown>;
@@ -184,6 +197,20 @@ export abstract class BaseSamplingExecutor {
             }
           }
 
+          // Minimal self-healing: ensure required fields exist
+          if (!action || typeof parsedData["decision"] !== "string") {
+            this.conversationHistory.push({
+              role: "user",
+              content: {
+                type: "text",
+                text:
+                  'Required fields missing: action or decision. Return ONLY raw JSON, no code fences or explanations. Example: {"action":"<tool>","decision":"proceed|complete","<tool>":{}}',
+              },
+            });
+            if (iterationSpan) endSpan(iterationSpan);
+            continue;
+          }
+
           // Process the parsed data using subclass implementation
           const result = await this.processAction(
             parsedData,
@@ -191,7 +218,13 @@ export abstract class BaseSamplingExecutor {
             state,
             loopSpan,
           );
-          this.logIterationProgress(parsedData, result);
+          this.logIterationProgress(
+            parsedData,
+            result,
+            model,
+            stopReason,
+            role,
+          );
 
           if (iterationSpan) {
             // Simplified: store full raw JSON, raw LLM response, and full tool result if present (no truncation)
@@ -210,7 +243,12 @@ export abstract class BaseSamplingExecutor {
               action: typeof action === "string" ? action : String(action),
               samplingResponse: responseContent,
               toolResult: JSON.stringify(result),
+              model: model,
+              role: role,
             };
+            if (stopReason) {
+              attr.stopReason = stopReason;
+            }
             iterationSpan.setAttributes(attr);
           }
 
@@ -374,7 +412,13 @@ Actions Taken: (high-level flow)
 Errors/Warnings: (if any)
 
 ${history}`,
-        messages: [],
+        messages: [{
+          role: "user",
+          content: {
+            type: "text",
+            text: "Please provide a concise summary.",
+          },
+        }],
         maxTokens: 3000,
       });
 
@@ -442,6 +486,9 @@ ${history}`,
   protected logIterationProgress(
     parsedData: Record<string, unknown>,
     result: CallToolResult,
+    model?: string,
+    stopReason?: string,
+    role?: string,
   ): void {
     // Log iteration progress using MCP logging
     this.logger.debug({
@@ -449,6 +496,9 @@ ${history}`,
       parsedData,
       isError: result.isError,
       isComplete: result.isComplete,
+      model,
+      stopReason,
+      role,
       result: inspect(result, {
         depth: 5,
         maxArrayLength: 10,
