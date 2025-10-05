@@ -1,4 +1,4 @@
-import { jsonSchema } from "ai";
+import { jsonSchema } from "../../utils/schema.ts";
 import type { RegisterWorkflowToolParams } from "../../types.ts";
 import { WorkflowState } from "../../utils/state.ts";
 import { createGoogleCompatibleJSONSchema } from "../../utils/common/provider.ts";

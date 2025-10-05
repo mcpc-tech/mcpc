@@ -8,7 +8,7 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { mcpc } from "../src/set-up-mcp-compose.ts";
 // import { createLargeResultPlugin } from "../plugins.ts";
-import { jsonSchema } from "ai";
+import { jsonSchema } from "../mod.ts";
 
 const server = await mcpc(
   [{ name: "large-demo", version: "1.0.0" }, { capabilities: { tools: {} } }],

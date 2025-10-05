@@ -95,7 +95,8 @@ Advanced properties:
   the tool with custom props or results
 
 ```typescript
-const description = `You are a "codex fork" agent, a world-class AI assistant for coding tasks.
+const description =
+  `You are a "codex fork" agent, a world-class AI assistant for coding tasks.
 
 Workflow:
 1. Project Overview: Use <tool name="lsmcp.get_project_overview"/> to understand the project structure.

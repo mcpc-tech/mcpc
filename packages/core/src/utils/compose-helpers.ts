@@ -8,6 +8,7 @@ import type { ComposedTool } from "../plugin-types.ts";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { JSONSchema } from "../types.ts";
 import { updateRefPaths } from "./common/schema.ts";
+import { jsonSchema } from "./schema.ts";
 
 /**
  * Process tools with plugin transformations
@@ -142,8 +143,6 @@ export function registerGlobalTools(
   tools: Record<string, ComposedTool>,
   server: ComposableMCPServer,
 ): void {
-  const { jsonSchema } = require("ai");
-
   globalToolNames.forEach((toolId) => {
     const tool = tools[toolId];
     if (!tool) {

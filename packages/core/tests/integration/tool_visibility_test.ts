@@ -6,7 +6,7 @@
 import { assertEquals } from "@std/assert";
 import { mcpc } from "../../mod.ts";
 import type { ComposeEndContext } from "../../src/plugin-types.ts";
-import { jsonSchema } from "ai";
+import { jsonSchema } from "../../src/utils/schema.ts";
 
 Deno.test("Tool visibility - external tools classification", async () => {
   let capturedStats: ComposeEndContext["stats"] | undefined;

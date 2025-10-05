@@ -7,7 +7,7 @@
 
 import { mcpc } from "../mod.ts";
 import type { ToolPlugin } from "../src/plugin-types.ts";
-import { jsonSchema } from "ai";
+import { jsonSchema } from "../mod.ts";
 
 // Example 1: Input validation and sanitization plugin
 const inputSanitizationPlugin: ToolPlugin = {

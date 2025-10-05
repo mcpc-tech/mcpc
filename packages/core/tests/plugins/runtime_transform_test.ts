@@ -6,7 +6,7 @@ import { assertEquals } from "@std/assert";
 import { mcpc } from "../../mod.ts";
 import type { ToolPlugin } from "../../src/plugin-types.ts";
 import type { ComposableMCPServer } from "../../src/compose.ts";
-import { jsonSchema } from "ai";
+import { jsonSchema } from "../../src/utils/schema.ts";
 
 Deno.test("Runtime transformation - transformInput hook", async () => {
   // Create a plugin that transforms input

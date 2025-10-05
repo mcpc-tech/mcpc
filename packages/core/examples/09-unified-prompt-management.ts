@@ -8,7 +8,7 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { mcpc } from "../mod.ts";
-import { jsonSchema } from "ai";
+import { jsonSchema } from "../mod.ts";
 import {
   CompiledPrompts,
   PromptUtils,

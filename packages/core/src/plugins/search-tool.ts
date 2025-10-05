@@ -6,7 +6,7 @@
 
 import rg from "@mcpc-tech/ripgrep-napi";
 import { tmpdir } from "node:os";
-import { jsonSchema } from "ai";
+import { jsonSchema } from "../utils/schema.ts";
 import type { ToolPlugin } from "../plugin-types.ts";
 import { resolve } from "node:path";
 import { relative } from "node:path";

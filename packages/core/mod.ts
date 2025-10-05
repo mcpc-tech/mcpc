@@ -55,3 +55,18 @@ export * from "./src/utils/common/json.ts";
 export * from "./src/utils/common/mcp.ts";
 
 export * from "./src/set-up-mcp-compose.ts";
+
+// Schema utilities (replaces AI SDK dependency)
+export {
+  extractJsonSchema,
+  isWrappedSchema,
+  jsonSchema,
+  type Schema,
+} from "./src/utils/schema.ts";
+
+// AI SDK Integration
+export {
+  convertToAISDKTools,
+  type JsonSchemaHelper,
+  type ToolHelper,
+} from "./src/ai-sdk-adapter.ts";
