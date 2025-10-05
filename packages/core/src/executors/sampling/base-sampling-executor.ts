@@ -6,7 +6,6 @@ import { Ajv } from "ajv";
 import { AggregateAjvError } from "@segment/ajv-human-errors";
 import addFormats from "ajv-formats";
 import { parseJSON } from "@mcpc/utils";
-import { inspect } from "node:util";
 import process from "node:process";
 import { createLogger, type MCPLogger } from "../../utils/logger.ts";
 import type { Span } from "@opentelemetry/api";
@@ -47,7 +46,7 @@ export interface ExternalTool {
 
 export abstract class BaseSamplingExecutor {
   protected conversationHistory: ConversationMessage[] = [];
-  protected maxIterations: number = 33;
+  protected maxIterations: number = 55;
   protected currentIteration: number = 0;
   protected logger: MCPLogger;
   protected tracingEnabled: boolean = false;
@@ -499,13 +498,7 @@ ${history}`,
       model,
       stopReason,
       role,
-      result: inspect(result, {
-        depth: 5,
-        maxArrayLength: 10,
-        breakLength: 120,
-        compact: true,
-        maxStringLength: 120,
-      }),
+      result,
     });
   }
 
