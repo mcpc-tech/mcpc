@@ -2,6 +2,7 @@
   "version": "5",
   "specifiers": {
     "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.39.10",
+    "jsr:@mcpc/utils@0.1": "0.1.0",
     "jsr:@std/assert@*": "1.0.12",
     "jsr:@std/assert@1": "1.0.14",
     "jsr:@std/assert@1.0.10": "1.0.10",
@@ -51,6 +52,15 @@
     },
     "@es-toolkit/es-toolkit@1.39.10": {
       "integrity": "8757072a13aa64b3b349ba2b9d7d22fbe7ea6f138506c6cd2222d767cd79918f"
+    },
+    "@mcpc/utils@0.1.0": {
+      "integrity": "ab83d2fe79813cb603967dfed39a567322d6817ac326aebb85b8ae14f69bf637",
+      "dependencies": [
+        "jsr:@std/http",
+        "npm:@modelcontextprotocol/sdk",
+        "npm:cheerio",
+        "npm:jsonrepair"
+      ]
     },
     "@std/assert@1.0.10": {
       "integrity": "59b5cbac5bd55459a19045d95cc7c2ff787b4f8527c0dd195078ff6f9481fbb3",
