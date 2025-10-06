@@ -1,6 +1,6 @@
 {
-  "name": "@mcpc/mcp-sampling-provider",
-  "version": "0.1.0",
+  "name": "@mcpc/mcp-sampling-ai-provider",
+  "version": "0.1.2",
   "exports": {
     ".": "./mod.ts"
   },

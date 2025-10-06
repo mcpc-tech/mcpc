@@ -9,7 +9,7 @@
   },
   "imports": {
     "@mcpc/core": "jsr:@mcpc/core@^0.2.0-beta.1",
-    "@mcpc/utils": "jsr:@mcpc/utils@^0.1.0",
+    "@mcpc/utils": "jsr:@mcpc/utils@^0.2.0",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
     "@mcpc-tech/ripgrep-napi": "npm:@mcpc-tech/ripgrep-napi@^0.0.4",
     "@hono/zod-openapi": "npm:@hono/zod-openapi@^0.19.2",

@@ -2,8 +2,6 @@
   "version": "5",
   "specifiers": {
     "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.39.10",
-    "jsr:@mcpc/utils@0.1": "0.1.0",
-    "jsr:@std/assert@*": "1.0.12",
     "jsr:@std/assert@1": "1.0.14",
     "jsr:@std/assert@^1.0.14": "1.0.14",
     "jsr:@std/cli@^1.0.21": "1.0.21",
@@ -21,7 +19,6 @@
     "npm:@ai-sdk/provider@2": "2.0.0",
     "npm:@hono/zod-openapi@~0.19.2": "0.19.10_hono@4.9.10_zod@3.25.76",
     "npm:@mcpc-tech/ripgrep-napi@^0.0.4": "0.0.4",
-    "npm:@modelcontextprotocol/sdk@1.0.4": "1.0.4",
     "npm:@modelcontextprotocol/sdk@^1.8.0": "1.19.1_express@5.1.0_zod@3.25.76",
     "npm:@opentelemetry/api@^1.9.0": "1.9.0",
     "npm:@opentelemetry/exporter-trace-otlp-http@0.56": "0.56.0_@opentelemetry+api@1.9.0",
@@ -46,27 +43,6 @@
   "jsr": {
     "@es-toolkit/es-toolkit@1.39.10": {
       "integrity": "8757072a13aa64b3b349ba2b9d7d22fbe7ea6f138506c6cd2222d767cd79918f"
-    },
-    "@mcpc/utils@0.1.0": {
-      "integrity": "ab83d2fe79813cb603967dfed39a567322d6817ac326aebb85b8ae14f69bf637",
-      "dependencies": [
-        "jsr:@std/http",
-        "npm:@modelcontextprotocol/sdk",
-        "npm:cheerio",
-        "npm:jsonrepair"
-      ]
-    },
-    "@std/assert@1.0.10": {
-      "integrity": "59b5cbac5bd55459a19045d95cc7c2ff787b4f8527c0dd195078ff6f9481fbb3",
-      "dependencies": [
-        "jsr:@std/internal@^1.0.5"
-      ]
-    },
-    "@std/assert@1.0.12": {
-      "integrity": "08009f0926dda9cbd8bef3a35d3b6a4b964b0ab5c3e140a4e0351fbf34af5b9a",
-      "dependencies": [
-        "jsr:@std/internal@^1.0.6"
-      ]
     },
     "@std/assert@1.0.14": {
       "integrity": "68d0d4a43b365abc927f45a9b85c639ea18a9fab96ad92281e493e4ed84abaa4",
@@ -308,14 +284,6 @@
         "@mcpc-tech/ripgrep-napi-win32-x64-msvc"
       ]
     },
-    "@modelcontextprotocol/sdk@1.0.4": {
-      "integrity": "sha512-C+jw1lF6HSGzs7EZpzHbXfzz9rj9him4BaoumlTciW/IDDgIpweF/qiCWKlP02QKg5PPcgY6xY2WCt5y2tpYow==",
-      "dependencies": [
-        "content-type",
-        "raw-body",
-        "zod"
-      ]
-    },
     "@modelcontextprotocol/sdk@1.19.1_express@5.1.0_zod@3.25.76": {
       "integrity": "sha512-3Y2h3MZKjec1eAqSTBclATlX+AbC6n1LgfVzRMJLt3v6w0RCYgwLrjbxPDbhsYHt6Wdqc/aCceNJYgj448ELQQ==",
       "dependencies": [
@@ -333,8 +301,8 @@
         "zod-to-json-schema"
       ]
     },
-    "@napi-rs/wasm-runtime@1.0.3": {
-      "integrity": "sha512-rZxtMsLwjdXkMUGC3WwsPwLNVqVqnTJT6MNIB6e+5fhMcSCPP0AOsNWuMQ5mdCq6HNjs/ZeWAEchpqeprqBD2Q==",
+    "@napi-rs/wasm-runtime@1.0.6": {
+      "integrity": "sha512-DXj75ewm11LIWUk198QSKUTxjyRjsBwk09MuMk5DGK+GDUtyPhhEHOGP/Xwwj3DjQXXkivoBirmOnKrLfc0+9g==",
       "dependencies": [
         "@emnapi/core",
         "@emnapi/runtime",
@@ -528,8 +496,8 @@
     "@standard-schema/spec@1.0.0": {
       "integrity": "sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA=="
     },
-    "@tybys/wasm-util@0.10.0": {
-      "integrity": "sha512-VyyPYFlOMNylG45GoAe0xDoLwWuowvf92F9kySqzYh8vmYm7D2u4iUJKa1tOUpS70Ku13ASrOkS4ScXFsTaCNQ==",
+    "@tybys/wasm-util@0.10.1": {
+      "integrity": "sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==",
       "dependencies": [
         "tslib"
       ]
@@ -1332,21 +1300,10 @@
       "npm:json-schema-traverse@1"
     ],
     "members": {
-      "packages/ai-sdk-mcp-sampling-provider": {
-        "dependencies": [
-          "jsr:@mcpc/core@0.2",
-          "jsr:@std/assert@1",
-          "npm:@ai-sdk/provider-utils@^2.2.8",
-          "npm:@ai-sdk/provider@2",
-          "npm:@modelcontextprotocol/sdk@^1.8.0",
-          "npm:ai@^5.0.60",
-          "npm:zod@^3.24.2"
-        ]
-      },
       "packages/cli": {
         "dependencies": [
           "jsr:@mcpc/core@~0.2.0-beta.1",
-          "jsr:@mcpc/utils@0.1",
+          "jsr:@mcpc/utils@0.2",
           "jsr:@std/assert@^1.0.14",
           "jsr:@std/http@^1.0.14",
           "npm:@hono/zod-openapi@~0.19.2",
@@ -1359,7 +1316,7 @@
       },
       "packages/core": {
         "dependencies": [
-          "jsr:@mcpc/utils@0.1",
+          "jsr:@mcpc/utils@0.2",
           "jsr:@std/assert@1",
           "npm:@mcpc-tech/ripgrep-napi@^0.0.4",
           "npm:@modelcontextprotocol/sdk@^1.8.0",
@@ -1375,6 +1332,17 @@
           "npm:cheerio@1",
           "npm:json-schema-to-zod@^2.6.1",
           "npm:jsonrepair@^3.13.0",
+          "npm:zod@^3.24.2"
+        ]
+      },
+      "packages/mcp-sampling-ai-provider": {
+        "dependencies": [
+          "jsr:@mcpc/core@0.2",
+          "jsr:@std/assert@1",
+          "npm:@ai-sdk/provider-utils@^2.2.8",
+          "npm:@ai-sdk/provider@2",
+          "npm:@modelcontextprotocol/sdk@^1.8.0",
+          "npm:ai@^5.0.60",
           "npm:zod@^3.24.2"
         ]
       },
