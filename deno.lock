@@ -1300,17 +1300,6 @@
       "npm:json-schema-traverse@1"
     ],
     "members": {
-      "packages/ai-sdk-mcp-sampling-provider": {
-        "dependencies": [
-          "jsr:@mcpc/core@0.2",
-          "jsr:@std/assert@1",
-          "npm:@ai-sdk/provider-utils@^2.2.8",
-          "npm:@ai-sdk/provider@2",
-          "npm:@modelcontextprotocol/sdk@^1.8.0",
-          "npm:ai@^5.0.60",
-          "npm:zod@^3.24.2"
-        ]
-      },
       "packages/cli": {
         "dependencies": [
           "jsr:@mcpc/core@~0.2.0-beta.1",
@@ -1343,6 +1332,17 @@
           "npm:cheerio@1",
           "npm:json-schema-to-zod@^2.6.1",
           "npm:jsonrepair@^3.13.0",
+          "npm:zod@^3.24.2"
+        ]
+      },
+      "packages/mcp-sampling-ai-provider": {
+        "dependencies": [
+          "jsr:@mcpc/core@0.2",
+          "jsr:@std/assert@1",
+          "npm:@ai-sdk/provider-utils@^2.2.8",
+          "npm:@ai-sdk/provider@2",
+          "npm:@modelcontextprotocol/sdk@^1.8.0",
+          "npm:ai@^5.0.60",
           "npm:zod@^3.24.2"
         ]
       },

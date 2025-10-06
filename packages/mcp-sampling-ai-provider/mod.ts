@@ -5,26 +5,21 @@
  * server's createMessage capability. It allows you to use MCP servers with sampling through
  * the AI SDK's standard provider interface.
  *
- * Benefits:
- * - Use MCP servers directly with AI SDK
- * - LanguageModelV2 specification support
- * - Compatible with AI SDK tools and workflows
- *
  * @example
  * ```typescript
- * import { createMCPSamplingProvider } from "@mcpc/ai-sdk-mcp-sampling-provider";
+ * import { createMCPSamplingProvider } from "@mcpc/mcp-sampling-ai-provider";
  * import { generateText } from "ai";
- * import { mcpc } from "@mcpc/core";
+ * import { Server } from "@modelcontextprotocol/sdk/server/index.js";
  *
- * const server = await mcpc(
- *   [{ name: "my-agent", version: "1.0.0" }, { capabilities: { sampling: {} } }],
- *   [{ name: "my-agent", description: "...", options: { sampling: true } }]
+ * const server = new Server(
+ *   { name: "my-agent", version: "1.0.0" },
+ *   { capabilities: { sampling: {}, tools: {} } }
  * );
  *
  * const provider = createMCPSamplingProvider({ server });
  *
  * const result = await generateText({
- *   model: provider.languageModel("my-agent"),
+ *   model: provider.languageModel("copilot/gpt-4"),
  *   prompt: "Hello, world!"
  * });
  * ```

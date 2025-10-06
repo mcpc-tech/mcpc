@@ -8,7 +8,7 @@
     "./packages/utils",
     "./packages/core",
     "./packages/cli",
-    "./packages/ai-sdk-mcp-sampling-provider"
+    "./packages/mcp-sampling-ai-provider"
   ],
   "imports": {
     "@es-toolkit/es-toolkit": "jsr:@es-toolkit/es-toolkit@^1.37.2",

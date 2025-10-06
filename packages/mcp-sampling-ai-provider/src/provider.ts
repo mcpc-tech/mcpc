@@ -90,20 +90,18 @@ export class MCPSamplingProvider {
  *
  * @example
  * ```typescript
- * import { createMCPSamplingProvider } from "@mcpc/ai-sdk-mcp-sampling-provider";
- * import { mcpc } from "@mcpc/core";
+ * import { createMCPSamplingProvider } from "@mcpc/mcp-sampling-ai-provider";
+ * import { Server } from "@modelcontextprotocol/sdk/server/index.js";
  *
- * const server = await mcpc(
- *   [{ name: "my-agent", version: "1.0.0" }, { capabilities: { sampling: {} } }],
- *   [{ name: "my-agent", description: "...", options: { sampling: true } }]
+ * const server = new Server(
+ *   { name: "my-agent", version: "1.0.0" },
+ *   { capabilities: { sampling: {}, tools: {} } }
  * );
  *
- * const provider = createMCPSamplingProvider({
- *   server: server
- * });
+ * const provider = createMCPSamplingProvider({ server });
  *
  * // Use with AI SDK
- * const model = provider.languageModel("my-agent");
+ * const model = provider.languageModel("copilot/gpt-4");
  * ```
  */
 export function createMCPSamplingProvider(
