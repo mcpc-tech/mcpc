@@ -28,6 +28,7 @@ pnpm add jsr:@mcpc/mcp-sampling-ai-provider
 
 ```typescript
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -35,54 +36,62 @@ import {
 import { createMCPSamplingProvider } from "@mcpc/mcp-sampling-ai-provider";
 import { generateText } from "ai";
 
-// Create MCP server with sampling capability
+// Create a simple MCP server with sampling capability
 const server = new Server(
-  { name: "my-agent", version: "1.0.0" },
+  { name: "ai-sdk-example", version: "1.0.0" },
   { capabilities: { sampling: {}, tools: {} } },
 );
 
 // Register tools
-server.setRequestHandler(ListToolsRequestSchema, () => ({
-  tools: [
-    {
-      name: "greet",
-      description: "Generate a greeting",
-      inputSchema: { type: "object", properties: {} },
-    },
-  ],
-}));
+server.setRequestHandler(ListToolsRequestSchema, () => {
+  return {
+    tools: [
+      {
+        name: "generate-greeting",
+        description: "Generate a greeting message using AI SDK",
+        inputSchema: { type: "object", properties: {} },
+      },
+    ],
+  };
+});
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  if (request.params.name === "greet") {
+  if (request.params.name === "generate-greeting") {
+    // Create MCP sampling provider
+    const provider = createMCPSamplingProvider({ server });
+
+    // Use generateText with the provider
+    const result = await generateText({
+      model: provider.languageModel("copilot/gpt-5-mini"),
+      prompt: "Say hello!",
+    });
+
     return {
-      content: [{ type: "text", text: "Hello from MCP!" }],
+      content: [{ type: "text", text: result.text }],
     };
   }
   throw new Error(`Unknown tool: ${request.params.name}`);
 });
 
-// Create AI SDK provider from MCP server
-const provider = createMCPSamplingProvider({ server });
-
-// Use with AI SDK
-const result = await generateText({
-  model: provider.languageModel("copilot/gpt-4"),
-  prompt: "Say hello",
-});
-
-console.log(result.text);
+const transport = new StdioServerTransport();
+await server.connect(transport);
 ```
 
 ### Streaming Example
 
 ```typescript
+import process from "node:process";
 import { streamText } from "ai";
 
+// Inside your tool handler
+const provider = createMCPSamplingProvider({ server });
+
 const result = streamText({
-  model: provider.languageModel("copilot/gpt-4"),
-  prompt: "Write a short story",
+  model: provider.languageModel("copilot/gpt-5-mini"),
+  prompt: "Write a short poem about coding.",
 });
 
+// Stream the text chunks
 for await (const chunk of result.textStream) {
   process.stdout.write(chunk);
 }
@@ -94,13 +103,30 @@ for await (const chunk of result.textStream) {
 import { generateObject } from "ai";
 import { z } from "zod";
 
-const result = await generateObject({
-  model: provider.languageModel("copilot/gpt-4"),
-  schema: z.object({
+// Inside your tool handler
+const provider = createMCPSamplingProvider({ server });
+
+// Define the schema
+const recipeSchema = z.object({
+  recipe: z.object({
     name: z.string(),
-    age: z.number(),
+    cuisine: z.string(),
+    difficulty: z.enum(["easy", "medium", "hard"]),
+    prepTime: z.string(),
+    cookTime: z.string(),
+    servings: z.number(),
+    ingredients: z.array(z.string()),
+    steps: z.array(z.string()),
+    tips: z.array(z.string()).optional(),
   }),
-  prompt: "Generate a person's information",
+});
+
+// Use generateObject with the provider
+const result = await generateObject({
+  mode: "json",
+  model: provider.languageModel("copilot/gpt-5-mini"),
+  schema: recipeSchema,
+  prompt: "Generate a delicious lasagna recipe.",
 });
 
 console.log(result.object);
