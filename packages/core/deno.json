@@ -13,7 +13,7 @@
     "test:watch": "deno test --allow-all --watch tests/"
   },
   "imports": {
-    "@mcpc/utils": "jsr:@mcpc/utils@^0.1.0",
+    "@mcpc/utils": "jsr:@mcpc/utils@^0.2.0",
     "@mcpc-tech/ripgrep-napi": "npm:@mcpc-tech/ripgrep-napi@^0.0.4",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
     "@opentelemetry/api": "npm:@opentelemetry/api@^1.9.0",

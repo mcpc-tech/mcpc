@@ -10,7 +10,8 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createMCPSamplingProvider } from "../mod.ts";
-import { generateText } from "ai";
+import { generateText, stepCountIs } from "ai";
+import { z } from "zod";
 import { mcpc } from "../../core/mod.ts";
 import type { ComposableMCPServer } from "../../core/mod.ts";
 
@@ -20,19 +21,7 @@ const server = await mcpc(
     { name: "ai-sdk-example", version: "1.0.0" },
     { capabilities: { sampling: {}, tools: {} } },
   ],
-  [
-    {
-      name: "ai-sdk-example",
-      description: `I demonstrate AI SDK integration with MCP Sampling Provider.
-
-Available tools:
-<tool name="generate-greeting"/>
-
-I can generate greetings using AI SDK's generateText function.`,
-      deps: { mcpServers: {} },
-      options: { sampling: true },
-    },
-  ],
+  [],
   (server: ComposableMCPServer) => {
     // Register a simple tool that the agent can use
     server.tool(
@@ -58,6 +47,74 @@ I can generate greetings using AI SDK's generateText function.`,
 
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      },
+    );
+
+    // Register a tool that tests tool calling with AI SDK
+    server.tool(
+      "test-tool-calls",
+      "Test tool calling functionality with AI SDK",
+      { type: "object", properties: {} },
+      async () => {
+        console.log("🔧 Testing tool calls with AI SDK...\n");
+
+        // Create MCP sampling provider
+        const provider = createMCPSamplingProvider({ server });
+
+        // Simple prompt to test tool injection
+        // Define tools that will be injected into the system prompt
+        // According to AI SDK docs, tools should have description and parameters/inputSchema
+        const result = await generateText({
+          model: provider.languageModel("copilot/gpt-5-mini"),
+          stopWhen: stepCountIs(5),
+          prompt:
+            "Calculate 25 + 17 using the calculator tool, then explain the result.",
+          tools: {
+            calculator: {
+              description: "Perform mathematical calculations",
+              inputSchema: z.object({
+                operation: z
+                  .enum(["add", "subtract", "multiply", "divide"])
+                  .describe("The math operation to perform"),
+                a: z.number().describe("First number"),
+                b: z.number().describe("Second number"),
+              }),
+              execute: (params: {
+                operation: string;
+                a: number;
+                b: number;
+              }) => {
+                switch (params.operation) {
+                  case "add":
+                    return { result: params.a + params.b };
+                  case "subtract":
+                    return { result: params.a - params.b };
+                  case "multiply":
+                    return { result: params.a * params.b };
+                  case "divide":
+                    return { result: params.a / params.b };
+                  default:
+                    throw new Error("Unsupported operation");
+                }
+              },
+            },
+          },
+        });
+
+        // Display the results
+        console.log("\n✅ Generated response:");
+        console.log(result.text);
+        console.log("\n✅ Finish reason:", result.finishReason);
+        console.log("✅ Token usage:", result.usage);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Result: ${result.text}`,
+            },
+          ],
         };
       },
     );
