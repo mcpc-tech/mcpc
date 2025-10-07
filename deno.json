@@ -2,7 +2,9 @@
   "vendor": true,
   "nodeModulesDir": "auto",
   "tasks": {
-    "precommit": "deno lint && deno check && deno fmt"
+    "precommit": "deno lint && deno check && deno fmt",
+    "test": "deno test --allow-all packages/*/tests/",
+    "build": "deno check packages/*/mod.ts"
   },
   "workspace": [
     "./packages/utils",
