@@ -1,0 +1,57 @@
+name: Publish to JSR and npm
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Run tests
+        run: deno task test
+
+      - name: Type check
+        run: deno task build
+
+      - name: Publish to JSR
+        run: deno publish
+
+      - name: Run JSR to NPM conversion
+        run: deno run -A https://raw.githubusercontent.com/yaonyan/jsr2npm/main/cli.ts
+
+      - name: Publish to npm
+        run: |
+          for dir in __*_*/dist; do
+            cd "$dir"
+            npm publish --access public --provenance
+            cd ../..
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: __*_*/dist/
+          retention-days: 7

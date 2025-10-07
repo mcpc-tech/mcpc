@@ -1,0 +1,32 @@
+{
+  "packages": [
+    {
+      "name": "@mcpc/utils",
+      "version": "0.2.0",
+      "packageJson": {
+        "name": "@mcpc-tech/utils"
+      }
+    },
+    {
+      "name": "@mcpc/core",
+      "version": "0.2.0",
+      "packageJson": {
+        "name": "@mcpc-tech/core"
+      }
+    },
+    {
+      "name": "@mcpc/cli",
+      "version": "0.1.1",
+      "packageJson": {
+        "name": "@mcpc-tech/cli"
+      }
+    },
+    {
+      "name": "@mcpc/mcp-sampling-ai-provider",
+      "version": "0.1.2",
+      "packageJson": {
+        "name": "@mcpc-tech/mcp-sampling-ai-provider"
+      }
+    }
+  ]
+}
