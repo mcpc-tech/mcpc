@@ -1,6 +1,10 @@
 {
   "name": "@mcpc/utils",
-  "version": "0.2.0",
+  "version": "0.2.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mcpc-tech/mcpc.git"
+  },
   "exports": {
     ".": "./mod.ts",
     "./json": "./src/json.ts",

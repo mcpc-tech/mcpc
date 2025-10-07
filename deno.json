@@ -4,7 +4,8 @@
   "tasks": {
     "precommit": "deno lint && deno check && deno fmt",
     "test": "deno test --allow-all packages/*/tests/",
-    "build": "deno check packages/*/mod.ts"
+    "build": "deno check packages/*/mod.ts",
+    "version": "deno run --allow-read --allow-write scripts/version.ts"
   },
   "workspace": [
     "./packages/utils",

@@ -1,6 +1,10 @@
 {
   "name": "@mcpc/mcp-sampling-ai-provider",
-  "version": "0.1.2",
+  "version": "0.1.3",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mcpc-tech/mcpc.git"
+  },
   "exports": {
     ".": "./mod.ts"
   },
