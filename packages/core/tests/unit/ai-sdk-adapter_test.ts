@@ -67,7 +67,10 @@ Deno.test("convertToAISDKTools - basic conversion", async () => {
   );
 
   try {
-    const tools = convertToAISDKTools(server, mockTool as any, mockJsonSchema);
+    const tools = convertToAISDKTools(server, {
+      tool: mockTool,
+      jsonSchema: mockJsonSchema,
+    });
 
     // Verify conversion
     assertExists(tools);
@@ -132,11 +135,10 @@ Available tools:
       assertEquals(mcpcTools.length > 0, true);
 
       // Convert to AI SDK format
-      const tools = convertToAISDKTools(
-        server,
-        mockTool as any,
-        mockJsonSchema,
-      );
+      const tools = convertToAISDKTools(server, {
+        tool: mockTool,
+        jsonSchema: mockJsonSchema,
+      });
 
       // Verify conversion
       assertExists(tools);
@@ -200,7 +202,10 @@ Deno.test("convertToAISDKTools - tool execution", async () => {
   );
 
   try {
-    const tools = convertToAISDKTools(server, mockTool as any, mockJsonSchema);
+    const tools = convertToAISDKTools(server, {
+      tool: mockTool,
+      jsonSchema: mockJsonSchema,
+    });
     const addTool = tools["add"] as any;
 
     // Verify tool exists and has correct structure
