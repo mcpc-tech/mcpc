@@ -51,7 +51,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // Use generateText with the provider
     const result = await generateText({
-      model: provider.languageModel("copilot/gpt-5-mini"),
+      model: provider.languageModel({
+        modelPreferences: { hints: [{ name: "copilot/gpt-5-mini" }] },
+      }),
       prompt: "Say hello!",
     });
 
@@ -72,7 +74,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const provider = createMCPSamplingProvider({ server });
 
     const result = await generateText({
-      model: provider.languageModel("copilot/gpt-5-mini"),
+      model: provider.languageModel({
+        modelPreferences: { hints: [{ name: "copilot/gpt-5-mini" }] },
+      }),
       stopWhen: stepCountIs(5),
       prompt:
         "Calculate 25 + 17 using the calculator tool, then explain the result.",
@@ -86,11 +90,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             a: z.number().describe("First number"),
             b: z.number().describe("Second number"),
           }),
-          execute: (params: {
-            operation: string;
-            a: number;
-            b: number;
-          }) => {
+          execute: (params: { operation: string; a: number; b: number }) => {
             switch (params.operation) {
               case "add":
                 return { result: params.a + params.b };

@@ -52,7 +52,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // Use streamText with the provider
     const result = streamText({
-      model: provider.languageModel("copilot/gpt-5-mini"),
+      model: provider.languageModel({
+        modelPreferences: { hints: [{ name: "copilot/gpt-5-mini" }] },
+      }),
       prompt: "Write a short poem about coding.",
     });
 
@@ -80,7 +82,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // Stream with tools
     const result = streamText({
-      model: provider.languageModel("copilot/gpt-5-mini"),
+      model: provider.languageModel({
+        modelPreferences: { hints: [{ name: "copilot/gpt-5-mini" }] },
+      }),
       stopWhen: stepCountIs(5),
       prompt:
         "Calculate 25 + 17 using the calculator tool, then explain the result.",
@@ -94,11 +98,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             a: z.number().describe("First number"),
             b: z.number().describe("Second number"),
           }),
-          execute: (params: {
-            operation: string;
-            a: number;
-            b: number;
-          }) => {
+          execute: (params: { operation: string; a: number; b: number }) => {
             console.log(
               `\n🔢 Executing calculator: ${params.operation}(${params.a}, ${params.b})`,
             );

@@ -27,11 +27,13 @@ const server = new Server(
 // Register a tool that generates structured data
 server.setRequestHandler(ListToolsRequestSchema, () => {
   return {
-    tools: [{
-      name: "generate-recipe",
-      description: "Generate a structured recipe object using AI SDK",
-      inputSchema: { type: "object", properties: {} },
-    }],
+    tools: [
+      {
+        name: "generate-recipe",
+        description: "Generate a structured recipe object using AI SDK",
+        inputSchema: { type: "object", properties: {} },
+      },
+    ],
   };
 });
 
@@ -60,7 +62,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     // Use generateObject with the provider
     const result = await generateObject({
       mode: "json",
-      model: provider.languageModel("copilot/gpt-5-mini"),
+      model: provider.languageModel({
+        modelPreferences: { hints: [{ name: "copilot/gpt-5-mini" }] },
+      }),
       schema: recipeSchema,
       prompt: "Generate a delicious lasagna recipe.",
     });

@@ -1,13 +1,31 @@
 # @mcpc/mcp-sampling-ai-provider
 
-AI SDK provider that enables MCP servers to act as language models through the
+AI SDK provider that enables MCP servers to use AI models through the
 [AI SDK](https://ai-sdk.dev/) interface.
+
+## ⚠️ Prerequisites
+
+This provider has specific requirements:
+
+1. **Must run inside an MCP Server** - This is not a standalone AI SDK provider.
+   It works by forwarding requests to the MCP client.
+2. **Client must support MCP Sampling** - The connected MCP client must
+   implement the
+   [sampling capability](https://modelcontextprotocol.io/specification/2025-06-18/client/sampling).
+
+**Clients with sampling support:**
+
+- ✅ **VS Code** (with GitHub Copilot)
+- ✅ **Cursor**
+- ✅ **AIQL TUUI**
+- ...See the [full list](https://modelcontextprotocol.io/clients) for more
+  clients.
 
 ## Overview
 
-This package bridges MCP servers with AI SDK by implementing the LanguageModelV2
-interface. It allows any MCP server with sampling capabilities to be used as a
-language model in AI SDK applications.
+This package lets MCP servers call language models through AI SDK's standard
+interface. It implements LanguageModelV2 by forwarding requests to MCP's
+sampling capability.
 
 ## Installation
 
@@ -15,160 +33,86 @@ language model in AI SDK applications.
 # deno
 deno add jsr:@mcpc/mcp-sampling-ai-provider
 
-# npm (from jsr)
-npx jsr add @mcpc/mcp-sampling-ai-provider
-
-# pnpm (from jsr)
-pnpm add jsr:@mcpc/mcp-sampling-ai-provider
+# npm
+npm i @mcpc-tech/mcp-sampling-ai-provider
 ```
 
 ## Usage
 
-### Basic Example
-
 ```typescript
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
 import { createMCPSamplingProvider } from "@mcpc/mcp-sampling-ai-provider";
 import { generateText } from "ai";
 
-// Create a simple MCP server with sampling capability
-const server = new Server(
-  { name: "ai-sdk-example", version: "1.0.0" },
-  { capabilities: { sampling: {}, tools: {} } },
-);
-
-// Register tools
-server.setRequestHandler(ListToolsRequestSchema, () => {
-  return {
-    tools: [
-      {
-        name: "generate-greeting",
-        description: "Generate a greeting message using AI SDK",
-        inputSchema: { type: "object", properties: {} },
-      },
-    ],
-  };
-});
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  if (request.params.name === "generate-greeting") {
-    // Create MCP sampling provider
-    const provider = createMCPSamplingProvider({ server });
-
-    // Use generateText with the provider
-    const result = await generateText({
-      model: provider.languageModel("copilot/gpt-5-mini"),
-      prompt: "Say hello!",
-    });
-
-    return {
-      content: [{ type: "text", text: result.text }],
-    };
-  }
-  throw new Error(`Unknown tool: ${request.params.name}`);
-});
-
-const transport = new StdioServerTransport();
-await server.connect(transport);
-```
-
-### Streaming Example
-
-```typescript
-import process from "node:process";
-import { streamText } from "ai";
-
-// Inside your tool handler
+// Assume you have an MCP server with sampling capability
 const provider = createMCPSamplingProvider({ server });
 
-const result = streamText({
-  model: provider.languageModel("copilot/gpt-5-mini"),
-  prompt: "Write a short poem about coding.",
-});
-
-// Stream the text chunks
-for await (const chunk of result.textStream) {
-  process.stdout.write(chunk);
-}
-```
-
-### Object Generation Example
-
-```typescript
-import { generateObject } from "ai";
-import { z } from "zod";
-
-// Inside your tool handler
-const provider = createMCPSamplingProvider({ server });
-
-// Define the schema
-const recipeSchema = z.object({
-  recipe: z.object({
-    name: z.string(),
-    cuisine: z.string(),
-    difficulty: z.enum(["easy", "medium", "hard"]),
-    prepTime: z.string(),
-    cookTime: z.string(),
-    servings: z.number(),
-    ingredients: z.array(z.string()),
-    steps: z.array(z.string()),
-    tips: z.array(z.string()).optional(),
+// Generate text
+const result = await generateText({
+  model: provider.languageModel({
+    modelPreferences: { hints: [{ name: "gpt-5-mini" }] },
   }),
+  prompt: "Say hello!",
 });
 
-// Use generateObject with the provider
-const result = await generateObject({
-  mode: "json",
-  model: provider.languageModel("copilot/gpt-5-mini"),
-  schema: recipeSchema,
-  prompt: "Generate a delicious lasagna recipe.",
-});
-
-console.log(result.object);
+console.log(result.text);
 ```
+
+See the [examples](./examples/) directory for complete working examples:
+
+- [`generate_text_example.ts`](./examples/generate_text_example.ts) - Basic text
+  generation
+- [`stream_text_example.ts`](./examples/stream_text_example.ts) - Streaming
+  responses
+- [`generate_object_example.ts`](./examples/generate_object_example.ts) -
+  Structured output
 
 ## API
 
 ### `createMCPSamplingProvider(config)`
 
-Creates an MCP sampling provider for use with AI SDK.
+Creates an MCP sampling provider.
 
 **Parameters:**
 
 - `config.server` - MCP Server instance with sampling capability
-- `config.modelId` - (Optional) Default model ID
-- `config.headers` - (Optional) Request headers
-- `config.baseUrl` - (Optional) Base URL for display
 
-**Returns:** Provider with `languageModel(modelId)` method
+**Returns:** Provider with `languageModel(options)` method
 
-### `provider.languageModel(modelId)`
+### `provider.languageModel(options?)`
 
-Returns a LanguageModelV2 instance for the specified model.
+Creates a language model instance.
 
 **Parameters:**
 
-- `modelId` - Model identifier (e.g., "copilot/gpt-4")
+- `options.modelPreferences` - (Optional) Model preferences for this call
+  - `hints` - Array of model name hints (e.g., `[{ name: "gpt-4" }]`)
+  - `costPriority` - 0-1, higher prefers cheaper models
+  - `speedPriority` - 0-1, higher prefers faster models
+  - `intelligencePriority` - 0-1, higher prefers more capable models
 
 **Returns:** LanguageModelV2 compatible with AI SDK
 
+See
+[MCP Model Preferences](https://modelcontextprotocol.io/specification/2025-06-18/client/sampling#model-preferences)
+for details.
+
 ## How It Works
 
-1. Converts AI SDK messages to MCP `sampling/createMessage` format
-2. Calls MCP server's sampling endpoint
-3. Converts MCP response back to AI SDK format
-4. Maps stop reasons between protocols
+Simple request flow:
+
+1. AI SDK calls the language model
+2. Provider converts to MCP `sampling/createMessage` format
+3. MCP client handles the sampling request
+4. Provider converts response back to AI SDK format
+
+The MCP client (e.g., VS Code, Claude Desktop) decides which actual model to use
+based on `modelPreferences`.
 
 ## Limitations
 
-- **Token counting**: MCP doesn't provide token counts (returns 0)
-- **Native streaming**: MCP sampling returns complete responses
-- **Tool calls**: Experimental support, under development
+- **No token counting**: MCP doesn't provide token usage (returns 0)
+- **No native streaming**: Responses are generated fully before streaming
+- **Experimental tool support**: Tool calling is under development
 
 ## Related
 

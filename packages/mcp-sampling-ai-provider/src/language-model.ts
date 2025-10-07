@@ -14,15 +14,14 @@ import type {
 } from "@ai-sdk/provider";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import type { SamplingMessage } from "@modelcontextprotocol/sdk/types.js";
+import type { ModelPreferences } from "./provider.ts";
 
 /**
  * Configuration for MCP Language Model
  */
 export interface MCPSamplingLanguageModelConfig {
   server: Server;
-  modelId: string;
-  baseUrl?: string;
-  headers?: Record<string, string>;
+  modelPreferences?: ModelPreferences;
 }
 
 /**
@@ -38,15 +37,13 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
   readonly supportedUrls: Record<string, RegExp[]> = {};
 
   private server: Server;
-  private baseUrl?: string;
-  private headers?: Record<string, string>;
+  private modelPreferences?: ModelPreferences;
 
   constructor(config: MCPSamplingLanguageModelConfig) {
     this.server = config.server;
-    this.modelId = config.modelId;
-    this.provider = "mcp";
-    this.baseUrl = config.baseUrl;
-    this.headers = config.headers;
+    this.modelId = "";
+    this.provider = "mcp-client";
+    this.modelPreferences = config.modelPreferences;
   }
 
   /**
@@ -99,6 +96,7 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
       systemPrompt,
       messages,
       maxTokens: options.maxOutputTokens ?? 55_000,
+      modelPreferences: this.modelPreferences,
     });
 
     // Extract text and tool calls from result
@@ -139,7 +137,6 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
       },
       response: {
         modelId: result.model,
-        headers: this.headers,
       },
       warnings: [],
     };

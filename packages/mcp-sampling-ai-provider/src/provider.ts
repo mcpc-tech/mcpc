@@ -7,6 +7,12 @@ import { MCPSamplingLanguageModel } from "./language-model.ts";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
 /**
+ * Extract the modelPreferences type from MCP SDK's createMessage method
+ */
+type CreateMessageParams = Parameters<Server["createMessage"]>[0];
+export type ModelPreferences = CreateMessageParams["modelPreferences"];
+
+/**
  * Configuration for MCP provider
  */
 export interface MCPSamplingProviderConfig {
@@ -14,21 +20,6 @@ export interface MCPSamplingProviderConfig {
    * MCP server instance with sampling capability
    */
   server: Server;
-
-  /**
-   * Optional default model configuration
-   */
-  modelId?: string;
-
-  /**
-   * Optional headers for requests
-   */
-  headers?: Record<string, string>;
-
-  /**
-   * Optional base URL for the MCP server (for display purposes)
-   */
-  baseUrl?: string;
 }
 
 /**
@@ -36,9 +27,10 @@ export interface MCPSamplingProviderConfig {
  */
 export interface MCPSamplingProviderOptions {
   /**
-   * Override headers for this specific model
+   * Override model preferences for this specific model
+   * See: https://modelcontextprotocol.io/specification/2025-06-18/client/sampling#model-preferences
    */
-  headers?: Record<string, string>;
+  modelPreferences?: ModelPreferences;
 }
 
 /**
@@ -58,30 +50,21 @@ export class MCPSamplingProvider {
   /**
    * Create a language model instance for a specific MCP tool/agent
    *
-   * @param modelId - The MCP tool name to use as the language model
    * @param options - Optional configuration overrides
    * @returns A LanguageModelV2 instance
    */
-  languageModel(
-    modelId: string,
-    options?: MCPSamplingProviderOptions,
-  ): LanguageModelV2 {
+  languageModel(options?: MCPSamplingProviderOptions): LanguageModelV2 {
     return new MCPSamplingLanguageModel({
       server: this.config.server,
-      modelId: modelId,
-      baseUrl: this.config.baseUrl,
-      headers: {
-        ...this.config.headers,
-        ...options?.headers,
-      },
+      modelPreferences: options?.modelPreferences,
     });
   }
 
   /**
    * Shorthand for creating a language model
    */
-  call(modelId: string, options?: MCPSamplingProviderOptions): LanguageModelV2 {
-    return this.languageModel(modelId, options);
+  call(options?: MCPSamplingProviderOptions): LanguageModelV2 {
+    return this.languageModel(options);
   }
 }
 
