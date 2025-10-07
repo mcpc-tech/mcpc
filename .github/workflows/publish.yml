@@ -37,7 +37,7 @@ jobs:
         run: deno publish
 
       - name: Run JSR to NPM conversion
-        run: deno run -A https://raw.githubusercontent.com/yaonyan/jsr2npm/main/cli.ts
+        run: npx -y @yaonyan/jsr2npm@latest
 
       - name: Publish to npm
         run: |
