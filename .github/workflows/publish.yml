@@ -37,7 +37,7 @@ jobs:
         run: deno publish
 
       - name: Run JSR to NPM conversion
-        run: npx -y @yaonyan/jsr2npm@latest "$(pwd)/jsr2npm.config.json"
+        run: npx -y @yaonyan/jsr2npm@latest
 
       - name: Publish to npm
         run: |
