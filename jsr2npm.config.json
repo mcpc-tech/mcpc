@@ -17,6 +17,9 @@
     {
       "name": "@mcpc/cli",
       "version": "latest",
+      "bin": {
+        "mcpc": "src/bin.ts"
+      },
       "packageJson": {
         "name": "@mcpc-tech/cli"
       }
