@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/cli",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
