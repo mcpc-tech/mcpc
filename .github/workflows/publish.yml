@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "latest"
           registry-url: "https://registry.npmjs.org"
 
       - name: Run tests
@@ -37,7 +37,7 @@ jobs:
         run: deno publish
 
       - name: Run JSR to NPM conversion
-        run: npx -y @yaonyan/jsr2npm@latest
+        run: npx -y @yaonyan/jsr2npm@latest "$(pwd)/jsr2npm.config.json"
 
       - name: Publish to npm
         run: |
