@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { registerAgent } from "./controllers/register.ts";
 import { mcpc } from "@mcpc/core";
+import { createLargeResultPlugin } from "@mcpc/core/plugins/large-result";
 import type { ComposableMCPServer, ComposeDefinition } from "@mcpc/core";
 import type { MCPCConfig } from "./config/loader.ts";
 
@@ -15,7 +16,7 @@ export const createServer = async (
       {
         name: null,
         description: "",
-        plugins: ["./plugins/large-result.ts?maxSize=8000&previewSize=4000"],
+        plugins: [createLargeResultPlugin({})],
       },
     ] as ComposeDefinition[],
   };
