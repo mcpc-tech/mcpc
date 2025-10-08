@@ -4,7 +4,9 @@
 [![JSR](https://jsr.io/badges/@mcpc/mcp-sampling-ai-provider)](https://jsr.io/@mcpc/mcp-sampling-ai-provider)
 
 AI SDK provider that enables MCP servers to use AI models through the
-[AI SDK](https://ai-sdk.dev/) interface.
+[AI SDK](https://ai-sdk.dev/). This effectively transforms your MCP server into
+an **agentic tool** that can reason and make decisions, rather than just a
+simple connector.
 
 ## ⚠️ Prerequisites
 
@@ -14,15 +16,21 @@ This provider has specific requirements:
    It works by forwarding requests to the MCP client.
 2. **Client must support MCP Sampling** - The connected MCP client must
    implement the
-   [sampling capability](https://modelcontextprotocol.io/specification/2025-06-18/client/sampling).
+   [sampling capability](https://modelcontextprotocol.io/specification/2025-06-18/client/sampling),
+   or you can implement it yourself (see
+   [Client Sampling](#client-sampling-for-clients-without-native-support)
+   below).
 
 **Clients with sampling support:**
 
-- ✅ **VS Code** (with GitHub Copilot)
-- ✅ **Cursor**
-- ✅ **AIQL TUUI**
-- ...See the [full list](https://modelcontextprotocol.io/clients) for more
-  clients.
+- ✅ **VS Code** (with GitHub Copilot), See the
+  [full list](https://modelcontextprotocol.io/clients) for more clients.
+- ❌ **Claude Code** -
+  [Issue #1785](https://github.com/anthropics/claude-code/issues/1785)
+- ❌ **Cursor** - [Issue #3023](https://github.com/cursor/cursor/issues/3023)
+
+- 🔧 **Or implement your own** - Use `setupClientSampling()` to add sampling to
+  any MCP client (see example below).
 
 ## Overview
 
