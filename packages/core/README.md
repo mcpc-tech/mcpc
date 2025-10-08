@@ -1,5 +1,8 @@
 # @mcpc/core
 
+[![NPM Version](https://img.shields.io/npm/v/@mcpc-tech/core)](https://www.npmjs.com/package/@mcpc-tech/core)
+[![JSR](https://jsr.io/badges/@mcpc/core)](https://jsr.io/@mcpc/core)
+
 **Build agentic MCP servers by composing existing MCP tools.**
 
 The core SDK for creating agentic Model Context Protocol (MCP) servers. Compose

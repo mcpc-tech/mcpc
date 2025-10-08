@@ -1,11 +1,20 @@
 # MCPC CLI
 
+[![NPM Version](https://img.shields.io/npm/v/@mcpc-tech/cli)](https://www.npmjs.com/package/@mcpc-tech/cli)
+[![JSR](https://jsr.io/badges/@mcpc/cli)](https://jsr.io/@mcpc/cli)
+
 CLI server for MCPC with configuration support.
+
+> **Note:** This package is published as `@mcpc-tech/cli` on npm and `@mcpc/cli`
+> on JSR.
 
 ## Quick Start
 
 ```bash
-# Show help
+# Using npm
+npx -y @mcpc-tech/cli --help
+
+# Using JSR
 npx -y deno run -A jsr:@mcpc/cli/bin --help
 
 # Load configuration from URL
