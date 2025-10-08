@@ -25,9 +25,15 @@ This provider has specific requirements:
 
 - ✅ **VS Code** (with GitHub Copilot), See the
   [full list](https://modelcontextprotocol.io/clients) for more clients.
-- ❌ **Claude Code** -
+- 🔍 **Claude Code** -
   [Issue #1785](https://github.com/anthropics/claude-code/issues/1785)
-- ❌ **Cursor** - [Issue #3023](https://github.com/cursor/cursor/issues/3023)
+- 🔍 **Cursor** - [Issue #3023](https://github.com/cursor/cursor/issues/3023)
+- 🔍 **Zed** - Tracking:
+  [Discussion #39761](https://github.com/zed-industries/zed/discussions/39761)
+- 🔍 **Gemini CLI** -
+  [Issue #10704](https://github.com/google-gemini/gemini-cli/issues/10704)
+- 🔍 **OpenAI Codex** -
+  [Issue #4929](https://github.com/openai/codex/issues/4929)
 
 - 🔧 **Or implement your own** - Use `setupClientSampling()` to add sampling to
   any MCP client (see example below).
