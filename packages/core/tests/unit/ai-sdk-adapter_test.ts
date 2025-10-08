@@ -11,13 +11,13 @@ import { type ComposeDefinition, convertToAISDKTools, mcpc } from "@mcpc/core";
 // Mock AI SDK helpers for testing
 const mockTool = (options: {
   description: string;
-  parameters: any;
+  inputSchema: any;
   execute: (input: any) => Promise<any>;
 }) => {
   return {
     type: "function" as const,
     description: options.description,
-    parameters: options.parameters,
+    parameters: options.inputSchema,
     execute: options.execute,
   };
 };
