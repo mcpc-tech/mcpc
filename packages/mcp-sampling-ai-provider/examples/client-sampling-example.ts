@@ -109,12 +109,3 @@ const analysisResult = await client.callTool({
   },
 });
 console.log("Analysis result:", analysisResult);
-
-// const result = await generateText({
-//   model: 'openai/gpt-5-mini',
-//   prompt: "Write a short poem about coding.",
-// })
-
-// console.log("✅ Generated text:", result.text);
-// console.log("✅ Finish reason:", result.finishReason);
-// console.log("✅ Token usage:", result.usage);
