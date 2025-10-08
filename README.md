@@ -52,7 +52,7 @@ Or run directly with the CLI (no installation required):
 
 ```bash
 # Run with remote configuration
-npx -y deno run -A jsr:@mcpc/cli/bin --config-url \
+npx -y @mcpc-tech/cli --config-url \
   "https://raw.githubusercontent.com/mcpc-tech/mcpc/main/packages/cli/examples/configs/codex-fork.json"
 ```
 
