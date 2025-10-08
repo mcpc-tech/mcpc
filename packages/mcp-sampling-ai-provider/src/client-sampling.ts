@@ -121,13 +121,13 @@ export function createClientSampling(
  * ```typescript
  * const model = selectModelFromPreferences(modelPreferences, {
  *   hints: {
- *     "gpt-5": "openai/gpt-5-mini",
- *     "claude": "anthropic/claude-3-5-sonnet",
+ *     "gpt-4o": "openai/gpt-4o",
+ *     "claude": "anthropic/claude-3-5-sonnet-20241022",
  *   },
  *   priorities: {
- *     speed: "openai/gpt-5-mini",
- *     intelligence: "anthropic/claude-3-5-sonnet",
- *     cost: "openai/gpt-5-mini",
+ *     speed: "openai/gpt-4o-mini",
+ *     intelligence: "openai/gpt-4o",
+ *     cost: "openai/gpt-4o-mini",
  *   },
  *   default: "openai/gpt-5-mini",
  * });

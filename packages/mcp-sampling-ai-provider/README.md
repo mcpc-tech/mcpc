@@ -81,7 +81,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     // Use AI SDK to translate text
     const result = await generateText({
       model: provider.languageModel({
-        modelPreferences: { hints: [{ name: "gpt-5-mini" }] },
+        modelPreferences: { hints: [{ name: "copilot/gpt-4o-mini" }] },
       }),
       prompt:
         `Translate to ${request.params.arguments?.target_lang}: ${request.params.arguments?.text}`,
@@ -124,7 +124,7 @@ Creates a language model instance.
 **Parameters:**
 
 - `options.modelPreferences` - (Optional) Model preferences for this call
-  - `hints` - Array of model name hints (e.g., `[{ name: "gpt-4" }]`)
+  - `hints` - Array of model name hints (e.g., `[{ name: "copilot/gpt-4o" }]`)
   - `costPriority` - 0-1, higher prefers cheaper models
   - `speedPriority` - 0-1, higher prefers faster models
   - `intelligencePriority` - 0-1, higher prefers more capable models
@@ -150,14 +150,14 @@ setupClientSampling(client, {
   handler: async (params) => {
     const modelId = selectModelFromPreferences(params.modelPreferences, {
       hints: {
-        "gpt-5": "openai/gpt-5-mini",
-        "gpt-mini": "openai/gpt-5-mini",
+        "gpt-4o": "openai/gpt-4o",
+        "gpt-mini": "openai/gpt-4o-mini",
       },
       priorities: {
-        speed: "openai/gpt-5-mini",
-        intelligence: "openai/gpt-5-mini",
+        speed: "openai/gpt-4o-mini",
+        intelligence: "openai/gpt-4o",
       },
-      default: "openai/gpt-5-mini",
+      default: "openai/gpt-4o-mini",
     });
 
     const result = await generateText({

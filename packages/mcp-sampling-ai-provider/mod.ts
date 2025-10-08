@@ -19,7 +19,9 @@
  * const provider = createMCPSamplingProvider({ server });
  *
  * const result = await generateText({
- *   model: provider.languageModel("copilot/gpt-4"),
+ *   model: provider.languageModel({
+ *     modelPreferences: { hints: [{ name: "copilot/gpt-4o" }] }
+ *   }),
  *   prompt: "Hello, world!"
  * });
  * ```

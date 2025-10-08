@@ -84,7 +84,9 @@ export class MCPSamplingProvider {
  * const provider = createMCPSamplingProvider({ server });
  *
  * // Use with AI SDK
- * const model = provider.languageModel("copilot/gpt-4");
+ * const model = provider.languageModel({
+ *   modelPreferences: { hints: [{ name: "copilot/gpt-5-mini" }] }
+ * });
  * ```
  */
 export function createMCPSamplingProvider(
