@@ -136,16 +136,17 @@ async function analyzeCodeInBackground(
         if (step.text) {
           console.log(`   💬 Text:`, step.text);
         }
-        if (step.toolCalls) {
-          console.log(
-            `   🔧 Tool Calls:`,
-            JSON.stringify(step.toolCalls, null, 2),
-          );
-        }
         if (step.toolResults) {
           console.log(
             `   ✅ Tool Results:`,
-            JSON.stringify(step.toolResults, null, 2),
+            JSON.stringify(
+              step.toolResults.map((result) => ({
+                input: result.input,
+                output: result.output,
+              })),
+              null,
+              2,
+            ),
           );
         }
       },

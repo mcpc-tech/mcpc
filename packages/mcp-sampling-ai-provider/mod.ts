@@ -25,14 +25,26 @@
  * ```
  */
 
+// Main provider API
 export {
   createMCPSamplingProvider,
-  createMCPSamplingProvider as createSamplingProvider,
-  MCPSamplingProvider as MCPProvider,
+  MCPSamplingProvider,
 } from "./src/provider.ts";
 export type {
-  MCPSamplingProviderConfig as MCPProviderConfig,
-  MCPSamplingProviderOptions as MCPProviderOptions,
+  MCPSamplingProviderConfig,
+  MCPSamplingProviderOptions,
 } from "./src/provider.ts";
-export { MCPSamplingLanguageModel as MCPLanguageModel } from "./src/language-model.ts";
-export type { MCPSamplingLanguageModelConfig as MCPLanguageModelConfig } from "./src/language-model.ts";
+
+// Custom sampling handler for clients without native support
+export {
+  createClientSampling,
+  selectModelFromPreferences,
+  setupClientSampling,
+} from "./src/client-sampling.ts";
+export type {
+  AISDKHandler,
+  ClientSamplingConfig,
+} from "./src/client-sampling.ts";
+
+// Utilities
+export { convertAISDKFinishReasonToMCP } from "./src/utils.ts";

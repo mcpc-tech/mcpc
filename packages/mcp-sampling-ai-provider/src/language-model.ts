@@ -15,6 +15,10 @@ import type {
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import type { SamplingMessage } from "@modelcontextprotocol/sdk/types.js";
 import type { ModelPreferences } from "./provider.ts";
+import {
+  convertAISDKToMCPMessages,
+  convertMCPStopReasonToAISDK,
+} from "./utils.ts";
 
 /**
  * Configuration for MCP Language Model
@@ -208,64 +212,14 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
    * Convert AI SDK messages to MCP sampling format
    */
   private convertMessages(prompt: LanguageModelV2Prompt): SamplingMessage[] {
-    const messages: SamplingMessage[] = [];
-
-    for (const msg of prompt) {
-      if (msg.role === "system") continue; // System handled separately
-
-      const role = msg.role === "assistant" ? "assistant" : "user";
-
-      // Extract different content types
-      const textParts = msg.content.filter((c) => c.type === "text");
-      const toolCalls = msg.content.filter((c) => c.type === "tool-call");
-      const toolResults = msg.content.filter((c) => c.type === "tool-result");
-
-      // Format each type as plain text
-      const parts: string[] = [];
-
-      if (textParts.length > 0) {
-        parts.push(textParts.map((c) => (c as any).text).join("\n"));
-      }
-
-      if (toolCalls.length > 0) {
-        const calls = toolCalls.map((c) => {
-          const call = c as any;
-          return `<use_tool tool="${call.toolName}">\n${
-            JSON.stringify(call.input || {})
-          }\n</use_tool>`;
-        });
-        parts.push(calls.join("\n"));
-      }
-
-      if (toolResults.length > 0) {
-        const results = toolResults.map((c) => {
-          const result = c as any;
-          const output = JSON.stringify(
-            result.output || result.result || "undefined",
-          );
-          return `Tool "${result.toolName}" result:\n${output}`;
-        });
-        parts.push(results.join("\n\n"));
-      }
-
-      const text = parts.join("\n\n");
-      if (text) {
-        messages.push({ role, content: { type: "text", text } });
-      }
-    }
-
-    return messages;
+    return convertAISDKToMCPMessages(prompt);
   }
 
   /**
    * Map MCP stop reason to AI SDK finish reason
    */
   private mapStopReason(stopReason?: string): LanguageModelV2FinishReason {
-    if (stopReason === "endTurn" || stopReason === "stopSequence") {
-      return "stop";
-    }
-    if (stopReason === "maxTokens") return "length";
-    return (stopReason as LanguageModelV2FinishReason) ?? "unknown";
+    return convertMCPStopReasonToAISDK(stopReason);
   }
 
   /**

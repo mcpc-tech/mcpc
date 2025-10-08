@@ -1,5 +1,8 @@
 # @mcpc/mcp-sampling-ai-provider
 
+[![NPM Version](https://img.shields.io/npm/v/@mcpc-tech/mcp-sampling-ai-provider)](https://www.npmjs.com/package/@mcpc-tech/mcp-sampling-ai-provider)
+[![JSR](https://jsr.io/badges/@mcpc/mcp-sampling-ai-provider)](https://jsr.io/@mcpc/mcp-sampling-ai-provider)
+
 AI SDK provider that enables MCP servers to use AI models through the
 [AI SDK](https://ai-sdk.dev/) interface.
 
@@ -30,11 +33,11 @@ sampling capability.
 ## Installation
 
 ```bash
-# deno
-deno add jsr:@mcpc/mcp-sampling-ai-provider
-
 # npm
 npm i @mcpc-tech/mcp-sampling-ai-provider
+
+# deno
+deno add jsr:@mcpc/mcp-sampling-ai-provider
 ```
 
 ## Usage
@@ -95,6 +98,83 @@ Creates a language model instance.
 See
 [MCP Model Preferences](https://modelcontextprotocol.io/specification/2025-06-18/client/sampling#model-preferences)
 for details.
+
+## Client Sampling (for clients without native support)
+
+If your MCP client **doesn't support sampling**, you can add sampling capability
+using `setupClientSampling`:
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import {
+  convertAISDKFinishReasonToMCP,
+  setupClientSampling,
+} from "@mcpc/mcp-sampling-ai-provider";
+import { generateText } from "ai";
+
+const client = new Client(
+  { name: "my-client", version: "1.0.0" },
+  { capabilities: { sampling: {} } },
+);
+
+setupClientSampling(client, {
+  handler: async (params) => {
+    const result = await generateText({
+      model: "openai/gpt-5-mini",
+      messages: params.messages,
+    });
+
+    return {
+      model: "openai/gpt-5-mini",
+      role: "assistant",
+      content: { type: "text", text: result.text },
+      stopReason: convertAISDKFinishReasonToMCP(result.finishReason),
+    };
+  },
+});
+
+await client.connect(transport);
+```
+
+With model preferences:
+
+```typescript
+import {
+  convertAISDKFinishReasonToMCP,
+  selectModelFromPreferences,
+} from "@mcpc/mcp-sampling-ai-provider";
+
+setupClientSampling(client, {
+  handler: async (params) => {
+    const modelId = selectModelFromPreferences(params.modelPreferences, {
+      hints: {
+        "gpt-5": "openai/gpt-5-mini",
+        "gpt-mini": "openai/gpt-5-mini",
+      },
+      priorities: {
+        speed: "openai/gpt-5-mini",
+        intelligence: "openai/gpt-5-mini",
+      },
+      default: "openai/gpt-5-mini",
+    });
+
+    const result = await generateText({
+      model: modelId,
+      messages: params.messages,
+    });
+
+    return {
+      model: modelId,
+      role: "assistant",
+      content: { type: "text", text: result.text },
+      stopReason: convertAISDKFinishReasonToMCP(result.finishReason),
+    };
+  },
+});
+```
+
+See [`client-sampling-example.ts`](./examples/client-sampling-example.ts) for a
+complete example.
 
 ## How It Works
 
