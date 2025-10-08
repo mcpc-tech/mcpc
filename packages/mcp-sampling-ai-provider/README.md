@@ -51,21 +51,43 @@ deno add jsr:@mcpc/mcp-sampling-ai-provider
 ## Usage
 
 ```typescript
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 import { createMCPSamplingProvider } from "@mcpc/mcp-sampling-ai-provider";
 import { generateText } from "ai";
 
-// Assume you have an MCP server with sampling capability
-const provider = createMCPSamplingProvider({ server });
+// Create MCP server with sampling capability
+const server = new Server(
+  { name: "translator", version: "1.0.0" },
+  { capabilities: { sampling: {}, tools: {} } },
+);
 
-// Generate text
-const result = await generateText({
-  model: provider.languageModel({
-    modelPreferences: { hints: [{ name: "gpt-5-mini" }] },
-  }),
-  prompt: "Say hello!",
+// Register a translation tool that uses AI
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  if (request.params.name === "translate") {
+    // Create provider from the server
+    const provider = createMCPSamplingProvider({ server });
+
+    // Use AI SDK to translate text
+    const result = await generateText({
+      model: provider.languageModel({
+        modelPreferences: { hints: [{ name: "gpt-5-mini" }] },
+      }),
+      prompt:
+        `Translate to ${request.params.arguments?.target_lang}: ${request.params.arguments?.text}`,
+    });
+
+    return { content: [{ type: "text", text: result.text }] };
+  }
 });
 
-console.log(result.text);
+// Connect and start
+const transport = new StdioServerTransport();
+await server.connect(transport);
 ```
 
 See the [examples](./examples/) directory for complete working examples:
@@ -110,41 +132,7 @@ for details.
 ## Client Sampling (for clients without native support)
 
 If your MCP client **doesn't support sampling**, you can add sampling capability
-using `setupClientSampling`:
-
-```typescript
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import {
-  convertAISDKFinishReasonToMCP,
-  setupClientSampling,
-} from "@mcpc/mcp-sampling-ai-provider";
-import { generateText } from "ai";
-
-const client = new Client(
-  { name: "my-client", version: "1.0.0" },
-  { capabilities: { sampling: {} } },
-);
-
-setupClientSampling(client, {
-  handler: async (params) => {
-    const result = await generateText({
-      model: "openai/gpt-5-mini",
-      messages: params.messages,
-    });
-
-    return {
-      model: "openai/gpt-5-mini",
-      role: "assistant",
-      content: { type: "text", text: result.text },
-      stopReason: convertAISDKFinishReasonToMCP(result.finishReason),
-    };
-  },
-});
-
-await client.connect(transport);
-```
-
-With model preferences:
+using `setupClientSampling` with model preferences:
 
 ```typescript
 import {
@@ -199,8 +187,10 @@ based on `modelPreferences`.
 ## Limitations
 
 - **No token counting**: MCP doesn't provide token usage (returns 0)
-- **No native streaming**: Responses are generated fully before streaming
-- **Experimental tool support**: Tool calling is under development
+- **No native streaming**: MCP sampling doesn't support streaming - we call
+  `doGenerate` first, then emit the complete response as stream events
+- **Experimental tool/json support**: Implemented via systemPrompt as MCP
+  sampling doesn't natively support these
 
 ## Related
 
