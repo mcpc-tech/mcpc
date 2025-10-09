@@ -9,6 +9,7 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { JSONSchema } from "../types.ts";
 import { updateRefPaths } from "./common/schema.ts";
 import { jsonSchema } from "./schema.ts";
+import { sanitizePropertyKey } from "./common/provider.ts";
 
 /**
  * Process tools with plugin transformations
@@ -123,7 +124,10 @@ export function buildDependencyGroups(
 
     const updatedProperties = updateRefPaths(baseProperties, toolName);
 
-    depGroups[toolName] = {
+    // Sanitize tool name for use as schema property key
+    const sanitizedKey = sanitizePropertyKey(toolName);
+
+    depGroups[sanitizedKey] = {
       type: "object",
       description: tool.description,
       properties: updatedProperties,

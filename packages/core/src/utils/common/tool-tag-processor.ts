@@ -71,6 +71,9 @@ export function processToolTags({
       if (toolId) {
         // Replace <tool> with <action action="..."/> in the DOM
         $(toolEl).replaceWith(`<action action="${toolId}"/>`);
+      } else {
+        // Tool not found, remove the tag completely
+        $(toolEl).remove();
       }
     }
   });

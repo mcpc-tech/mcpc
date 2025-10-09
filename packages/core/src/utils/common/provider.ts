@@ -11,6 +11,17 @@ import { optionalObject } from "./json.ts";
 export const ToolNameRegex = /^[a-zA-Z0-9_-]{1,64}$/;
 
 /**
+ * Sanitize tool name to match provider requirements
+ * Replaces any character that's not alphanumeric, underscore, or dash with underscore
+ * Truncates to 64 characters max
+ */
+export function sanitizePropertyKey(name: string): string {
+  return name
+    .replace(/[^a-zA-Z0-9_-]/g, "_") // Replace invalid characters with underscore
+    .substring(0, 64); // Truncate to max length
+}
+
+/**
  * Conditionally adds additionalProperties to schema based on provider support
  *
  * Note: Google Gemini does not support additionalProperties in schema definitions

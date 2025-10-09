@@ -8,6 +8,7 @@ import type {
 } from "../../service/tools.ts";
 import type z from "zod";
 import { smitheryToolNameCompatibale } from "./registory.ts";
+import { sanitizePropertyKey } from "./provider.ts";
 import { cwd } from "node:process";
 import process from "node:process";
 import { createHash } from "node:crypto";
@@ -179,7 +180,9 @@ export async function composeMcpDepTools(
       tools.forEach((tool) => {
         const { toolNameWithScope, toolName: internalToolName } =
           smitheryToolNameCompatibale(tool.name, name);
-        const toolId = `${serverId}_${internalToolName}`;
+        // Sanitize toolId to ensure it only contains valid characters
+        const rawToolId = `${serverId}_${internalToolName}`;
+        const toolId = sanitizePropertyKey(rawToolId);
         if (
           filterIn &&
           !filterIn({
@@ -206,7 +209,12 @@ export async function composeMcpDepTools(
             },
           );
 
-        allTools[toolId] = { ...tool, execute };
+        // Store the original toolNameWithScope for mapping purposes
+        allTools[toolId] = {
+          ...tool,
+          execute,
+          _originalName: toolNameWithScope,
+        };
       });
     } catch (error) {
       console.error(`Error creating MCP client for ${name}:`, error);
