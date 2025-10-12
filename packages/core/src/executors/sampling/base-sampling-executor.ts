@@ -169,11 +169,56 @@ export abstract class BaseSamplingExecutor {
           });
 
           const action = parsedData["action"];
+          const decision = parsedData["decision"];
 
-          // Create span with action name
-          const actionStr = action && typeof action === "string"
-            ? String(action)
-            : "unknown_action";
+          // Validate decision field
+          if (typeof decision !== "string") {
+            this.conversationHistory.push({
+              role: "user",
+              content: {
+                type: "text",
+                text:
+                  'Missing required field "decision". Provide: {"action":"<tool>","decision":"proceed|retry","<tool>":{}} or {"decision":"complete"}',
+              },
+            });
+            if (iterationSpan) endSpan(iterationSpan);
+            continue;
+          }
+
+          // Validate: decision="complete" should not have action field
+          if (decision === "complete" && action) {
+            this.conversationHistory.push({
+              role: "user",
+              content: {
+                type: "text",
+                text:
+                  'Invalid: Cannot have both "decision":"complete" and "action" field. When complete, only provide {"decision":"complete"}.',
+              },
+            });
+            if (iterationSpan) endSpan(iterationSpan);
+            continue;
+          }
+
+          // Validate: non-complete decisions require action field
+          if (decision !== "complete" && !action) {
+            this.conversationHistory.push({
+              role: "user",
+              content: {
+                type: "text",
+                text:
+                  'Missing required field "action". When executing, provide: {"action":"<tool>","decision":"proceed|retry","<tool>":{}}',
+              },
+            });
+            if (iterationSpan) endSpan(iterationSpan);
+            continue;
+          }
+
+          // Create span with action name or "completion" for decision="complete"
+          const actionStr = decision === "complete"
+            ? "completion"
+            : (action && typeof action === "string"
+              ? String(action)
+              : "unknown_action");
           const spanName = `mcpc.sampling_iteration.${actionStr}`;
 
           iterationSpan = this.tracingEnabled
@@ -191,34 +236,6 @@ export abstract class BaseSamplingExecutor {
               loopSpan ?? undefined,
             )
             : null;
-
-          // Minimal self-healing: ensure required fields exist
-          if (!action || typeof parsedData["decision"] !== "string") {
-            this.conversationHistory.push({
-              role: "user",
-              content: {
-                type: "text",
-                text:
-                  'Required fields missing. During execution provide: {"action":"<tool>","decision":"proceed|retry","<tool>":{}}. When complete provide: {"decision":"complete"}',
-              },
-            });
-            if (iterationSpan) endSpan(iterationSpan);
-            continue;
-          }
-
-          // Validate: decision="complete" should not have action field
-          if (parsedData["decision"] === "complete" && action) {
-            this.conversationHistory.push({
-              role: "user",
-              content: {
-                type: "text",
-                text:
-                  'Invalid: Cannot have both "decision":"complete" and "action" field. When complete, only provide {"decision":"complete"}.',
-              },
-            });
-            if (iterationSpan) endSpan(iterationSpan);
-            continue;
-          }
 
           // Process the parsed data using subclass implementation
           const result = await this.processAction(
@@ -250,6 +267,9 @@ export abstract class BaseSamplingExecutor {
               maxIterations: this.maxIterations,
               parsed: rawJson,
               action: typeof action === "string" ? action : String(action),
+              decision: typeof decision === "string"
+                ? decision
+                : String(decision),
               samplingResponse: responseContent,
               toolResult: JSON.stringify(result),
               model: model,

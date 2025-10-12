@@ -83,21 +83,6 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
     }
 
     const toolCallData = parsedData as Record<string, unknown>;
-    const isComplete = toolCallData.decision === "complete";
-    const actionName = toolCallData.action as string;
-
-    if (isComplete && actionName) {
-      return {
-        content: [
-          {
-            type: "text",
-            text:
-              'Invalid: Cannot have both "decision":"complete" and "action" field. When complete, only provide {"decision":"complete"}. When executing, provide {"action":"<tool>","decision":"proceed|retry","<tool>":{}}.',
-          },
-        ],
-        isError: true,
-      };
-    }
 
     if (toolCallData.decision === "complete") {
       return await this.createCompletionResult("Task completed", parentSpan);
