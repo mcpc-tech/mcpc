@@ -112,30 +112,40 @@ export class SamplingExecutor extends BaseSamplingExecutor {
     _state?: unknown,
     parentSpan?: Span | null,
   ): Promise<CallToolResult> {
-    // Define the expected tool call data structure
     const toolCallData = parsedData;
+    const isComplete = toolCallData.decision === "complete";
+    const actionName = toolCallData.action as string;
+
+    // Treat "complete with action" as "proceed" so the action executes
+    // and LLM can see the result (important if action fails and needs retry)
+    if (isComplete && actionName && actionName !== "complete") {
+      this.logger.debug({
+        message:
+          "Decision is 'complete' with action present, treating as 'proceed'",
+        action: actionName,
+      });
+      toolCallData.decision = "proceed";
+    }
 
     if (toolCallData.decision === "complete") {
       return await this.createCompletionResult("Task completed", parentSpan);
     }
 
     try {
-      // Extract tool arguments (everything except action and decision)
       const { action: _action, decision: _decision, ..._toolArgs } =
         toolCallData;
 
       const toolResult = await this.agenticExecutor.execute(
         toolCallData,
         schema,
+        parentSpan,
       );
 
-      // Extract result text
       const resultText = toolResult.content
         ?.filter((content) => content.type === "text")
         ?.map((content) => content.text)
         ?.join("\n") || "No result";
 
-      // Add conversation history updates
       this.conversationHistory.push({
         role: "assistant",
         content: {
@@ -146,7 +156,6 @@ export class SamplingExecutor extends BaseSamplingExecutor {
 
       return toolResult;
     } catch (error) {
-      // Handle execution errors
       return this.createExecutionError(error, parentSpan);
     }
   }

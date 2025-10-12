@@ -83,25 +83,35 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
     }
 
     const toolCallData = parsedData as Record<string, unknown>;
+    const isComplete = toolCallData.decision === "complete";
+    const actionName = toolCallData.action as string;
+
+    // Treat "complete with action" as "proceed" so the action executes
+    // and LLM can see the result (important if action fails and needs retry)
+    if (isComplete && actionName && actionName !== "complete") {
+      this.logger.debug({
+        message:
+          "Decision is 'complete' with action present, treating as 'proceed'",
+        action: actionName,
+      });
+      toolCallData.decision = "proceed";
+    }
 
     if (toolCallData.decision === "complete") {
       return await this.createCompletionResult("Task completed", parentSpan);
     }
 
     try {
-      // Use WorkflowExecutor to handle all workflow logic
       const workflowResult = await this.workflowExecutor.execute(
         parsedData,
         workflowState,
       );
 
-      // Extract result text using the same approach as WorkflowExecutor
       const resultText = workflowResult.content
         ?.filter((content) => content.type === "text")
         ?.map((content) => content.text)
         ?.join("\n") || "No result";
 
-      // Add conversation history updates following agentic pattern
       this.conversationHistory.push({
         role: "assistant",
         content: {
@@ -112,7 +122,6 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
 
       return workflowResult;
     } catch (error) {
-      // Handle execution errors using base class method
       return this.createExecutionError(error, parentSpan);
     }
   }

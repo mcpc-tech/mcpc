@@ -211,7 +211,7 @@ export abstract class BaseSamplingExecutor {
             parsedData,
             schema,
             state,
-            loopSpan,
+            iterationSpan,
           );
           this.logIterationProgress(
             parsedData,

@@ -53,6 +53,7 @@ export class AgenticExecutor {
   async execute(
     args: Record<string, unknown>,
     schema: Record<string, unknown>,
+    parentSpan?: Span | null,
   ): Promise<CallToolResult> {
     // Create a span for this execute call
     const executeSpan: Span | null = this.tracingEnabled
@@ -61,7 +62,7 @@ export class AgenticExecutor {
         action: String(args[this.ACTION_KEY] ?? "unknown"),
         nextAction: String(args[this.NEXT_ACTION_KEY] ?? "none"),
         args: JSON.stringify(args),
-      })
+      }, parentSpan ?? undefined)
       : null;
 
     try {
