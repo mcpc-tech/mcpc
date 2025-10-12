@@ -74,17 +74,10 @@ export class MCPLogger {
 
   private logToConsole(level: LogLevel, data: unknown): void {
     const message = typeof data === "string" ? data : JSON.stringify(data);
-    const prefix = `[${this.loggerName}]`;
+    const prefix = `[${this.loggerName}:${level}]`;
 
-    if (level === "debug") {
-      console.debug(prefix, message);
-    } else if (level === "info" || level === "notice") {
-      console.info(prefix, message);
-    } else if (level === "warning") {
-      console.warn(prefix, message);
-    } else {
-      console.error(prefix, message);
-    }
+    // Always use console.error to avoid interfering with JSON-RPC on stdout in stdio mode
+    console.error(prefix, message);
   }
 
   debug(data: unknown): Promise<void> {
