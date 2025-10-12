@@ -12,7 +12,7 @@
       "deps": {
         "mcpServers": {
           "desktop-commander": {
-            "command": "bunx",
+            "command": "npx",
             "args": ["-y", "@wonderwhy-er/desktop-commander@latest"],
             "transportType": "stdio"
           }
