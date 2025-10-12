@@ -1302,7 +1302,7 @@
     "members": {
       "packages/cli": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.2.4",
+          "jsr:@mcpc/core@~0.2.5",
           "jsr:@mcpc/utils@~0.2.2",
           "jsr:@std/assert@^1.0.14",
           "jsr:@std/http@^1.0.14",

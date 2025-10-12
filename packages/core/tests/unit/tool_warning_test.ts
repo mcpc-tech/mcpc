@@ -4,9 +4,9 @@ Deno.test(
   "Tool warning system - shows warning for non-existent tools",
   async () => {
     // Capture console output
-    const originalWarn = console.warn;
+    const originalError = console.error;
     const warnings: string[] = [];
-    console.warn = (...args: any[]) => {
+    console.error = (...args: any[]) => {
       warnings.push(args.join(" "));
     };
 
@@ -58,8 +58,8 @@ Deno.test(
 
       await server.close();
     } finally {
-      // Restore console.warn
-      console.warn = originalWarn;
+      // Restore console.error
+      console.error = originalError;
     }
   },
 );
