@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/utils",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -15,6 +15,7 @@
   },
   "imports": {
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
+    "@std/assert": "jsr:@std/assert@^1",
     "@std/http": "jsr:@std/http@^1.0.14",
     "cheerio": "npm:cheerio@^1.0.0",
     "jsonrepair": "npm:jsonrepair@^3.13.0"

@@ -1,7 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ComposableMCPServer } from "../../compose.ts";
 import type { SamplingConfig } from "../../types.ts";
-import { CompiledPrompts } from "../../prompts/index.ts";
 import { Ajv } from "ajv";
 import { AggregateAjvError } from "@segment/ajv-human-errors";
 import addFormats from "ajv-formats";
@@ -103,7 +102,7 @@ export abstract class BaseSamplingExecutor {
       content: {
         type: "text",
         text:
-          'Return ONLY raw JSON (no code fences or explanations). The JSON MUST include action and decision. Example: {"action":"<tool>","decision":"proceed|complete","<tool>":{}}',
+          'Return ONE AND ONLY ONE raw JSON object (no code fences, explanations, or multiple objects). The JSON MUST include action and decision. Example: {"action":"<tool>","decision":"proceed|complete","<tool>":{}}',
       },
     }];
 
@@ -160,15 +159,14 @@ export abstract class BaseSamplingExecutor {
             continue;
           }
 
-          if (parsedData) {
-            this.conversationHistory.push({
-              role: "assistant",
-              content: {
-                type: "text",
-                text: JSON.stringify(parsedData, null, 2),
-              },
-            });
-          }
+          // Always show LLM what we parsed - this allows self-correction
+          this.conversationHistory.push({
+            role: "assistant",
+            content: {
+              type: "text",
+              text: JSON.stringify(parsedData, null, 2),
+            },
+          });
 
           const action = parsedData["action"];
 
@@ -285,28 +283,18 @@ export abstract class BaseSamplingExecutor {
   }
 
   protected addParsingErrorToHistory(
-    responseText: string,
+    _responseText: string,
     parseError: unknown,
   ): void {
-    this.conversationHistory.push({
-      role: "assistant",
-      content: {
-        type: "text",
-        text: `JSON parsing failed. Response was: ${responseText}`,
-      },
-    });
+    const errorMsg = parseError instanceof Error
+      ? parseError.message
+      : String(parseError);
 
     this.conversationHistory.push({
       role: "user",
       content: {
         type: "text",
-        text: CompiledPrompts.errorResponse({
-          errorMessage: `JSON parsing failed: ${
-            parseError instanceof Error
-              ? parseError.message
-              : String(parseError)
-          }\n\nPlease respond with valid JSON.`,
-        }),
+        text: `Invalid JSON: ${errorMsg}\n\nRespond with valid JSON.`,
       },
     });
   }
@@ -513,11 +501,11 @@ ${history}`,
     schema,
     schemaPrefix = "JSON schema:",
     schemaSuffix = `STRICT REQUIREMENTS:
-1. Return ONLY raw JSON that passes JSON.parse() - no markdown, code blocks, explanatory text, or extra characters
+1. Return ONE AND ONLY ONE raw JSON object that passes JSON.parse() - no markdown, code blocks, explanatory text, or multiple JSON objects
 2. Include ALL required fields with correct data types and satisfy ALL schema constraints (anyOf, oneOf, allOf, not, enum, pattern, min/max, conditionals)
-3. Your response must be the JSON object itself, nothing else
+3. Your response must be a single JSON object, nothing else
 
-INVALID: \`\`\`json{"key":"value"}\`\`\` or "Here is: {"key":"value"}"
+INVALID: \`\`\`json{"key":"value"}\`\`\` or "Here is: {"key":"value"}" or {"key":"value"}{"key":"value"}
 VALID: {"key":"value"}`,
   }: {
     prompt?: string;

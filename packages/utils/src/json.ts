@@ -17,10 +17,54 @@ function stripMarkdownAndText(text: string): string {
     "",
   );
 
-  // Try to find JSON object/array boundaries if there's surrounding text
-  const jsonMatch = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-  if (jsonMatch) {
-    text = jsonMatch[1];
+  // Try to extract the FIRST complete JSON object or array
+  // This handles cases where LLM returns multiple JSON objects
+  const firstJsonIndex = text.search(/[\{\[]/);
+  if (firstJsonIndex >= 0) {
+    text = text.slice(firstJsonIndex);
+
+    // Find the end of the first complete JSON structure
+    let depth = 0;
+    let inString = false;
+    let escapeNext = false;
+    const startChar = text[0];
+    const endChar = startChar === "{" ? "}" : "]";
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        escapeNext = true;
+        continue;
+      }
+
+      if (char === '"' && !inString) {
+        inString = true;
+        continue;
+      }
+
+      if (char === '"' && inString) {
+        inString = false;
+        continue;
+      }
+
+      if (inString) continue;
+
+      if (char === startChar) {
+        depth++;
+      } else if (char === endChar) {
+        depth--;
+        if (depth === 0) {
+          // Found the end of the first complete JSON structure
+          return text.slice(0, i + 1);
+        }
+      }
+    }
   }
 
   return text.trim();

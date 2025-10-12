@@ -189,10 +189,10 @@ export class SamplingExecutor extends BaseSamplingExecutor {
     const taskPrompt = `
 
 ## Current Task
-I will now use agentic sampling to complete the following task: "${userRequest}"${contextInfo}
+You will now use agentic sampling to complete the following task: "${userRequest}"${contextInfo}
 
-When I need to use a tool, I should specify the tool name in 'action' and provide tool-specific parameters as additional properties.
-When the task is complete, I should use "action": "complete".`;
+When you need to use a tool, specify the tool name in 'action' and provide tool-specific parameters as additional properties.
+When the task is complete, use "action": "complete".`;
 
     // Use JSON instruction injection pattern
     return this.injectJsonInstruction({
