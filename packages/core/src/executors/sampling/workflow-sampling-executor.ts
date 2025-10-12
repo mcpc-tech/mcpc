@@ -86,15 +86,17 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
     const isComplete = toolCallData.decision === "complete";
     const actionName = toolCallData.action as string;
 
-    // Treat "complete with action" as "proceed" so the action executes
-    // and LLM can see the result (important if action fails and needs retry)
-    if (isComplete && actionName && actionName !== "complete") {
-      this.logger.debug({
-        message:
-          "Decision is 'complete' with action present, treating as 'proceed'",
-        action: actionName,
-      });
-      toolCallData.decision = "proceed";
+    if (isComplete && actionName) {
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              'Invalid: Cannot have both "decision":"complete" and "action" field. When complete, only provide {"decision":"complete"}. When executing, provide {"action":"<tool>","decision":"proceed|retry","<tool>":{}}.',
+          },
+        ],
+        isError: true,
+      };
     }
 
     if (toolCallData.decision === "complete") {

@@ -102,7 +102,7 @@ export abstract class BaseSamplingExecutor {
       content: {
         type: "text",
         text:
-          'Return ONE AND ONLY ONE raw JSON object (no code fences, explanations, or multiple objects). The JSON MUST include action and decision. Example: {"action":"<tool>","decision":"proceed|complete","<tool>":{}}',
+          'Return ONE AND ONLY ONE raw JSON object (no code fences, explanations, or multiple objects). During execution provide: {"action":"<tool>","decision":"proceed|retry","<tool>":{}}. When complete provide: {"decision":"complete"}',
       },
     }];
 
@@ -199,7 +199,21 @@ export abstract class BaseSamplingExecutor {
               content: {
                 type: "text",
                 text:
-                  'Required fields missing: action or decision. Return ONLY raw JSON, no code fences or explanations. Example: {"action":"<tool>","decision":"proceed|complete","<tool>":{}}',
+                  'Required fields missing. During execution provide: {"action":"<tool>","decision":"proceed|retry","<tool>":{}}. When complete provide: {"decision":"complete"}',
+              },
+            });
+            if (iterationSpan) endSpan(iterationSpan);
+            continue;
+          }
+
+          // Validate: decision="complete" should not have action field
+          if (parsedData["decision"] === "complete" && action) {
+            this.conversationHistory.push({
+              role: "user",
+              content: {
+                type: "text",
+                text:
+                  'Invalid: Cannot have both "decision":"complete" and "action" field. When complete, only provide {"decision":"complete"}.',
               },
             });
             if (iterationSpan) endSpan(iterationSpan);

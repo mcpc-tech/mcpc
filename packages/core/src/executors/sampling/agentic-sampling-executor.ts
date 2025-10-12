@@ -116,15 +116,17 @@ export class SamplingExecutor extends BaseSamplingExecutor {
     const isComplete = toolCallData.decision === "complete";
     const actionName = toolCallData.action as string;
 
-    // Treat "complete with action" as "proceed" so the action executes
-    // and LLM can see the result (important if action fails and needs retry)
-    if (isComplete && actionName && actionName !== "complete") {
-      this.logger.debug({
-        message:
-          "Decision is 'complete' with action present, treating as 'proceed'",
-        action: actionName,
-      });
-      toolCallData.decision = "proceed";
+    if (isComplete && actionName) {
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              'Invalid: Cannot have both "decision":"complete" and "action" field. When complete, only provide {"decision":"complete"}. When executing, provide {"action":"<tool>","decision":"proceed|retry","<tool>":{}}.',
+          },
+        ],
+        isError: true,
+      };
     }
 
     if (toolCallData.decision === "complete") {
@@ -200,10 +202,8 @@ export class SamplingExecutor extends BaseSamplingExecutor {
 ## Current Task
 You will now use agentic sampling to complete the following task: "${userRequest}"${contextInfo}
 
-When you need to use a tool, specify the tool name in 'action' and provide tool-specific parameters as additional properties.
-When the task is complete, use "action": "complete".`;
+When you need to use a tool, specify the tool name in 'action' and provide tool-specific parameters as additional properties.`;
 
-    // Use JSON instruction injection pattern
     return this.injectJsonInstruction({
       prompt: basePrompt + taskPrompt,
       schema: agenticSchema,

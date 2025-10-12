@@ -23,7 +23,7 @@ export const SystemPrompts = {
 4. **Collect feedback** from each action result
 5. **Decide** next step:
    - **proceed**: More work needed
-   - **complete**: Question answered
+   - **complete**: Question answered (do NOT provide action field)
    - **retry**: Current action failed
 6. **Provide** parameter object matching action name
 7. **Continue** until complete
@@ -32,8 +32,15 @@ export const SystemPrompts = {
 \`\`\`json
 {
   "action": "tool_name",
-  "decision": "proceed|retry|complete", 
+  "decision": "proceed|retry", 
   "tool_name": { /* tool parameters */ }
+}
+\`\`\`
+
+**When task is complete:**
+\`\`\`json
+{
+  "decision": "complete"
 }
 \`\`\``,
 
@@ -78,11 +85,19 @@ export const SystemPrompts = {
 - Continue until question answered
 
 ## JSON Response Format
+**During execution:**
 \`\`\`json
 {
   "action": "tool_name",
-  "decision": "proceed|retry|complete",
+  "decision": "proceed|retry",
   "tool_name": { /* tool parameters */ }
+}
+\`\`\`
+
+**When task is complete (do NOT include action):**
+\`\`\`json
+{
+  "decision": "complete"
 }
 \`\`\`
 
@@ -122,8 +137,11 @@ You MUST respond with a JSON object for workflow execution:
 
 **For Step Execution (Subsequent Calls):**
 - action: "{toolName}"
-- decision: "proceed" (advance), "retry" (retry), or "complete" (finish - sampling mode only)
+- decision: "proceed" (advance), "retry" (retry)
 - [step parameters]: Tool-specific parameters you autonomously determine for current step
+
+**When Workflow is Complete (do NOT include action):**
+- decision: "complete"
 
 **🎯 AGENTIC WORKFLOW CONSTRAINTS:**
 - Response must be pure JSON demonstrating autonomous decision-making within workflow structure
