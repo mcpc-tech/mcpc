@@ -45,6 +45,11 @@ function defSignature(
 /**
  * Creates appropriate transport based on server config definition.
  * Supports: stdio, sse, streamable-http, and in-memory transports.
+ *
+ * Compatible with multiple IDE/client config formats:
+ * - MCPC: explicit "transportType" field
+ * - VSCode/Cursor: explicit "type" field
+ * - Cline/Claude Desktop: implicit detection (command → stdio, url → http/sse)
  */
 function createTransport(
   def: z.input<typeof ServerConfigSchema> | z.infer<typeof ServerConfigSchema>,
@@ -55,8 +60,12 @@ function createTransport(
   | InMemoryTransport {
   const defAny = def as any;
 
+  // Normalize transport type from different IDE formats
+  // Priority: transportType (MCPC) → type (VSCode/Cursor) → implicit detection (Cline)
+  const explicitType = defAny.transportType || defAny.type;
+
   // Check for in-memory transport - user provides a Server instance
-  if (defAny.transportType === "memory") {
+  if (explicitType === "memory") {
     if (!defAny.server) {
       throw new Error(
         "In-memory transport requires a 'server' field with a Server instance",
@@ -72,8 +81,8 @@ function createTransport(
     return clientTransport;
   }
 
-  // Check for SSE transport
-  if (defAny.transportType === "sse") {
+  // Check for SSE transport (explicit or has url with sse type)
+  if (explicitType === "sse") {
     const options: any = {};
     if (defAny.headers) {
       options.requestInit = { headers: defAny.headers };
@@ -83,6 +92,7 @@ function createTransport(
   }
 
   // Check for streamable HTTP transport (has url but not sse)
+  // Cline/Claude Desktop format: { url: "...", headers: {...} }
   if (defAny.url && typeof defAny.url === "string") {
     const options: any = {};
     if (defAny.headers) {
@@ -91,8 +101,9 @@ function createTransport(
     return new StreamableHTTPClientTransport(new URL(defAny.url), options);
   }
 
-  // Check for stdio transport (has command or explicit stdio type)
-  if (defAny.transportType === "stdio" || defAny.command) {
+  // Check for stdio transport (explicit type or has command)
+  // Cline/Claude Desktop format: { command: "...", args: [...], env: {...} }
+  if (explicitType === "stdio" || defAny.command) {
     return new StdioClientTransport({
       command: defAny.command,
       args: defAny.args,
@@ -104,7 +115,9 @@ function createTransport(
     });
   }
 
-  throw new Error(`Unsupported transport type: ${JSON.stringify(def)}`);
+  throw new Error(
+    `Unsupported transport configuration: ${JSON.stringify(def)}`,
+  );
 }
 
 async function getOrCreateMcpClient(
