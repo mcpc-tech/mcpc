@@ -2,6 +2,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type {
   McpSettingsSchema,
   ServerConfigSchema,
@@ -28,7 +29,95 @@ function defSignature(
   def: z.input<typeof ServerConfigSchema> | z.infer<typeof ServerConfigSchema>,
 ) {
   // KISS: stringify full definition for a stable signature
-  return JSON.stringify(def);
+  // Handle circular references from InMemoryTransport or other objects
+  const defCopy = { ...def };
+
+  // For in-memory transport, create a unique signature without circular refs
+  if (
+    (defCopy as any).transportType === "memory" || (defCopy as any).transport
+  ) {
+    return `memory:${Date.now()}:${Math.random()}`;
+  }
+
+  return JSON.stringify(defCopy);
+}
+
+/**
+ * Creates appropriate transport based on server config definition.
+ * Supports: stdio, sse, streamable-http, and in-memory transports.
+ *
+ * Compatible with multiple IDE/client config formats:
+ * - MCPC: explicit "transportType" field
+ * - VSCode/Cursor: explicit "type" field
+ * - Cline/Claude Desktop: implicit detection (command → stdio, url → http/sse)
+ */
+function createTransport(
+  def: z.input<typeof ServerConfigSchema> | z.infer<typeof ServerConfigSchema>,
+):
+  | StdioClientTransport
+  | StreamableHTTPClientTransport
+  | SSEClientTransport
+  | InMemoryTransport {
+  const defAny = def as any;
+
+  // Normalize transport type from different IDE formats
+  // Priority: transportType (MCPC) → type (VSCode/Cursor) → implicit detection (Cline)
+  const explicitType = defAny.transportType || defAny.type;
+
+  // Check for in-memory transport - user provides a Server instance
+  if (explicitType === "memory") {
+    if (!defAny.server) {
+      throw new Error(
+        "In-memory transport requires a 'server' field with a Server instance",
+      );
+    }
+
+    const [clientTransport, serverTransport] = InMemoryTransport
+      .createLinkedPair();
+    // Connect the server to serverTransport asynchronously
+    defAny.server.connect(serverTransport).catch((err: Error) => {
+      console.error("Error connecting in-memory server:", err);
+    });
+    return clientTransport;
+  }
+
+  // Check for SSE transport (explicit or has url with sse type)
+  if (explicitType === "sse") {
+    const options: any = {};
+    if (defAny.headers) {
+      options.requestInit = { headers: defAny.headers };
+      options.eventSourceInit = { headers: defAny.headers };
+    }
+    return new SSEClientTransport(new URL(defAny.url), options);
+  }
+
+  // Check for streamable HTTP transport (has url but not sse)
+  // Cline/Claude Desktop format: { url: "...", headers: {...} }
+  if (defAny.url && typeof defAny.url === "string") {
+    const options: any = {};
+    if (defAny.headers) {
+      options.requestInit = { headers: defAny.headers };
+    }
+    return new StreamableHTTPClientTransport(new URL(defAny.url), options);
+  }
+
+  // Check for stdio transport (explicit type or has command)
+  // Cline/Claude Desktop format: { command: "...", args: [...], env: {...} }
+  if (explicitType === "stdio" || defAny.command) {
+    return new StdioClientTransport({
+      command: defAny.command,
+      args: defAny.args,
+      env: {
+        ...(process.env as any),
+        ...(defAny.env ?? {}),
+      },
+      cwd: cwd(),
+    });
+  }
+
+  throw new Error(
+    `Unsupported transport configuration: ${JSON.stringify(def)}`,
+  );
 }
 
 async function getOrCreateMcpClient(
@@ -49,47 +138,7 @@ async function getOrCreateMcpClient(
     return client;
   }
 
-  let transport:
-    | StdioClientTransport
-    | StreamableHTTPClientTransport
-    | SSEClientTransport;
-  // Runtime type guards for union shape
-  if (
-    typeof (def as any).transportType === "string" &&
-    (def as any).transportType === "sse"
-  ) {
-    const options: any = {};
-    if ((def as any).headers) {
-      options.requestInit = { headers: (def as any).headers };
-      options.eventSourceInit = { headers: (def as any).headers };
-    }
-    transport = new SSEClientTransport(new URL((def as any).url), options);
-  } else if ("url" in (def as any) && typeof (def as any).url === "string") {
-    const options: any = {};
-    if ((def as any).headers) {
-      options.requestInit = { headers: (def as any).headers };
-    }
-    transport = new StreamableHTTPClientTransport(
-      new URL((def as any).url),
-      options,
-    );
-  } else if (
-    (typeof (def as any).transportType === "string" &&
-      (def as any).transportType === "stdio") ||
-    ("command" in (def as any))
-  ) {
-    transport = new StdioClientTransport({
-      command: (def as any).command,
-      args: (def as any).args,
-      env: {
-        ...(process.env as any),
-        ...((def as any).env ?? {}),
-      },
-      cwd: cwd(),
-    });
-  } else {
-    throw new Error(`Unsupported transport type: ${JSON.stringify(def)}`);
-  }
+  const transport = createTransport(def);
 
   const connecting = (async () => {
     const client = new Client({

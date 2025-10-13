@@ -32,10 +32,17 @@ export const StdioConfigSchema: z.ZodObject<Record<string, z.ZodTypeAny>> =
     transportType: z.literal("stdio").optional(),
   });
 
+export const InMemoryConfigSchema: z.ZodObject<Record<string, z.ZodTypeAny>> =
+  BaseConfigSchema.extend({
+    transportType: z.literal("memory"),
+    server: z.any(), // Server instance from @modelcontextprotocol/sdk
+  });
+
 export const ServerConfigSchema: z.ZodTypeAny = z.union([
   StdioConfigSchema,
   SseConfigSchema,
   StreamableHTTPSchema,
+  InMemoryConfigSchema,
 ]);
 
 export const McpSettingsSchema: z.ZodObject<Record<string, z.ZodTypeAny>> = z

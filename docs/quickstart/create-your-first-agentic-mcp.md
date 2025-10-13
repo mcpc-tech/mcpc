@@ -43,7 +43,7 @@ See the magic in action 👇
 The MCPC framework becomes truly powerful when you reuse and compose existing
 MCP Servers, much like your favorite AI-integrated clients (e.g., Cursor or
 VSCode). We offer full support for the MCP transport protocol, including
-`stdio`, `sse`, and `streamable-http`.
+`stdio`, `sse`, `streamable-http`, and `memory` (in-memory).
 
 ```typescript
 import { type ComposeDefinition, mcpc } from "@mcpc/core";
@@ -70,6 +70,11 @@ const deps: ComposeDefinition["deps"] = {
   },
 };
 ```
+
+> **💡 Tip**: For testing or embedding MCP servers in the same process, you can
+> use `memory` transport. See
+> [FAQ Q5](../faq.md#q5-what-transport-types-does-mcpc-support) for in-memory
+> transport examples.
 
 # Then write the documentation for your agent
 
