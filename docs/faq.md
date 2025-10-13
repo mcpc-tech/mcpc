@@ -51,6 +51,14 @@ That's it. The agent can now call these tools.
 
 All MCP transports work:
 
-- **stdio**
-- **streamable-http**
-- **sse**
+- **stdio**: Spawns external processes
+- **streamable-http**: HTTP-based communication
+- **sse**: Server-Sent Events
+- **memory**: In-memory transport for same-process communication
+
+> **Performance Tip**: If MCPC feels slow, try using `memory` transport.
+> Connecting multiple MCP servers has overhead - memory transport eliminates it.
+
+> **Learn More**: See
+> [Speed Up MCPC with In-Memory Transport](./learn-more/speed-up-with-in-memory-transport.md)
+> for detailed examples and use cases.

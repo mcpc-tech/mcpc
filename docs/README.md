@@ -32,6 +32,8 @@ You can use it to:
 
 [Achieving Agent Interoperability](./learn-more/achieving-agent-interoperability.md)
 
+[Speed Up MCPC with In-Memory Transport](./learn-more/speed-up-with-in-memory-transport.md)
+
 [Plugin System](./plugins.md)
 
 [Logging and Tracing](./logging-and-tracing.md)
