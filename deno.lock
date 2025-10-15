@@ -1348,6 +1348,7 @@
       },
       "packages/mcpc-builder": {
         "dependencies": [
+          "jsr:@mcpc/core@~0.2.9",
           "jsr:@std/assert@^1.0.14",
           "npm:@modelcontextprotocol/sdk@^1.8.0",
           "npm:zod@^3.24.2"
