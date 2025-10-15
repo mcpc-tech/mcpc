@@ -11,7 +11,8 @@
     "./packages/utils",
     "./packages/core",
     "./packages/cli",
-    "./packages/mcp-sampling-ai-provider"
+    "./packages/mcp-sampling-ai-provider",
+    "./packages/mcpc-builder"
   ],
   "imports": {
     "@es-toolkit/es-toolkit": "jsr:@es-toolkit/es-toolkit@^1.37.2",

@@ -1,0 +1,23 @@
+{
+  "name": "@mcpc/builder",
+  "version": "0.0.1",
+  "exports": {
+    ".": "./mod.ts",
+    "./agent": "./mcpc-builder-agent.ts"
+  },
+  "bin": {
+    "mcpc-builder-agent": "./mcpc-builder-agent.ts"
+  },
+  "imports": {
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
+    "@std/assert": "jsr:@std/assert@^1.0.14",
+    "zod": "npm:zod@^3.24.2"
+  },
+  "tasks": {
+    "dev": "deno run --allow-all --watch src/bin.ts",
+    "start": "deno run --allow-all src/bin.ts"
+  },
+  "compilerOptions": {
+    "lib": ["deno.window", "deno.ns"]
+  }
+}

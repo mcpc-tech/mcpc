@@ -30,6 +30,16 @@
       "packageJson": {
         "name": "@mcpc-tech/mcp-sampling-ai-provider"
       }
+    },
+    {
+      "name": "@mcpc/builder",
+      "version": "latest",
+      "bin": {
+        "mcpc-builder-agent": "mcpc-builder-agent.ts"
+      },
+      "packageJson": {
+        "name": "@mcpc-tech/builder"
+      }
     }
   ]
 }
