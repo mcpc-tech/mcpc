@@ -1,6 +1,7 @@
 # MCPC Builder
 
 [![JSR](https://jsr.io/badges/@mcpc/builder)](https://jsr.io/@mcpc/builder)
+[![npm](https://img.shields.io/npm/v/@mcpc-tech/builder)](https://www.npmjs.com/package/@mcpc-tech/builder)
 
 An MCP server that exposes the [mcpc.tech](https://mcpc.tech) registry as tools,
 allowing AI assistants to programmatically search for MCP servers and compose
@@ -34,7 +35,7 @@ See [Usage as Agent](#usage-as-agent) below for details.
 
 ## Installation
 
-### With Claude Desktop
+### With Claude Code
 
 Add to your `claude_desktop_config.json`:
 
@@ -42,13 +43,8 @@ Add to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "mcpc-builder": {
-      "command": "deno",
-      "args": [
-        "run",
-        "--allow-net",
-        "--allow-env",
-        "jsr:@mcpc/builder"
-      ]
+      "command": "npx",
+      "args": ["-y", "@mcpc-tech/builder"]
     }
   }
 }
@@ -59,11 +55,7 @@ Add to your `claude_desktop_config.json`:
 Run the server directly:
 
 ```bash
-# Using Deno tasks
-deno task start
-
-# Or directly
-deno run --allow-all src/bin.ts
+npx -y @mcpc-tech/builder
 ```
 
 ### As a Library
@@ -71,7 +63,7 @@ deno run --allow-all src/bin.ts
 Import and use the server components:
 
 ```typescript
-import { createServer } from "@mcpc/builder";
+import { createServer } from "@mcpc-tech/builder";
 
 const server = createServer();
 // ... connect to your transport
@@ -82,7 +74,7 @@ const server = createServer();
 ### As an MCP Tools Server
 
 ```bash
-deno task start
+npx -y @mcpc-tech/builder
 ```
 
 Use the tools from AI assistants like Claude to search and compose MCP servers.
@@ -92,7 +84,7 @@ Use the tools from AI assistants like Claude to search and compose MCP servers.
 Run the agent for interactive help:
 
 ```bash
-deno run -A mcpc-builder-agent.ts
+npx -y @mcpc-tech/builder mcpc-builder-agent
 ```
 
 Or add to Claude Desktop:
@@ -101,8 +93,8 @@ Or add to Claude Desktop:
 {
   "mcpServers": {
     "mcpc-builder-agent": {
-      "command": "deno",
-      "args": ["run", "-A", "/path/to/mcpc-builder/mcpc-builder-agent.ts"]
+      "command": "npx",
+      "args": ["-y", "@mcpc-tech/builder", "mcpc-builder-agent"]
     }
   }
 }

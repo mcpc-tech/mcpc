@@ -32,7 +32,7 @@ export const toolDefinitions = [
   {
     name: "compose_mcpc_config",
     description:
-      "Generate an MCPC (agentic) configuration that composes multiple MCP servers into a single agentic tool. Returns the configuration JSON along with ready-to-use installation commands for VS Code, Cursor, Claude Desktop, Codex, and Gemini.",
+      "Generate an MCPC (agentic) configuration that composes multiple MCP servers into a single agentic tool. Returns the configuration JSON along with ready-to-use installation commands for VS Code, Cursor, Claude Code, Codex, and Gemini.",
     inputSchema: {
       type: "object",
       properties: {

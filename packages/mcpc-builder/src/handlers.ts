@@ -118,7 +118,7 @@ code --add-mcp '${mcpServerJson}'
 
 **Note**: Cursor's \`--add-mcp\` command currently has a JSON parsing issue. Please use manual configuration instead (see below).
 
-### Claude Desktop
+### Claude Code
 
 \`\`\`bash
 claude mcp add --transport stdio ${args.serverName}${
