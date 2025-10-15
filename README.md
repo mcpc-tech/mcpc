@@ -1,5 +1,8 @@
 # MCPC
 
+[![JSR](https://jsr.io/badges/@mcpc/core)](https://jsr.io/@mcpc/core)
+[![npm](https://img.shields.io/npm/v/@mcpc-tech/core)](https://www.npmjs.com/package/@mcpc-tech/core)
+
 **Build agentic MCP servers by composing existing MCP tools.**
 
 MCPC is the SDK for building agentic MCP (Model Context Protocol) Servers. You
@@ -30,6 +33,36 @@ can use it to:
   support
 
 ## Quick Start
+
+### Three Ways to Get Started
+
+#### 1. Use the Website (Fastest)
+
+Visit **[mcpc.tech](https://mcpc.tech)** to browse servers from the official MCP
+registry, discover tools, and generate ready-to-use agents.
+
+#### 2. Use the Agent (Interactive)
+
+Let AI help you discover servers and build agents:
+
+**Add to your MCP client:**
+
+```json
+{
+  "mcpServers": {
+    "mcpc-builder-agent": {
+      "command": "npx",
+      "args": ["-y", "@mcpc-tech/builder", "mcpc-builder-agent"]
+    }
+  }
+}
+```
+
+#### 3. Write Code (Full Control)
+
+Use the SDK directly for complete customization. See examples below.
+
+---
 
 ### Installation
 
@@ -134,23 +167,6 @@ await server.connect(transport);
 > [Codex fork tutorial](docs/examples/creating-a-codex-fork.md) for a
 > step-by-step walkthrough.
 
-### Quick Start with CLI
-
-For a faster way to get started, use the CLI to load configuration from a remote
-URL:
-
-```bash
-# Set your GitHub token
-export GITHUB_PERSONAL_ACCESS_TOKEN="ghp_your_token_here"
-
-# Load configuration from URL
-npx -y deno run -A jsr:@mcpc/cli/bin --config-url \
-  "https://raw.githubusercontent.com/mcpc-tech/mcpc/main/packages/cli/examples/configs/codex-fork.json"
-```
-
-See [CLI Usage Guide](docs/quickstart/cli-usage.md) for more configuration
-options.
-
 ## How It Works
 
 Three simple steps:
@@ -167,7 +183,7 @@ Three simple steps:
 ```typescript
 {
   mode: "agentic";
-} // LLM calls tools interactively
+} // LLM calls tools interactively and repeatedly with different actions
 ```
 
 **Sampling Mode** - Autonomous execution in compatible clients
@@ -187,21 +203,6 @@ Three simple steps:
   OpenTelemetry tracing
 - **[Examples](docs/examples/)** - Real-world use cases
 - **[FAQ](docs/faq.md)** - Common questions and answer
-
-## Using with AI Clients
-
-Add your server to Claude Desktop, VS Code, or any MCP-compatible client:
-
-```json
-{
-  "mcpServers": {
-    "my-agent": {
-      "command": "npx",
-      "args": ["tsx", "my-server.ts"]
-    }
-  }
-}
-```
 
 ## Examples
 
