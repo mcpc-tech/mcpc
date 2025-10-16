@@ -55,6 +55,23 @@ export interface ServerDetails extends MCPServer {
       isRequired?: boolean;
       isSecret?: boolean;
       default?: string;
+      format?: string;
+    }>;
+    packageArguments?: Array<{
+      type: "positional" | "named";
+      name?: string;
+      value?: string;
+      default?: string;
+    }>;
+  };
+  remote?: {
+    type: "sse" | "streamable-http";
+    url: string;
+    headers?: Array<{
+      name: string;
+      value?: string;
+      isRequired?: boolean;
+      isSecret?: boolean;
     }>;
   };
   publishedAt?: string;
@@ -73,15 +90,22 @@ export interface SearchResult {
   hasMore: boolean;
 }
 
+export interface MCPServerConfig {
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  transportType?: "stdio" | "sse" | "streamable-http";
+  url?: string;
+  headers?: Record<string, string>;
+}
+
 export interface MCPConfig {
-  mcpServers: Record<
-    string,
-    {
-      command: string;
-      args: string[];
-      env?: Record<string, string>;
-    }
-  >;
+  mcpServers: Record<string, MCPServerConfig>;
+}
+
+export interface ToolSelection {
+  serverName: string;
+  tools: string[] | "__ALL__"; // specific tools or all tools
 }
 
 export interface MCPCConfig {
@@ -91,14 +115,7 @@ export interface MCPCConfig {
     name: string;
     description: string;
     deps: {
-      mcpServers: Record<
-        string,
-        {
-          command: string;
-          args: string[];
-          env?: Record<string, string>;
-        }
-      >;
+      mcpServers: Record<string, MCPServerConfig>;
     };
     options?: {
       mode?: "agentic" | "agentic_workflow";

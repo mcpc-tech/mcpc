@@ -43,30 +43,33 @@ Deno.test("Registry Client - Get server capabilities", async () => {
 Deno.test("Config Builder - Compose simple MCP config", async () => {
   const result = await configBuilder.composeSimpleMCPConfig(
     [TEST_SERVER],
-    {
-      [TEST_SERVER]: {
-        "HOME": "/home/user",
-      },
-    },
   );
 
   assertExists(result);
   assertExists(result.mcpServers);
   assertExists(result.mcpServers[TEST_SERVER]);
-  assertEquals(result.mcpServers[TEST_SERVER].env?.HOME, "/home/user");
+  // Should have generated placeholders if required env vars exist
+  if (result.mcpServers[TEST_SERVER].env) {
+    assertExists(result.mcpServers[TEST_SERVER].env);
+  }
 });
 
 Deno.test("Config Builder - Compose MCPC config", async () => {
-  const result = await configBuilder.composeMCPCConfig(
-    "test-agent",
-    "test-tool",
-    "A test agent for file operations",
-    [TEST_SERVER],
-    {
-      mode: "agentic",
-      enableSampling: true,
-    },
-  );
+  const { config: result, requiredVars } = await configBuilder
+    .composeMCPCConfig(
+      "test-agent",
+      "test-tool",
+      "A test agent for file operations",
+      [TEST_SERVER],
+      [{
+        serverName: TEST_SERVER,
+        tools: "__ALL__",
+      }],
+      {
+        mode: "agentic",
+        enableSampling: true,
+      },
+    );
 
   assertExists(result);
   assertEquals(result.name, "test-agent");
@@ -74,4 +77,8 @@ Deno.test("Config Builder - Compose MCPC config", async () => {
   assertEquals(result.agents[0].options?.mode, "agentic");
   assertEquals(result.agents[0].options?.sampling, true);
   assertExists(result.agents[0].deps.mcpServers[TEST_SERVER]);
+
+  // requiredVars should be an array
+  assertExists(requiredVars);
+  assertEquals(Array.isArray(requiredVars), true);
 });

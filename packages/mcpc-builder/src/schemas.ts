@@ -23,12 +23,21 @@ export const composeMCPCConfigSchema: z.ZodObject<any> = z.object({
   serverDeps: z.array(z.string()).describe(
     "Array of MCP server names to compose",
   ),
+  toolSelection: z.array(
+    z.object({
+      serverName: z.string(),
+      tools: z.union([
+        z.array(z.string()),
+        z.literal("__ALL__"),
+      ]),
+    }),
+  ).describe(
+    "Tool selection for each server. Use '__ALL__' to include all tools from a server, or specify array of tool names.",
+  ),
   mode: z.enum(["agentic", "agentic_workflow"]).optional().default("agentic")
     .describe("Execution mode for the agent"),
   enableSampling: z.boolean().optional().default(false)
     .describe("Enable autonomous sampling mode"),
-  userConfigs: z.record(z.record(z.string())).optional()
-    .describe("Environment variables for each server"),
 });
 
 export const getEnvVarSchemasSchema: z.ZodObject<any> = z.object({

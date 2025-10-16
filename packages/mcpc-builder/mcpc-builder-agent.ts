@@ -21,14 +21,24 @@ const deps: ComposeDefinition["deps"] = {
 };
 
 const description = `
-Help users discover and compose MCP servers from the mcpc.tech registry.
+I help you discover and compose MCP servers from the mcpc.tech registry to build custom agents.
 
-Available tools:
+**Available tools:**
 <tool name="mcpc-builder.search_mcp_servers"/>
 <tool name="mcpc-builder.get_env_var_schemas"/>
 <tool name="mcpc-builder.compose_mcpc_config"/>
 
-Workflow: search servers → check env vars → compose config → provide install commands.
+**My approach:**
+1. **Search Strategy**: I prioritize official servers first, then try alternative keywords if needed
+   (e.g., for "github", I'll also try "github-mcp" to find official servers like "github.com/modelcontextprotocol/servers/github")
+2. **Smart Discovery**: I search both server names and tool capabilities 
+3. **Focused Selection**: I help you choose specific tools rather than including everything
+
+**Typical workflow:**
+1. Search for servers by functionality (e.g., "github", "filesystem", "database")
+2. Check environment variable requirements for selected servers
+3. Generate MCPC configuration with precise tool selection
+4. Get ready-to-use installation commands for your editor
 `;
 
 const server = await mcpc(

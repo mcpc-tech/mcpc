@@ -3,16 +3,156 @@
  * Generates MCP and MCPC configurations
  */
 
-import type { MCPCConfig, MCPConfig } from "./types.ts";
+import type { MCPCConfig, MCPConfig, MCPServerConfig } from "./types.ts";
 import { registryClient } from "./registry-client.ts";
+
+/**
+ * Build command and args from package information
+ */
+function getCommandAndArgs(pkg: any): { command: string; args: string[] } {
+  const registryType = pkg.registryType;
+  const identifier = pkg.identifier;
+  const version = pkg.version;
+
+  let command: string;
+  let args: string[];
+
+  switch (registryType) {
+    case "npm":
+      command = "npx";
+      args = ["-y", `${identifier}@${version}`];
+      break;
+
+    case "pypi":
+      command = "uvx";
+      args = [`${identifier}==${version}`];
+      break;
+
+    case "nuget":
+      command = "dotnet";
+      args = ["tool", "run", identifier, "--version", version];
+      break;
+
+    default:
+      // Unsupported registry types (like mcpb) should be handled elsewhere
+      // Fallback to npx for unknown types
+      command = "npx";
+      args = ["-y", `${identifier}@${version}`];
+      break;
+  }
+
+  // Add packageArguments according to server.json spec
+  if (pkg.packageArguments) {
+    for (const arg of pkg.packageArguments) {
+      if (arg.type === "positional" && arg.value) {
+        args.push(arg.value);
+      } else if (arg.type === "named") {
+        if (arg.name && arg.default) {
+          args.push(arg.name, arg.default);
+        } else if (arg.name && arg.value) {
+          args.push(arg.name, arg.value);
+        }
+      }
+    }
+  }
+
+  return { command, args };
+}
+
+/**
+ * Build headers for remote servers
+ * Generates placeholders for required headers - users fill them in after config generation
+ */
+function buildRemoteHeaders(remote: any): Record<string, string> {
+  const headers: Record<string, string> = {};
+
+  if (!remote.headers || !Array.isArray(remote.headers)) {
+    return headers;
+  }
+
+  remote.headers.forEach((header: any) => {
+    // Check if we should populate this header
+    const shouldPopulate = header.value || header.isRequired === true ||
+      header.isSecret;
+
+    if (!shouldPopulate) {
+      return; // Skip optional headers without value template
+    }
+
+    if (header.value) {
+      // Use provided value template - user should replace placeholders
+      headers[header.name] = header.value;
+    } else {
+      // Generate placeholder for required or secret headers without value template
+      // Use $VAR_NAME syntax (compatible with CLI runtime replacement)
+      if (header.name.toLowerCase().includes("authorization")) {
+        headers[header.name] = "Bearer $API_KEY";
+      } else {
+        headers[header.name] = "$" + header.name.toUpperCase().replace(
+          /-/g,
+          "_",
+        );
+      }
+    }
+  });
+
+  return headers;
+}
+
+/**
+ * Build MCP server configuration from server details
+ * Generates configuration with placeholders - users fill them in after generation
+ */
+function buildMCPServerConfig(details: any): MCPServerConfig {
+  // Handle remote servers (SSE/HTTP)
+  if (details.remote) {
+    const remote = details.remote;
+    const headers = buildRemoteHeaders(remote);
+
+    return {
+      transportType: remote.type as "sse" | "streamable-http",
+      url: remote.url,
+      ...(Object.keys(headers).length > 0 && { headers }),
+    };
+  }
+
+  // Handle stdio servers
+  if (!details.package) {
+    throw new Error(
+      `Server ${details.name} doesn't have package or remote information`,
+    );
+  }
+
+  const { command, args } = getCommandAndArgs(details.package);
+
+  // Build environment variables with placeholders for required vars
+  const env: Record<string, string> = {};
+
+  // Add placeholders for required environment variables (not default values)
+  if (details.package.environmentVariables) {
+    details.package.environmentVariables.forEach((envVar: any) => {
+      if (envVar.isRequired) {
+        // Generate placeholder for required vars (use $VAR_NAME syntax for CLI compatibility)
+        env[envVar.name] = "$" + envVar.name;
+      }
+    });
+  }
+
+  return {
+    transportType: "stdio",
+    command,
+    args,
+    ...(Object.keys(env).length > 0 && { env }),
+  };
+}
 
 export class ConfigBuilder {
   /**
    * Compose a simple MCP configuration for Claude Desktop
+   * Generates configuration with placeholders ($VAR_NAME) that users fill in manually
    */
   async composeSimpleMCPConfig(
     serverNames: string[],
-    userConfigs?: Record<string, Record<string, string>>,
   ): Promise<MCPConfig> {
     const mcpServers: MCPConfig["mcpServers"] = {};
 
@@ -20,28 +160,7 @@ export class ConfigBuilder {
       try {
         const details = await registryClient.getServerDetails(serverName);
 
-        if (!details.package) {
-          throw new Error(
-            `Server ${serverName} doesn't have package information`,
-          );
-        }
-
-        // Build command from package info
-        const pkg = details.package;
-        let command = "npx";
-        let args = ["-y", pkg.identifier];
-
-        // Adjust for different registry types
-        if (pkg.registryType === "deno") {
-          command = "deno";
-          args = ["run", "--allow-all", `jsr:${pkg.identifier}`];
-        }
-
-        mcpServers[serverName] = {
-          command,
-          args,
-          ...(userConfigs?.[serverName] && { env: userConfigs[serverName] }),
-        };
+        mcpServers[serverName] = buildMCPServerConfig(details);
       } catch (error) {
         console.error(`Error adding server ${serverName}:`, error);
         throw error;
@@ -53,19 +172,40 @@ export class ConfigBuilder {
 
   /**
    * Compose an MCPC (agentic) configuration
+   * Generates configuration with placeholders ($VAR_NAME) that users fill in manually
+   * Returns both the config and a list of required environment variables/headers
    */
   async composeMCPCConfig(
     serverName: string,
     toolName: string,
     description: string,
     serverDeps: string[],
+    toolSelection: Array<{
+      serverName: string;
+      tools: string[] | "__ALL__";
+    }>,
     options?: {
       mode?: "agentic" | "agentic_workflow";
       enableSampling?: boolean;
-      userConfigs?: Record<string, Record<string, string>>;
     },
-  ): Promise<MCPCConfig> {
+  ): Promise<{
+    config: MCPCConfig;
+    requiredVars: Array<{
+      serverName: string;
+      type: "env" | "header";
+      name: string;
+      description?: string;
+      isSecret?: boolean;
+    }>;
+  }> {
     const mcpServers: MCPCConfig["agents"][0]["deps"]["mcpServers"] = {};
+    const requiredVars: Array<{
+      serverName: string;
+      type: "env" | "header";
+      name: string;
+      description?: string;
+      isSecret?: boolean;
+    }> = [];
 
     // Build tool references for the description
     const toolReferences: string[] = [];
@@ -74,37 +214,76 @@ export class ConfigBuilder {
       try {
         const details = await registryClient.getServerDetails(depServerName);
 
-        if (!details.package) {
-          throw new Error(
-            `Server ${depServerName} doesn't have package information`,
-          );
+        mcpServers[depServerName] = buildMCPServerConfig(details);
+
+        // Collect required environment variables
+        if (details.package?.environmentVariables) {
+          details.package.environmentVariables.forEach((envVar: any) => {
+            if (envVar.isRequired) {
+              requiredVars.push({
+                serverName: depServerName,
+                type: "env",
+                name: envVar.name,
+                description: envVar.description,
+                isSecret: envVar.isSecret,
+              });
+            }
+          });
         }
 
-        // Build command from package info
-        const pkg = details.package;
-        let command = "npx";
-        let args = ["-y", pkg.identifier];
-
-        // Adjust for different registry types
-        if (pkg.registryType === "deno") {
-          command = "deno";
-          args = ["run", "--allow-all", `jsr:${pkg.identifier}`];
+        // Collect required headers for remote servers
+        if (details.remote?.headers) {
+          details.remote.headers.forEach((header: any) => {
+            const shouldPopulate = header.value || header.isRequired === true ||
+              header.isSecret;
+            if (shouldPopulate && !header.value) {
+              requiredVars.push({
+                serverName: depServerName,
+                type: "header",
+                name: header.name,
+                description: header.description,
+                isSecret: header.isSecret,
+              });
+            }
+          });
         }
 
-        mcpServers[depServerName] = {
-          command,
-          args,
-          ...(options?.userConfigs?.[depServerName] && {
-            env: options.userConfigs[depServerName],
-          }),
-        };
-
-        // Add tool references from capabilities
+        // Add tool references from capabilities with selection support
         if (details.capabilities?.tools) {
-          for (const tool of details.capabilities.tools) {
-            toolReferences.push(
-              `<tool name="${depServerName}.${tool.name}"/>`,
+          const serverToolSelection = toolSelection.find(
+            (sel) => sel.serverName === depServerName,
+          );
+
+          if (!serverToolSelection) {
+            throw new Error(
+              `Tool selection not specified for server '${depServerName}'. Please provide toolSelection for all servers.`,
             );
+          }
+
+          // User specified tool selection for this server
+          if (serverToolSelection.tools === "__ALL__") {
+            // Include all tools
+            for (const tool of details.capabilities.tools) {
+              toolReferences.push(
+                `<tool name="${depServerName}.${tool.name}"/>`,
+              );
+            }
+          } else {
+            // Include only selected tools
+            for (const toolName of serverToolSelection.tools) {
+              const tool = details.capabilities.tools.find(
+                (t) => t.name === toolName,
+              );
+              if (tool) {
+                toolReferences.push(
+                  `<tool name="${depServerName}.${tool.name}"/>`,
+                );
+              } else {
+                console.warn(
+                  `Tool '${toolName}' not found in server '${depServerName}'`,
+                );
+              }
+            }
           }
         }
       } catch (error) {
@@ -123,19 +302,22 @@ Available tools:
 ${toolReferences.join("\n")}`;
 
     return {
-      name: serverName,
-      version: "1.0.0",
-      agents: [
-        {
-          name: toolName,
-          description: enhancedDescription,
-          deps: { mcpServers },
-          options: {
-            mode: options?.mode || "agentic",
-            ...(options?.enableSampling && { sampling: true }),
+      config: {
+        name: serverName,
+        version: "1.0.0",
+        agents: [
+          {
+            name: toolName,
+            description: enhancedDescription,
+            deps: { mcpServers },
+            options: {
+              mode: options?.mode || "agentic",
+              ...(options?.enableSampling && { sampling: true }),
+            },
           },
-        },
-      ],
+        ],
+      },
+      requiredVars,
     };
   }
 

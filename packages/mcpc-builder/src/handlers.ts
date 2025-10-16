@@ -61,17 +61,18 @@ export async function handleToolCall(request: CallToolRequest): Promise<any> {
 
       case "compose_mcpc_config": {
         const args = composeMCPCConfigSchema.parse(request.params.arguments);
-        const result = await configBuilder.composeMCPCConfig(
-          args.serverName,
-          args.toolName,
-          args.description,
-          args.serverDeps,
-          {
-            mode: args.mode,
-            enableSampling: args.enableSampling,
-            userConfigs: args.userConfigs,
-          },
-        );
+        const { config: result, requiredVars } = await configBuilder
+          .composeMCPCConfig(
+            args.serverName,
+            args.toolName,
+            args.description,
+            args.serverDeps,
+            args.toolSelection,
+            {
+              mode: args.mode,
+              enableSampling: args.enableSampling,
+            },
+          );
 
         // Generate file paths using absolute path
         const homeDir = process.env.HOME || process.env.USERPROFILE || "~";
@@ -83,7 +84,7 @@ export async function handleToolCall(request: CallToolRequest): Promise<any> {
         const mcpServerDef = {
           name: args.serverName,
           command: "npx",
-          args: ["-y", "@mcpc-tech/cli", "--config-file", absolutePath],
+          args: ["-y", "@mcpc-tech/cli@latest", "--config-file", absolutePath],
         };
         const mcpServerJson = JSON.stringify(mcpServerDef);
 
@@ -91,21 +92,65 @@ export async function handleToolCall(request: CallToolRequest): Promise<any> {
         mkdirSync(mcpcDir, { recursive: true });
         writeFileSync(absolutePath, JSON.stringify(result, null, 2));
 
-        // Build environment variable flags
-        const envFlags =
-          args.userConfigs && Object.keys(args.userConfigs).length > 0
-            ? Object.entries(args.userConfigs).flatMap(([_server, vars]) =>
-              Object.entries(vars as Record<string, string>).map(([key, val]) =>
-                `--env ${key}=${val}`
-              )
-            ).join(" ")
-            : "";
+        // Build environment variables section
+        let envVarsSection = "";
+        if (requiredVars.length > 0) {
+          // Group by server
+          const varsByServer = new Map<string, typeof requiredVars>();
+          requiredVars.forEach((v) => {
+            if (!varsByServer.has(v.serverName)) {
+              varsByServer.set(v.serverName, []);
+            }
+            varsByServer.get(v.serverName)!.push(v);
+          });
+
+          envVarsSection = `## ⚠️ Required Configuration
+
+The following variables need to be configured in the generated config file (\`${absolutePath}\`):
+
+`;
+          varsByServer.forEach((vars, serverName) => {
+            envVarsSection += `### ${serverName}\n\n`;
+            vars.forEach((v) => {
+              const typeLabel = v.type === "env"
+                ? "Environment Variable"
+                : "Header";
+              const secretLabel = v.isSecret ? " 🔒 (Secret)" : "";
+              envVarsSection +=
+                `- **\`${v.name}\`** (${typeLabel})${secretLabel}\n`;
+              if (v.description) {
+                envVarsSection += `  ${v.description}\n`;
+              }
+              envVarsSection +=
+                `  Current placeholder: \`$${v.name}\` - Replace with actual value\n\n`;
+            });
+          });
+
+          envVarsSection += `\n**Steps to configure:**
+1. Open \`${absolutePath}\`
+2. Find all \`$VARIABLE_NAME\` placeholders
+3. Replace them with actual values
+4. Save the file
+
+**Example:**
+\`\`\`json
+"env": {
+  "GITHUB_TOKEN": "$GITHUB_TOKEN"  // ← Replace $GITHUB_TOKEN with your actual token
+}
+\`\`\`
+
+`;
+        } else {
+          envVarsSection =
+            "## ✅ No Configuration Required\n\nThis server composition doesn't require any environment variables or API keys.\n\n";
+        }
 
         // Build the response with command and installation instructions
         const response = `# MCPC Configuration Generated
 
 ✅ Configuration saved to \`${absolutePath}\`
 
+${envVarsSection}
 ## Install in Your Editor
 
 ### VS Code
@@ -121,48 +166,26 @@ code --add-mcp '${mcpServerJson}'
 ### Claude Code
 
 \`\`\`bash
-claude mcp add --transport stdio ${args.serverName}${
-          envFlags ? " " + envFlags : ""
-        } -- npx -y @mcpc-tech/cli --config-file ${absolutePath}
+claude mcp add --transport stdio ${args.serverName} -- npx -y @mcpc-tech/cli@latest --config-file ${absolutePath}
 \`\`\`
 
 ### Codex
 
 \`\`\`bash
-codex mcp add ${args.serverName}${
-          envFlags ? " " + envFlags : ""
-        } -- npx -y @mcpc-tech/cli --config-file ${absolutePath}
+codex mcp add ${args.serverName} -- npx -y @mcpc-tech/cli@latest --config-file ${absolutePath}
 \`\`\`
 
 ### Gemini
 
 \`\`\`bash
-gemini mcp add ${args.serverName} npx -y @mcpc-tech/cli --config-file ${absolutePath}
+gemini mcp add ${args.serverName} npx -y @mcpc-tech/cli@latest --config-file ${absolutePath}
 \`\`\`
 
 ## Alternative: JSON File Configuration
 
 \`\`\`json
-${JSON.stringify(mcpServerJson, null, 2)}
+${JSON.stringify(mcpServerDef, null, 2)}
 \`\`\`
-
-## Environment Variables
-
-${
-          args.userConfigs && Object.keys(args.userConfigs).length > 0
-            ? `Make sure to set these environment variables:\n\n${
-              Object.entries(args.userConfigs).map(([server, vars]) =>
-                `**${server}**:\n${
-                  Object.entries(vars as Record<string, string>).map(([
-                    key,
-                    val,
-                  ]) => `- \`${key}=${val}\``)
-                    .join("\n")
-                }`
-              ).join("\n\n")
-            }`
-            : "No environment variables required."
-        }
 `;
 
         return {
