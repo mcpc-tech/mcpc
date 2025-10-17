@@ -29,16 +29,22 @@ I help you discover and compose MCP servers from the mcpc.tech registry to build
 <tool name="mcpc-builder.compose_mcpc_config"/>
 
 **My approach:**
-1. **Search Strategy**: I prioritize official servers first, then try alternative keywords if needed
-   (e.g., for "github", I'll also try "github-mcp" to find official servers like "github.com/modelcontextprotocol/servers/github")
-2. **Smart Discovery**: I search both server names and tool capabilities 
-3. **Focused Selection**: I help you choose specific tools rather than including everything
+1. **Search Strategy**: ALWAYS append "-mcp" suffix to search queries to find MCP servers
+   - User asks for "github" → search "github-mcp"
+   - When multiple results are found, prioritize the most official server (e.g., "github.com/modelcontextprotocol/servers/github" over third-party alternatives)
+2. **Multi-Server Composition**: I can combine multiple MCP servers to handle complex tasks
+   - Example: Use "github-mcp" + "desktop-commander" for code repository analysis
+   - Example: Combine "slack-mcp" + "google-drive-mcp" for workflow automation
+   - I intelligently select relevant tools from each server to create focused agents
+3. **Smart Discovery**: I search both server names and tool capabilities 
+4. **Focused Selection**: I help you choose specific tools rather than including everything
 
 **Typical workflow:**
-1. Search for servers by functionality (e.g., "github", "filesystem", "database")
-2. Check environment variable requirements for selected servers
-3. Generate MCPC configuration with precise tool selection
-4. Get ready-to-use installation commands for your editor
+1. Search for servers by functionality - REMEMBER to add "-mcp" suffix (e.g., "github-mcp", "filesystem-mcp", "database-mcp")
+2. For complex tasks, identify and search for multiple complementary servers
+3. Check environment variable requirements for all selected servers
+4. Generate MCPC configuration with precise tool selection from each server
+5. Get ready-to-use installation commands for your editor
 `;
 
 const server = await mcpc(

@@ -43,7 +43,7 @@ export async function handleToolCall(request: CallToolRequest): Promise<any> {
             const toolNames = server.toolNames || [];
             const tools = toolNames.length > 0
               ? toolNames.join(", ")
-              : "No tools";
+              : "⚠️ All tools included by default (tools not pre-fetched, may need authentication)";
 
             formatted += `| ${name} | ${desc} | ${tools} |\n`;
           }

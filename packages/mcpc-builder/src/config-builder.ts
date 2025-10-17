@@ -33,6 +33,90 @@ function getCommandAndArgs(pkg: any): { command: string; args: string[] } {
       args = ["tool", "run", identifier, "--version", version];
       break;
 
+    case "oci":
+      // OCI containers (Docker)
+      command = pkg.runtimeHint || "docker";
+      args = [];
+
+      // Add runtime arguments if provided
+      if (pkg.runtimeArguments && pkg.runtimeArguments.length > 0) {
+        pkg.runtimeArguments.forEach((runtimeArg: any) => {
+          // Handle positional runtime arguments (e.g., "run" command)
+          if (runtimeArg.type === "positional") {
+            if (runtimeArg.value) {
+              // Skip special hints that will be handled separately
+              if (
+                runtimeArg.valueHint === "env_var_name" ||
+                runtimeArg.valueHint === "image_name"
+              ) {
+                return;
+              }
+              args.push(runtimeArg.value);
+            }
+          } // Handle named runtime arguments (flags)
+          else if (runtimeArg.type === "named") {
+            // Skip -e flag, will be added with environment variables
+            if (runtimeArg.name === "-e") {
+              return;
+            }
+
+            args.push(runtimeArg.name);
+
+            // Handle value with variables (e.g., --mount with {source_path})
+            if (runtimeArg.value) {
+              let value = runtimeArg.value;
+
+              // Replace variables with placeholders
+              if (runtimeArg.variables) {
+                Object.keys(runtimeArg.variables).forEach((varName) => {
+                  const varConfig = runtimeArg.variables[varName];
+                  const placeholder = varConfig.default ||
+                    `$${varName.toUpperCase()}`;
+                  value = value.replace(`{${varName}}`, placeholder);
+                });
+              }
+
+              args.push(value);
+            }
+          }
+        });
+      } else {
+        // Default runtime arguments if none provided
+        args.push("run", "-i", "--rm");
+      }
+
+      // Add environment variables with -e flags
+      if (pkg.environmentVariables && pkg.environmentVariables.length > 0) {
+        pkg.environmentVariables.forEach((envVar: any) => {
+          if (envVar.isRequired) {
+            // Add -e flag with just the variable name (value comes from env field)
+            args.push("-e", envVar.name);
+          }
+        });
+      }
+
+      // Add the container image
+      args.push(identifier);
+
+      // Add package arguments (commands to run inside container)
+      if (pkg.packageArguments && pkg.packageArguments.length > 0) {
+        pkg.packageArguments.forEach((pkgArg: any) => {
+          if (pkgArg.type === "positional" && pkgArg.value) {
+            args.push(pkgArg.value);
+          } else if (pkgArg.type === "named") {
+            if (pkgArg.name) {
+              args.push(pkgArg.name);
+              if (pkgArg.default) {
+                args.push(pkgArg.default);
+              } else if (pkgArg.value) {
+                args.push(pkgArg.value);
+              }
+            }
+          }
+        });
+      }
+      break;
+
     default:
       // Unsupported registry types (like mcpb) should be handled elsewhere
       // Fallback to npx for unknown types
@@ -41,8 +125,8 @@ function getCommandAndArgs(pkg: any): { command: string; args: string[] } {
       break;
   }
 
-  // Add packageArguments according to server.json spec
-  if (pkg.packageArguments) {
+  // Add packageArguments for non-OCI types (OCI handles them separately above)
+  if (registryType !== "oci" && pkg.packageArguments) {
     for (const arg of pkg.packageArguments) {
       if (arg.type === "positional" && arg.value) {
         args.push(arg.value);
@@ -263,11 +347,10 @@ export class ConfigBuilder {
           // User specified tool selection for this server
           if (serverToolSelection.tools === "__ALL__") {
             // Include all tools
-            for (const tool of details.capabilities.tools) {
-              toolReferences.push(
-                `<tool name="${depServerName}.${tool.name}"/>`,
-              );
-            }
+
+            toolReferences.push(
+              `<tool name="${depServerName}.__ALL__"/>`,
+            );
           } else {
             // Include only selected tools
             for (const toolName of serverToolSelection.tools) {
