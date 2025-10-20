@@ -12,6 +12,7 @@
     "./packages/core",
     "./packages/cli",
     "./packages/mcp-sampling-ai-provider",
+    "./packages/acp-ai-provider",
     "./packages/mcpc-builder"
   ],
   "imports": {

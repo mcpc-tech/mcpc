@@ -15,6 +15,9 @@
     "jsr:@std/net@^1.0.4": "1.0.5",
     "jsr:@std/path@^1.1.1": "1.1.2",
     "jsr:@std/streams@^1.0.10": "1.0.11",
+    "npm:@agentclientprotocol/sdk@*": "0.4.8",
+    "npm:@agentclientprotocol/sdk@0.4.8": "0.4.8",
+    "npm:@agentclientprotocol/sdk@~0.4.8": "0.4.8",
     "npm:@ai-sdk/provider-utils@^2.2.8": "2.2.8_zod@3.25.76",
     "npm:@ai-sdk/provider@2": "2.0.0",
     "npm:@hono/zod-openapi@~0.19.2": "0.19.10_hono@4.9.10_zod@3.25.76",
@@ -99,6 +102,12 @@
     }
   },
   "npm": {
+    "@agentclientprotocol/sdk@0.4.8": {
+      "integrity": "sha512-2hN2CMMWtYVHrUeuapwLu66S2wwOPhq+bLqAryl1cQjKjL5Mzkfq+oxFYFvGdPvBoKpJSxM2pIIQiUH8tGZ3rg==",
+      "dependencies": [
+        "zod"
+      ]
+    },
     "@ai-sdk/gateway@1.0.33_zod@3.25.76": {
       "integrity": "sha512-v9i3GPEo4t3fGcSkQkc07xM6KJN75VUv7C1Mqmmsu2xD8lQwnQfsrgAXyNuWe20yGY0eHuheSPDZhiqsGKtH1g==",
       "dependencies": [
@@ -1300,6 +1309,18 @@
       "npm:json-schema-traverse@1"
     ],
     "members": {
+      "packages/acp-ai-provider": {
+        "dependencies": [
+          "jsr:@mcpc/core@0.2",
+          "jsr:@std/assert@1",
+          "npm:@agentclientprotocol/sdk@~0.4.8",
+          "npm:@ai-sdk/provider-utils@^2.2.8",
+          "npm:@ai-sdk/provider@2",
+          "npm:@modelcontextprotocol/sdk@^1.8.0",
+          "npm:ai@^5.0.60",
+          "npm:zod@^3.24.2"
+        ]
+      },
       "packages/cli": {
         "dependencies": [
           "jsr:@mcpc/core@~0.2.8",
