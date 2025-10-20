@@ -355,7 +355,10 @@ export class ACPLanguageModel implements LanguageModelV2 {
     const stream = new ReadableStream<LanguageModelV2StreamPart>({
       async start(controller) {
         try {
-          let chunkId = 0;
+          // Track text block index for unique IDs
+          let textBlockIndex = 0;
+          // Current active text block ID
+          let currentTextId: string | null = null;
           const toolCallsMap = new Map<
             string,
             { index: number; name: string }
@@ -371,15 +374,26 @@ export class ACPLanguageModel implements LanguageModelV2 {
                     if (update.content.type === "text") {
                       const textChunk = update.content.text;
 
+                      if (!currentTextId) {
+                        currentTextId = `text-${textBlockIndex++}`;
+                        controller.enqueue({
+                          type: "text-start",
+                          id: currentTextId,
+                        });
+                      }
                       controller.enqueue({
                         type: "text-delta",
-                        id: String(chunkId++),
+                        id: currentTextId,
                         delta: textChunk,
                       });
                     }
                     break;
 
                   case "tool_call": {
+                    // Close current text block when tool call starts
+                    if (currentTextId) {
+                      currentTextId = null;
+                    }
                     const toolCallId = update.toolCallId;
                     const toolName = update.title || "unknown-tool";
 
