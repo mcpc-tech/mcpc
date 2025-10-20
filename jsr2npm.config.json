@@ -40,6 +40,13 @@
       "packageJson": {
         "name": "@mcpc-tech/builder"
       }
+    },
+    {
+      "name": "@mcpc/acp-ai-provider",
+      "version": "latest",
+      "packageJson": {
+        "name": "@mcpc-tech/acp-ai-provider"
+      }
     }
   ]
 }
