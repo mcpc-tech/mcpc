@@ -2,9 +2,9 @@
  * ACP Provider Configuration and Factory
  */
 
-import type { LanguageModelV2 } from "@ai-sdk/provider";
 import { ACPLanguageModel } from "./language-model.ts";
 import type { ACPProviderSettings } from "./types.ts";
+import type { tool } from "ai";
 
 /**
  * ACP Provider - implements AI SDK provider pattern
@@ -14,6 +14,7 @@ import type { ACPProviderSettings } from "./types.ts";
  */
 export class ACPProvider {
   private config: ACPProviderSettings;
+  private model: ACPLanguageModel | null = null;
 
   constructor(config: ACPProviderSettings) {
     this.config = config;
@@ -24,17 +25,25 @@ export class ACPProvider {
    *
    * @returns A LanguageModelV2 instance
    */
-  languageModel(): LanguageModelV2 {
+  languageModel(): ACPLanguageModel {
     const modelId = "acp-agent";
-
-    return new ACPLanguageModel(modelId, this.config);
+    const model = new ACPLanguageModel(modelId, this.config);
+    this.model = model;
+    return model;
   }
 
   /**
    * Shorthand for creating a language model
    */
-  call(): LanguageModelV2 {
+  call(): ACPLanguageModel {
     return this.languageModel();
+  }
+
+  /**
+   * Provider tools
+   */
+  get tools(): Record<string, ReturnType<typeof tool>> | undefined {
+    return this.model?.tools;
   }
 }
 

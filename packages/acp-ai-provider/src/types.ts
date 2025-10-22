@@ -41,4 +41,11 @@ export interface ACPProviderSettings {
    * Initialize configuration (ACP protocol) - Optional
    */
   initialize?: ACPInitializeConfig;
+
+  /**
+   * Authentication method ID to use (if required by the ACP agent)
+   *
+   * Set to undefined to use the first available method, and you can see a warning of all available methods.
+   */
+  authMethodId?: string;
 }

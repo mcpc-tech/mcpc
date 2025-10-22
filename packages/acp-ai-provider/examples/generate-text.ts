@@ -29,16 +29,17 @@ async function main() {
     },
   });
 
+  const prompt = process.env.PROMPT ??
+    "What is the Agent Client Protocol (ACP)? Explain in 2-3 sentences.";
+
   // Generate text using Gemini via ACP
-  console.log("Asking Gemini: What is the Agent Client Protocol (ACP)?\n");
+  console.log({ prompt });
 
   const result = await generateText({
     model: provider.languageModel(),
-    prompt:
-      "What is the Agent Client Protocol (ACP)? Explain in 2-3 sentences.",
+    prompt,
   });
 
-  console.log("Response:", result.text);
   console.log("\nFinish reason:", result.finishReason);
   console.log("Usage:", result.usage);
 
