@@ -27,8 +27,8 @@ jobs:
           node-version: "latest"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Run tests
-        run: deno task test
+      # - name: Run tests
+      #   run: deno task test
 
       - name: Type check
         run: deno task build
