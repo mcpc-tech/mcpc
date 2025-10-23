@@ -132,5 +132,4 @@ Deno.test("ACPLanguageModel - model properties are consistent", () => {
   assertEquals(model.modelId, "my-model-123");
   assertEquals(model.provider, "acp");
   assertEquals(model.specificationVersion, "v2");
-  assertEquals(model.defaultObjectGenerationMode, undefined);
 });

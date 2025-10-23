@@ -29,6 +29,12 @@ import type { ACPProviderSettings } from "./types.ts";
 import { jsonSchema, tool } from "ai";
 
 /**
+ * The name of the provider tool used to represent ACP agent tool calls.
+ */
+export const ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME =
+  "acp.acp_provider_agent_dynamic_tool";
+
+/**
  * Implements the ACP client-side logic for handling file operations and permissions.
  * This basic implementation throws errors for file ops and auto-allows permissions.
  */
@@ -127,11 +133,14 @@ export class ACPLanguageModel implements LanguageModelV2 {
   /**
    * Parses a 'tool_call' notification update into a structured object.
    */
-  private parseToolCall(update: any): {
+  private parseToolCall(update: SessionNotification["update"]): {
     toolCallId: string;
     toolName: string;
     toolInput: unknown;
   } {
+    if (update.sessionUpdate !== "tool_call") {
+      throw new Error("Invalid update type for parseToolCall");
+    }
     const toolCallId = update.toolCallId;
     const toolName = update.title || update.toolCallId;
     let toolInput: unknown = {};
@@ -307,6 +316,8 @@ export class ACPLanguageModel implements LanguageModelV2 {
   private cleanup(): void {
     if (this.agentProcess) {
       this.agentProcess.kill();
+      this.agentProcess!.stdin?.end();
+      this.agentProcess!.stdout?.destroy();
       this.agentProcess = null;
     }
     this.connection = null;
@@ -338,22 +349,22 @@ export class ACPLanguageModel implements LanguageModelV2 {
             id: this.currentThinkingId,
           });
         }
-
         controller.enqueue({
           type: "reasoning-delta",
           id: this.currentThinkingId,
           delta: update.content.type === "text" ? update.content.text : "",
         });
-
-        controller.enqueue({
-          type: "reasoning-end",
-          id: this.currentThinkingId,
-        });
-        this.currentThinkingId = null;
-
         break;
 
       case "agent_message_chunk":
+        if (this.currentThinkingId) {
+          controller.enqueue({
+            type: "reasoning-end",
+            id: this.currentThinkingId,
+          });
+          this.currentThinkingId = null;
+        }
+
         if (update.content.type === "text") {
           const textChunk = update.content.text;
           if (!this.currentTextId) {
@@ -368,20 +379,23 @@ export class ACPLanguageModel implements LanguageModelV2 {
             id: this.currentTextId,
             delta: textChunk,
           });
-          controller.enqueue({
-            type: "text-end",
-            id: this.currentTextId,
-          });
-          this.currentTextId = null;
         }
         break;
 
       case "tool_call": {
         // Close current text/thinking block when tool call starts
         if (this.currentTextId) {
+          controller.enqueue({
+            type: "text-end",
+            id: this.currentTextId,
+          });
           this.currentTextId = null;
         }
         if (this.currentThinkingId) {
+          controller.enqueue({
+            type: "reasoning-end",
+            id: this.currentThinkingId,
+          });
           this.currentThinkingId = null;
         }
 
@@ -392,7 +406,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         controller.enqueue({
           type: "tool-call",
           toolCallId,
-          toolName: "acp.acp_agent_dynamic_tool",
+          toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
           input: JSON.stringify({
             toolCallId,
             toolName,
@@ -411,12 +425,9 @@ export class ACPLanguageModel implements LanguageModelV2 {
         const { toolCallId, toolName, toolResult, isError, status } = this
           .parseToolResult(update);
 
-        if (
-          status === undefined ||
-          status === "in_progress" ||
-          status === "pending"
-        ) {
-          // Ignore intermediate updates
+        if (!["succeeded", "failed"].includes(status)) {
+          // Ignore intermediate updates, ai sdk currently doesn't support streaming tool results,
+          // see -> https://github.com/vercel/ai/issues/9306
           break;
         }
 
@@ -433,7 +444,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
           controller.enqueue({
             type: "tool-call",
             toolCallId,
-            toolName: "acp.acp_agent_dynamic_tool",
+            toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
             input: JSON.stringify({ toolCallId, toolName }), // Note: input args are missing
           });
         }
@@ -442,7 +453,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         controller.enqueue({
           type: "tool-result",
           toolCallId,
-          toolName: "acp.acp_agent_dynamic_tool",
+          toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
           result: toolResult,
           ...(isError && { isError: true }),
         });
@@ -490,7 +501,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
               break;
 
             case "tool-call": {
-              // handleStreamNotification maps the real tool to 'acp.acp_agent_dynamic_tool'
+              // handleStreamNotification maps the real tool to ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME
               // and puts the real info in the 'input' JSON string.
               const inputData = JSON.parse(part.input as string);
               toolCalls.push({
@@ -642,7 +653,6 @@ export class ACPLanguageModel implements LanguageModelV2 {
           });
 
           controller.close();
-
           cleanup();
         } catch (error) {
           cleanup();
@@ -661,24 +671,18 @@ export class ACPLanguageModel implements LanguageModelV2 {
   }
 
   /**
-   * Defines the dynamic tool used to bridge ACP's agent-side tool calls
+   * Defines the provider agent dynamic tool used to bridge ACP's agent-side tool calls
    * with the AI SDK's tool execution flow.
    */
   get tools(): Record<string, ReturnType<typeof tool>> {
     return {
-      "acp.acp_agent_dynamic_tool": tool({
-        name: "acp.acp_agent_dynamic_tool",
+      [ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME]: tool({
+        name: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
         type: "provider-defined",
-        description:
-          "A dynamic tool that represents an ACP agent tool call. This tool is called by the provider when an agent reports a tool call, and it resolves when the agent reports the tool's result.",
         inputSchema: jsonSchema({}),
-        id: "acp.acp_agent_dynamic_tool",
+        id: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
         args: jsonSchema({}),
       }),
     };
-  }
-
-  get defaultObjectGenerationMode(): undefined {
-    return undefined;
   }
 }
