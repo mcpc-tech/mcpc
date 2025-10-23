@@ -38,7 +38,7 @@ async function main() {
   console.log({ prompt });
 
   const model = provider.languageModel();
-  const { textStream, toolCalls } = streamText({
+  const { toolCalls } = streamText({
     model,
     prompt,
     tools: model.tools,
@@ -51,10 +51,14 @@ async function main() {
         case "tool-call":
           console.log(
             `\n[Tool Call Initiated: ${chunk.toolCallId} - ${chunk.toolName}]`,
+            JSON.stringify(chunk.input, null, 2),
           );
           break;
         case "tool-result":
-          console.log(`\n[Tool Call Result Received: ${chunk.toolCallId}]`);
+          console.log(
+            `\n[Tool Call Result Received: ${chunk.toolCallId}]`,
+            JSON.stringify(chunk.output, null, 2),
+          );
           break;
         case "reasoning-delta":
           process.stdout.write(`\n[Reasoning]: ${chunk.text}`);
@@ -62,10 +66,6 @@ async function main() {
       }
     },
   });
-
-  for await (const chunk of textStream) {
-    process.stdout.write(chunk);
-  }
 
   console.log("\n" + "─".repeat(50));
   console.log("\n✅ Streaming completed!");

@@ -331,7 +331,9 @@ export class ACPLanguageModel implements LanguageModelV2 {
                     reject(
                       new Error(
                         `Tool call ${update.toolCallId} failed: ${
-                          JSON.stringify(toolResult)
+                          JSON.stringify(
+                            toolResult,
+                          )
                         }`,
                       ),
                     );
@@ -415,7 +417,6 @@ export class ACPLanguageModel implements LanguageModelV2 {
           let textBlockIndex = 0;
           // Current active text block ID
           let currentTextId: string | null = null;
-          let toolCallIndex: number = -1;
           const toolCallsMap = new Map<
             string,
             { index: number; name: string }
@@ -425,7 +426,6 @@ export class ACPLanguageModel implements LanguageModelV2 {
             client.setSessionUpdateHandler(
               (notification: SessionNotification) => {
                 const update = notification.update;
-
                 switch (update.sessionUpdate) {
                   case "agent_thought_chunk":
                     // Optional: Handle thought chunks if needed
@@ -451,13 +451,12 @@ export class ACPLanguageModel implements LanguageModelV2 {
                     break;
 
                   case "tool_call": {
-                    toolCallIndex += 1;
                     // Close current text block when tool call starts
                     if (currentTextId) {
                       currentTextId = null;
                     }
-                    const toolCallId = update.toolCallId + toolCallIndex;
-                    const toolName = update.title || "unknown-tool";
+                    const toolCallId = update.toolCallId;
+                    const toolName = update.title || update.toolCallId;
 
                     let _toolInput: unknown = {};
                     if (update.rawInput) {
@@ -488,18 +487,26 @@ export class ACPLanguageModel implements LanguageModelV2 {
                   }
 
                   case "tool_call_update": {
-                    const toolCallId = update.toolCallId + toolCallIndex;
+                    if (
+                      update.status === undefined ||
+                      update.status === "in_progress" ||
+                      update.status === "pending"
+                    ) {
+                      break;
+                    }
+
+                    const toolCallId = update.toolCallId;
                     let toolInfo = toolCallsMap.get(toolCallId);
 
                     if (!toolInfo) {
-                      const toolCallId = update.toolCallId + toolCallIndex;
-                      const toolName = update.title || "unknown-tool";
+                      const toolCallId = update.toolCallId;
+                      const toolName = update.title || update.toolCallId;
+
                       toolInfo = {
                         index: toolCallsMap.size,
                         name: toolName,
                       };
                       toolCallsMap.set(toolCallId, toolInfo);
-                      toolCallIndex += 1;
                       controller.enqueue({
                         type: "tool-call",
                         toolCallId,
@@ -518,7 +525,6 @@ export class ACPLanguageModel implements LanguageModelV2 {
                       }
                     }
 
-                    toolCallsMap.delete(toolCallId);
                     controller.enqueue({
                       type: "tool-result",
                       toolCallId,
@@ -526,7 +532,6 @@ export class ACPLanguageModel implements LanguageModelV2 {
                       result: _toolResult,
                       ...(update.status === "failed" && { isError: true }),
                     });
-                    toolCallIndex += 1;
 
                     break;
                   }
