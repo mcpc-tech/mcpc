@@ -19,6 +19,7 @@ import {
   type RequestPermissionRequest,
   type RequestPermissionResponse,
   type SessionNotification,
+  type ToolCallStatus,
   type WriteTextFileRequest,
   type WriteTextFileResponse,
 } from "@agentclientprotocol/sdk";
@@ -158,13 +159,16 @@ export class ACPLanguageModel implements LanguageModelV2 {
   /**
    * Parses a 'tool_call_update' notification update into a structured object.
    */
-  private parseToolResult(update: any): {
+  private parseToolResult(update: SessionNotification["update"]): {
     toolCallId: string;
     toolName: string;
     toolResult: unknown;
     isError: boolean;
-    status: string;
+    status: ToolCallStatus;
   } {
+    if (update.sessionUpdate !== "tool_call_update") {
+      throw new Error("Invalid update type for parseToolResult");
+    }
     const toolCallId = update.toolCallId;
     const toolName = update.title || update.toolCallId;
     let toolResult: unknown = null;
@@ -182,7 +186,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
       toolName,
       toolResult,
       isError,
-      status: update.status,
+      status: update.status!,
     };
   }
 
@@ -425,7 +429,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         const { toolCallId, toolName, toolResult, isError, status } = this
           .parseToolResult(update);
 
-        if (!["succeeded", "failed"].includes(status)) {
+        if (!["completed", "failed"].includes(status)) {
           // Ignore intermediate updates, ai sdk currently doesn't support streaming tool results,
           // see -> https://github.com/vercel/ai/issues/9306
           break;
