@@ -37,6 +37,15 @@ export class RegistryClient {
         for (const server of serverResults) {
           mergedMap.set(server.name, server);
         }
+      } else {
+        // Ensure the response body is closed to avoid resource leaks detected by Deno tests
+        try {
+          if (serverResponse.body) {
+            await serverResponse.body.cancel();
+          }
+        } catch (_) {
+          // ignore cancel errors
+        }
       }
 
       // Search by tool name
@@ -52,6 +61,15 @@ export class RegistryClient {
           if (!mergedMap.has(server.name)) {
             mergedMap.set(server.name, server);
           }
+        }
+      } else {
+        // Ensure the response body is closed to avoid resource leaks detected by Deno tests
+        try {
+          if (toolResponse.body) {
+            await toolResponse.body.cancel();
+          }
+        } catch (_) {
+          // ignore cancel errors
         }
       }
 
@@ -82,6 +100,15 @@ export class RegistryClient {
 
       const response = await fetch(url.toString());
       if (!response.ok) {
+        // Close body stream before throwing to avoid leaked response bodies
+        try {
+          if (response.body) {
+            await response.body.cancel();
+          }
+        } catch (_) {
+          // ignore cancel errors
+        }
+
         if (response.status === 404) {
           throw new Error(`Server not found: ${serverName}`);
         }
