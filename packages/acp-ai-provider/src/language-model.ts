@@ -266,17 +266,24 @@ export class ACPLanguageModel implements LanguageModelV2 {
     };
 
     const initResult = await this.connection.initialize(initConfig);
+    const validAuthMethods = initResult.authMethods?.find(
+      (a) => a.id === this.config.authMethodId,
+    )?.id;
 
     if (initResult.authMethods?.length ?? 0 > 0) {
-      if (!this.config.authMethodId) {
+      if (!this.config.authMethodId || !validAuthMethods) {
         console.log(
-          "⚠️ Warning: No authMethodId specified in config, using first available method. If this is not desired, please set one of the authMethodId in the ACPProviderSettings.",
+          "⚠️ Warning: No authMethodId specified in config, skipping authentication step. If this is not desired, please set one of the authMethodId in the ACPProviderSettings.",
           JSON.stringify(initResult.authMethods, null, 2),
         );
       }
-      await this.connection.authenticate({
-        methodId: this.config.authMethodId ?? initResult.authMethods?.[0].id!,
-      });
+
+      // Some agents never implement authentication, so we skip this unless user specifies it.
+      if (this.config.authMethodId && validAuthMethods) {
+        await this.connection.authenticate({
+          methodId: this.config.authMethodId ?? initResult.authMethods?.[0].id!,
+        });
+      }
     } else {
       console.log(
         `⚠️ No authentication methods required by the ACP agent, skipping authentication step.`,
