@@ -27,7 +27,6 @@ import process from "node:process";
 import { Readable, Writable } from "node:stream";
 import type { ACPProviderSettings } from "./types.ts";
 import { jsonSchema, tool } from "ai";
-import type { ReasoningOutput } from "ai";
 
 /**
  * Implements the ACP client-side logic for handling file operations and permissions.
@@ -102,15 +101,11 @@ export class ACPLanguageModel implements LanguageModelV2 {
   private sessionId: string | null = null;
   private client: ACPClient | null = null;
 
-  // Map of pending toolCallId => [resolve, reject] for the promise returned by the dynamic tool
-  private toolCallbacks: Record<
-    string,
-    [(value?: unknown) => void, (reason?: any) => void]
-  > = {};
-
   // State for managing stream conversion
   private textBlockIndex = 0;
+  private thinkBlockIndex = 0;
   private currentTextId: string | null = null;
+  private currentThinkingId: string | null = null;
   private toolCallsMap = new Map<string, { index: number; name: string }>();
 
   constructor(modelId: string, config: ACPProviderSettings) {
@@ -123,7 +118,9 @@ export class ACPLanguageModel implements LanguageModelV2 {
    */
   private resetStreamState(): void {
     this.textBlockIndex = 0;
+    this.thinkBlockIndex = 0; // Added this line to match state
     this.currentTextId = null;
+    this.currentThinkingId = null; // Added this line to match state
     this.toolCallsMap.clear();
   }
 
@@ -201,7 +198,11 @@ export class ACPLanguageModel implements LanguageModelV2 {
       // Note: ACP doesn't have a "tool" role. Tool results are handled
       // by the agent itself, not by sending a message.
 
-      if (msg.role === "system" || msg.role === "user" || msg.role === "assistant") {
+      if (
+        msg.role === "system" ||
+        msg.role === "user" ||
+        msg.role === "assistant"
+      ) {
         if (Array.isArray(msg.content)) {
           for (const part of msg.content) {
             if (part.type === "text") {
@@ -317,11 +318,32 @@ export class ACPLanguageModel implements LanguageModelV2 {
     const update = notification.update;
     switch (update.sessionUpdate) {
       case "plan":
-        // Optional: Handle plan updates if needed
+        controller.enqueue({
+          type: "raw",
+          rawValue: JSON.stringify(update.entries),
+        });
         break;
       case "agent_thought_chunk":
-        // Optional: Handle thought chunks if needed
-        // e.g., controller.enqueue({ type: 'experimental-thought', ... })
+        if (!this.currentThinkingId) {
+          this.currentThinkingId = `reasoning-${this.thinkBlockIndex++}`;
+          controller.enqueue({
+            type: "reasoning-start",
+            id: this.currentThinkingId,
+          });
+        }
+
+        controller.enqueue({
+          type: "reasoning-delta",
+          id: this.currentThinkingId,
+          delta: update.content.type === "text" ? update.content.text : "",
+        });
+
+        controller.enqueue({
+          type: "reasoning-end",
+          id: this.currentThinkingId,
+        });
+        this.currentThinkingId = null;
+
         break;
 
       case "agent_message_chunk":
@@ -339,14 +361,23 @@ export class ACPLanguageModel implements LanguageModelV2 {
             id: this.currentTextId,
             delta: textChunk,
           });
+          controller.enqueue({
+            type: "text-end",
+            id: this.currentTextId,
+          });
+          this.currentTextId = null;
         }
         break;
 
       case "tool_call": {
-        // Close current text block when tool call starts
+        // Close current text/thinking block when tool call starts
         if (this.currentTextId) {
           this.currentTextId = null;
         }
+        if (this.currentThinkingId) {
+          this.currentThinkingId = null;
+        }
+
         const { toolCallId, toolName, toolInput } = this.parseToolCall(update);
 
         // We tell the AI SDK to call our "dynamic tool", passing the
@@ -370,8 +401,8 @@ export class ACPLanguageModel implements LanguageModelV2 {
       }
 
       case "tool_call_update": {
-        const { toolCallId, toolName, toolResult, isError, status } =
-          this.parseToolResult(update);
+        const { toolCallId, toolName, toolResult, isError, status } = this
+          .parseToolResult(update);
 
         if (
           status === undefined ||
@@ -442,100 +473,63 @@ export class ACPLanguageModel implements LanguageModelV2 {
         { name: string; result: unknown; isError?: boolean }
       > = new Map();
 
-      const _reasonings: Array<ReasoningOutput> = [];
+      // This object mimics the ReadableStreamDefaultController API
+      // to aggregate stream parts into final results.
+      const mockController = {
+        enqueue: (part: LanguageModelV2StreamPart) => {
+          switch (part.type) {
+            case "text-delta":
+              accumulatedText += part.delta;
+              break;
+
+            case "tool-call": {
+              // handleStreamNotification maps the real tool to 'acp.acp_agent_dynamic_tool'
+              // and puts the real info in the 'input' JSON string.
+              const inputData = JSON.parse(part.input as string);
+              toolCalls.push({
+                id: part.toolCallId,
+                name: inputData.toolName, // The *real* tool name
+                input: inputData.args,
+              });
+              break;
+            }
+
+            case "tool-result": {
+              const matchingToolCall = toolCalls.find(
+                (tc) => tc.id === part.toolCallId,
+              );
+              toolResults.set(part.toolCallId, {
+                name: matchingToolCall?.name || "unknown_tool",
+                result: part.result,
+                isError: part.isError,
+              });
+
+              break;
+            }
+
+            // Other stream parts (reasoning, start/end blocks, etc.)
+            // are ignored in non-streaming mode
+            default:
+              break;
+          }
+        },
+      };
+
+      // Get a reference to the bound method
+      const streamHandler = this.handleStreamNotification.bind(this);
+
+      // Reset stream state, as handleStreamNotification relies on it
+      this.resetStreamState();
 
       if (this.client) {
         this.client.setSessionUpdateHandler((notification) => {
-          const update = notification.update;
-          switch (update.sessionUpdate) {
-            case "plan":
-              console.log(
-                "Plan update received:",
-                JSON.stringify(update, null, 2),
-              );
-              break;
-            case "agent_thought_chunk":
-              console.log(
-                "Thought chunk received:",
-                JSON.stringify(update, null, 2),
-              );
-              break;
-            case "agent_message_chunk":
-              if (update.content.type === "text") {
-                accumulatedText += update.content.text;
-              }
-              break;
-
-            case "tool_call": {
-              // Use the parsing helper
-              const { toolCallId, toolName, toolInput } =
-                this.parseToolCall(update);
-              toolCalls.push({
-                id: toolCallId,
-                name: toolName,
-                input: toolInput,
-              });
-              break;
-            }
-
-            case "tool_call_update": {
-              // Use the parsing helper
-              const { toolCallId, toolName, toolResult, isError, status } =
-                this.parseToolResult(update);
-
-              if (
-                status === undefined ||
-                status === "in_progress" ||
-                status === "pending"
-              ) {
-                break; // Ignore intermediate
-              }
-
-              let toolCall = toolCalls.find(
-                (tc) => tc.id === toolCallId,
-              );
-
-              if (!toolCall) {
-                toolCall = {
-                  id: toolCallId,
-                  name: toolName,
-                  input: {}, // Input is unknown if we missed the tool_call
-                };
-                toolCalls.push(toolCall);
-              }
-
-              toolResults.set(toolCallId, {
-                name: toolCall.name,
-                result: toolResult,
-                isError: isError,
-              });
-
-              // Resolve any pending promise from the dynamic tool
-              // (This is for the edge case where doGenerate is used with tools)
-              const pending = this.toolCallbacks[toolCallId];
-              if (pending && pending.length === 2) {
-                const [resolve, reject] = pending;
-                try {
-                  if (isError) {
-                    reject(
-                      new Error(
-                        `Tool call ${toolCallId} failed: ${
-                          JSON.stringify(
-                            toolResult,
-                          )
-                        }`,
-                      ),
-                    );
-                  } else {
-                    resolve(toolResult);
-                  }
-                } finally {
-                  delete this.toolCallbacks[toolCallId];
-                }
-              }
-              break;
-            }
-          }
+          // Reuse the stream notification handler, passing the mock controller
+          streamHandler(
+            mockController as unknown as ReadableStreamDefaultController<
+              LanguageModelV2StreamPart
+            >,
+            notification,
+          );
         });
       }
 
@@ -607,7 +601,9 @@ export class ACPLanguageModel implements LanguageModelV2 {
     const streamHandler = this.handleStreamNotification.bind(this);
 
     const stream = new ReadableStream<LanguageModelV2StreamPart>({
-      start: async (controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>) => {
+      start: async (
+        controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>,
+      ) => {
         controller.enqueue({ type: "stream-start", warnings: [] });
 
         // Reset stream state for this new stream
@@ -662,40 +658,12 @@ export class ACPLanguageModel implements LanguageModelV2 {
     return {
       "acp.acp_agent_dynamic_tool": tool({
         name: "acp.acp_agent_dynamic_tool",
+        type: "provider-defined",
         description:
           "A dynamic tool that represents an ACP agent tool call. This tool is called by the provider when an agent reports a tool call, and it resolves when the agent reports the tool's result.",
-        inputSchema: jsonSchema({
-          type: "object",
-          properties: {
-            toolCallId: {
-              type: "string",
-              description: "The unique ID of the tool call from the ACP agent.",
-            },
-            toolName: {
-              type: "string",
-              description: "The actual name of the tool the ACP agent is calling.",
-            },
-            args: {
-              type: "object",
-              description: "The arguments for the tool call.",
-              additionalProperties: true,
-            },
-          },
-          required: ["toolCallId", "toolName"],
-        }),
-        /**
-         * When the AI SDK executes this tool, we return a promise that
-         * will be resolved/rejected later by the 'tool_call_update'
-         * notification handler.
-         */
-        // @ts-expect-error - generic tool execute implementation
-        execute: ({ toolCallId }) => {
-          return new Promise((resolve, reject) => {
-            // store the resolve/reject pair so the ACP session update
-            // handler (in doGenerate or doStream) can fulfill it.
-            this.toolCallbacks[toolCallId] = [resolve, reject];
-          });
-        },
+        inputSchema: jsonSchema({}),
+        id: "acp.acp_agent_dynamic_tool",
+        args: jsonSchema({}),
       }),
     };
   }

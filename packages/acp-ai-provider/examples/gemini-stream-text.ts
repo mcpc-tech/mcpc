@@ -17,6 +17,7 @@
 import { createACPProvider } from "../mod.ts";
 import { streamText } from "ai";
 import process from "node:process";
+import { logChunkToConsole } from "../src/utils.ts";
 
 async function main() {
   // Create ACP provider for Gemini
@@ -38,15 +39,14 @@ async function main() {
   console.log("Response (streaming):");
   console.log("─".repeat(50));
 
-  const { textStream, toolCalls } = streamText({
+  const { toolCalls } = streamText({
     model: provider.languageModel(),
     prompt,
+    onChunk: (arg: any) => {
+      const { chunk } = arg;
+      logChunkToConsole(chunk);
+    },
   });
-
-  // Stream the response in real-time
-  for await (const chunk of textStream) {
-    process.stdout.write(chunk);
-  }
 
   console.log("\n" + "─".repeat(50));
   console.log("\n✅ Streaming completed!");

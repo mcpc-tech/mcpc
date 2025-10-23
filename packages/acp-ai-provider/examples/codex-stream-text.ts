@@ -17,6 +17,7 @@
 import { createACPProvider } from "../mod.ts";
 import { streamText } from "ai";
 import process from "node:process";
+import { logChunkToConsole } from "../src/utils.ts";
 
 async function main() {
   // Create ACP provider for Gemini
@@ -42,35 +43,16 @@ async function main() {
     model,
     prompt,
     tools: model.tools,
-    onChunk: ({ chunk }) => {
-      // Optional: Handle each chunk as it arrives
-      switch (chunk.type) {
-        case "text-delta":
-          process.stdout.write(chunk.text);
-          break;
-        case "tool-call":
-          console.log(
-            `\n[Tool Call Initiated: ${chunk.toolCallId} - ${chunk.toolName}]`,
-            JSON.stringify(chunk.input, null, 2),
-          );
-          break;
-        case "tool-result":
-          console.log(
-            `\n[Tool Call Result Received: ${chunk.toolCallId}]`,
-            JSON.stringify(chunk.output, null, 2),
-          );
-          break;
-        case "reasoning-delta":
-          process.stdout.write(`\n[Reasoning]: ${chunk.text}`);
-          break;
-      }
+    onChunk: (arg: any) => {
+      const { chunk } = arg;
+      logChunkToConsole(chunk);
     },
   });
 
   console.log("\n" + "─".repeat(50));
   console.log("\n✅ Streaming completed!");
   console.log(
-    `Tool Calls: ${(await toolCalls).map((t) => t.toolName).join(", ")}`,
+    `Tool Calls: ${(await toolCalls).map((t: any) => t.toolName).join(", ")}`,
   );
 }
 
