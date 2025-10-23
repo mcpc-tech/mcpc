@@ -639,7 +639,10 @@ export class ACPLanguageModel implements LanguageModelV2 {
           cleanup();
         } catch (error) {
           cleanup();
-          controller.error(error);
+          controller.enqueue({
+            type: "error",
+            error: error,
+          });
         }
       },
       cancel: () => {

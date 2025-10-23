@@ -49,8 +49,6 @@ async function main() {
     },
   });
 
-  console.log("\n" + "─".repeat(50));
-  console.log("\n✅ Streaming completed!");
   console.log(
     `Tool Calls: ${(await toolCalls).map((t: any) => t.toolName).join(", ")}`,
   );

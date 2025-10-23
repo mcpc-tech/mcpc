@@ -36,8 +36,6 @@ async function main() {
     "Write a beautiful haiku about AI agents helping humans.";
 
   console.log({ prompt });
-  console.log("Response (streaming):");
-  console.log("─".repeat(50));
 
   const { toolCalls } = streamText({
     model: provider.languageModel(),
@@ -48,8 +46,6 @@ async function main() {
     },
   });
 
-  console.log("\n" + "─".repeat(50));
-  console.log("\n✅ Streaming completed!");
   console.log(
     `Tool Calls: ${(await toolCalls).map((t) => t.toolName).join(", ")}`,
   );
