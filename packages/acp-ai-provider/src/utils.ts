@@ -8,7 +8,7 @@ export function logChunkToConsole(chunk: any): void {
   switch (chunk.type) {
     case "raw":
       // eslint-disable-next-line no-console
-      console.log(`\n[Plan Update]: ${chunk.rawValue}`);
+      console.log(`\n[Raw Plan Update]: ${chunk.rawValue}`);
       break;
     case "text-delta":
       // Write directly to stdout for streaming text
@@ -19,15 +19,21 @@ export function logChunkToConsole(chunk: any): void {
     case "tool-call":
       // eslint-disable-next-line no-console
       console.log(
-        `\n[Tool Call Initiated: ${chunk.toolCallId} - ${chunk.toolName}]`,
+        `\n[Tool Call Initiated]`,
         JSON.stringify(chunk.input, null, 2),
       );
       break;
     case "tool-result":
       // eslint-disable-next-line no-console
       console.log(
-        `\n[Tool Call Result Received: ${chunk.toolCallId}]`,
-        JSON.stringify(chunk.output ?? chunk.errorText, null, 2),
+        `\n[Tool Call Result Received]`,
+        JSON.stringify(chunk.output, null, 2),
+      );
+      break;
+    case "tool-error":
+      console.log(
+        `\n[Tool Call Error]`,
+        JSON.stringify(chunk.error, null, 2),
       );
       break;
     case "reasoning-delta":
