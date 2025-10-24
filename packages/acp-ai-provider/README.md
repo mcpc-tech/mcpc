@@ -1,13 +1,14 @@
 # @mcpc/acp-ai-provider
 
+[![NPM Version](https://img.shields.io/npm/v/@mcpc-tech/acp-ai-provider)](https://www.npmjs.com/package/@mcpc-tech/acp-ai-provider)
+[![JSR](https://jsr.io/badges/@mcpc/acp-ai-provider)](https://jsr.io/@mcpc/acp-ai-provider)
+
 Use [ACP (Agent Client Protocol)](https://agentclientprotocol.com/) agents with
 the [AI SDK](https://ai-sdk.dev/).
 
-This package bridges ACP agents to the AI SDK. It spawns ACP agents(Claude Code,
-Gemini, Codex CLI,
-[More](https://github.com/agentclientprotocol/agent-client-protocol?tab=readme-ov-file#agents))
-as child processes and exposes them through AI SDK's `LanguageModelV2`
-interface.
+This package bridges ACP agents to the AI SDK. It spawns ACP agents (Claude
+Code, Gemini, Codex CLI, and more) as child processes and exposes them through
+the AI SDK's `LanguageModelV2` protocol.
 
 ## Installation
 
@@ -20,6 +21,8 @@ deno add jsr:@mcpc/acp-ai-provider
 ```
 
 ## Usage
+
+[See all examples](https://github.com/mcpc-tech/mcpc/tree/main/packages/acp-ai-provider/examples)
 
 ### Basic Example
 
@@ -101,36 +104,41 @@ const result = await generateText({
 });
 ```
 
-## API
+## FAQ
 
-### createACPProvider(config)
+### How to stream tool calls
 
-**Parameters:**
+Tools are passed to the AI SDK as
+[provider-defined tools](https://ai-sdk.dev/docs/reference/ai-sdk-core/tool#tool.tool.type)
+because they are called and executed by the ACP agent (for example, Codex).
 
-- `command` (string) - Command to spawn the agent (e.g., `"gemini"`,
-  `"claude-code"`)
-- `args` (string[], optional) - Arguments to pass to the agent
-- `env` (object, optional) - Environment variables for the agent process
-- `session` (object, required) - Session configuration
-  - `cwd` (string) - Working directory
-  - `mcpServers` (array) - MCP server configurations
-- `initialize` (object, optional) - Initialize configuration
+So, to stream tool calls, pass the provider tools to the AI SDK:
 
-**Returns:** Provider instance with `languageModel()` method
+```ts
+const result = await generateText({
+  model: provider.languageModel(),
+  prompt: "List files in /tmp",
+  tools: provider.tools(),
+});
+```
 
-### provider.languageModel()
+The actual tool name and arguments live inside
+`acp.acp_provider_agent_dynamic_tool`'s input and follow this structure:
 
-**Returns:** LanguageModelV2 instance compatible with AI SDK functions
-(`generateText`, `streamText`, etc.)
-
-**Note:** Does not accept parameters. Configure the agent via `command`, `args`,
-and `mcpServers` instead.
+```ts
+export const providerAgentDynamicToolSchema = z.object({
+  toolCallId: z.string().describe("The unique ID of the tool call."),
+  toolName: z.string().describe("The name of the tool being called."),
+  args: z.record(z.any()).describe("The input arguments for the tool call."),
+});
+```
 
 ## Limitations
 
-- **No AI SDK tools support**: Tools must be defined through MCP servers in
-  `session.mcpServers`, not via AI SDK's `tools` parameter
-- **No token counting**: MCP doesn't provide token usage (returns 0)
+- **No AI SDK tools support** — Tools must be defined through MCP servers in
+  `session.mcpServers`, not via the AI SDK's `tools` parameter.
+- **No token counting** — ACP doesn't provide token usage information (it always
+  returns 0).
 
 ## Related
 

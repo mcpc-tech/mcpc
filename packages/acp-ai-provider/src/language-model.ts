@@ -36,15 +36,19 @@ import z from "zod";
 export const ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME =
   "acp.acp_provider_agent_dynamic_tool";
 
-export const providerAgentDynamicToolSchema = z.object({
+export type ProviderAgentDynamicToolInput = {
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+};
+
+export const providerAgentDynamicToolSchema: z.ZodType<
+  ProviderAgentDynamicToolInput
+> = z.object({
   toolCallId: z.string().describe("The unique ID of the tool call."),
   toolName: z.string().describe("The name of the tool being called."),
   args: z.record(z.any()).describe("The input arguments for the tool call."),
 });
-
-export type ProviderAgentDynamicToolInput = z.infer<
-  typeof providerAgentDynamicToolSchema
->;
 
 /**
  * Implements the ACP client-side logic for handling file operations and permissions.
