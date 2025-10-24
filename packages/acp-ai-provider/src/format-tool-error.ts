@@ -11,20 +11,11 @@ export function formatToolError(toolResult: Array<ToolCallContent>): string {
 
   const parts: string[] = [];
   for (const blk of toolResult) {
-    if (blk == null) {
-      parts.push("(null)");
-      continue;
+    if (blk.type === "content") {
+      if (blk.content.type === "text") {
+        parts.push(typeof blk.content.text);
+      }
     }
-    if (typeof blk === "string") {
-      parts.push(blk);
-      continue;
-    }
-    const b: any = blk as any;
-    const txt = b.text ??
-      b.message ??
-      b.error ??
-      (b.value ?? b.data ? JSON.stringify(b.value ?? b.data) : undefined);
-    parts.push(typeof txt === "string" ? txt : JSON.stringify(b));
   }
   return parts.join("\n");
 }

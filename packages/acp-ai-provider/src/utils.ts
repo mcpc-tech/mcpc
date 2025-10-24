@@ -1,5 +1,9 @@
 import process from "node:process";
 
+export function extractBase64Data(data: string): string {
+  return data.includes(",") ? data.split(",")[1] : data;
+}
+
 export function logChunkToConsole(chunk: any): void {
   switch (chunk.type) {
     case "raw":

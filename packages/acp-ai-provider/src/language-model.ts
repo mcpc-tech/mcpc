@@ -31,6 +31,7 @@ import type { ACPProviderSettings } from "./types.ts";
 import { jsonSchema, tool } from "ai";
 import z from "zod";
 import { formatToolError } from "./format-tool-error.ts";
+import { extractBase64Data } from "./utils.ts";
 
 /**
  * The name of the provider tool used to represent ACP agent tool calls.
@@ -49,7 +50,9 @@ export const providerAgentDynamicToolSchema: z.ZodType<
 > = z.object({
   toolCallId: z.string().describe("The unique ID of the tool call."),
   toolName: z.string().describe("The name of the tool being called."),
-  args: z.record(z.any()).describe("The input arguments for the tool call."),
+  args: z
+    .record(z.unknown())
+    .describe("The input arguments for the tool call."),
 });
 
 /**
@@ -163,13 +166,14 @@ export class ACPLanguageModel implements LanguageModelV2 {
     if (update.sessionUpdate !== "tool_call") {
       throw new Error("Invalid update type for parseToolCall");
     }
+
     const toolCallId = update.toolCallId;
     const toolName = update.title || update.toolCallId;
     let toolInput: unknown = {};
-    if (update.rawInput) {
-      toolInput = update.rawInput;
-    } else if (update.content && update.content.length > 0) {
+    if (update.content && update.content.length > 0) {
       toolInput = update.content;
+    } else if (update.rawInput) {
+      toolInput = update.rawInput;
     }
     return { toolCallId, toolName, toolInput };
   }
@@ -223,9 +227,9 @@ export class ACPLanguageModel implements LanguageModelV2 {
       } else if (msg.role === "assistant") {
         prefix = "Assistant: ";
       }
+
       // Note: ACP doesn't have a "tool" role. Tool results are handled
       // by the agent itself, not by sending a message.
-
       if (
         msg.role === "system" ||
         msg.role === "user" ||
@@ -233,13 +237,43 @@ export class ACPLanguageModel implements LanguageModelV2 {
       ) {
         if (Array.isArray(msg.content)) {
           for (const part of msg.content) {
-            if (part.type === "text") {
-              contentBlocks.push({
-                type: "text" as const,
-                text: `${prefix}${part.text}`,
-              });
-              prefix = ""; // Only prefix the first part
+            switch (part.type) {
+              case "text": {
+                contentBlocks.push({
+                  type: "text" as const,
+                  text: `${prefix}${part.text}`,
+                });
+                prefix = ""; // Only prefix the first part
+                break;
+              }
+              case "file": {
+                const type: ContentBlock["type"] | null = (() => {
+                  if (part.mediaType.startsWith("image/")) {
+                    return "image";
+                  }
+                  if (part.mediaType.startsWith("audio/")) {
+                    return "audio";
+                  }
+                  return null;
+                })();
+
+                if (
+                  type === null ||
+                  // Ensure data is string before processing
+                  typeof part.data !== "string"
+                ) {
+                  break;
+                }
+                contentBlocks.push({
+                  type,
+                  mimeType: part.mediaType,
+                  data: extractBase64Data(part.data),
+                });
+
+                break;
+              }
             }
+
             // Other parts (like images) are ignored in current implementation
           }
         } else if (typeof msg.content === "string") {
