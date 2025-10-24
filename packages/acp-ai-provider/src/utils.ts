@@ -27,7 +27,7 @@ export function logChunkToConsole(chunk: any): void {
       // eslint-disable-next-line no-console
       console.log(
         `\n[Tool Call Result Received: ${chunk.toolCallId}]`,
-        JSON.stringify(chunk.output, null, 2),
+        JSON.stringify(chunk.output ?? chunk.errorText, null, 2),
       );
       break;
     case "reasoning-delta":
