@@ -19,6 +19,7 @@ import {
   type RequestPermissionRequest,
   type RequestPermissionResponse,
   type SessionNotification,
+  type ToolCallContent,
   type ToolCallStatus,
   type WriteTextFileRequest,
   type WriteTextFileResponse,
@@ -29,6 +30,7 @@ import { Readable, Writable } from "node:stream";
 import type { ACPProviderSettings } from "./types.ts";
 import { jsonSchema, tool } from "ai";
 import z from "zod";
+import { formatToolError } from "./format-tool-error.ts";
 
 /**
  * The name of the provider tool used to represent ACP agent tool calls.
@@ -53,6 +55,8 @@ export const providerAgentDynamicToolSchema: z.ZodType<
 /**
  * Implements the ACP client-side logic for handling file operations and permissions.
  * This basic implementation throws errors for file ops and auto-allows permissions.
+ *
+ * @see https://agentclientprotocol.com
  */
 export class ACPAISDKClient implements Client {
   private onSessionUpdateCallback?: (notification: SessionNotification) => void;
@@ -110,6 +114,8 @@ export class ACPAISDKClient implements Client {
 /**
  * Implements the AI SDK LanguageModelV2 interface for the
  * Agent Client Protocol (ACP).
+ *
+ * @see https://ai-sdk.dev/providers/community-providers/custom-providers#reasoning
  */
 export class ACPLanguageModel implements LanguageModelV2 {
   readonly specificationVersion = "v2" as const;
@@ -163,10 +169,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
     if (update.rawInput) {
       toolInput = update.rawInput;
     } else if (update.content && update.content.length > 0) {
-      const firstContent = update.content[0];
-      if ("content" in firstContent && firstContent.content) {
-        toolInput = firstContent.content;
-      }
+      toolInput = update.content;
     }
     return { toolCallId, toolName, toolInput };
   }
@@ -177,7 +180,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
   private parseToolResult(update: SessionNotification["update"]): {
     toolCallId: string;
     toolName: string;
-    toolResult: unknown;
+    toolResult: ToolCallContent[];
     isError: boolean;
     status: ToolCallStatus;
   } {
@@ -187,19 +190,16 @@ export class ACPLanguageModel implements LanguageModelV2 {
     const toolCallId = update.toolCallId;
     const toolName = update.title || update.toolCallId;
     let toolResult: unknown = null;
-    if (update.rawOutput) {
+    if (update.content && update.content.length > 0) {
+      toolResult = update.content;
+    } else if (update.rawOutput) {
       toolResult = update.rawOutput;
-    } else if (update.content && update.content.length > 0) {
-      const firstContent = update.content[0];
-      if ("content" in firstContent && firstContent.content) {
-        toolResult = firstContent.content;
-      }
     }
     const isError = update.status === "failed";
     return {
       toolCallId,
       toolName,
-      toolResult,
+      toolResult: toolResult as ToolCallContent[],
       isError,
       status: update.status!,
     };
@@ -240,7 +240,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
               });
               prefix = ""; // Only prefix the first part
             }
-            // Other parts (like images) are ignored in this example
+            // Other parts (like images) are ignored in current implementation
           }
         } else if (typeof msg.content === "string") {
           contentBlocks.push({
@@ -474,7 +474,12 @@ export class ACPLanguageModel implements LanguageModelV2 {
           toolCallId,
           toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
           result: toolResult,
-          ...(isError && { isError: true }),
+          providerExecuted: true,
+          // https://github.com/vercel/ai/blob/282f062922cb59167dd3a11e3af67cfa0b75f317/packages/ai/src/generate-text/run-tools-transformation.ts#L316
+          ...(isError && {
+            isError: true,
+            result: new Error(formatToolError(toolResult)),
+          }),
         });
         break;
       }
@@ -536,7 +541,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
                 (tc) => tc.id === part.toolCallId,
               );
               toolResults.set(part.toolCallId, {
-                name: matchingToolCall?.name || "unknown_tool",
+                name: matchingToolCall?.name || matchingToolCall?.id!,
                 result: part.result,
                 isError: part.isError,
               });
