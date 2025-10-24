@@ -13,7 +13,7 @@ export function formatToolError(toolResult: Array<ToolCallContent>): string {
   for (const blk of toolResult) {
     if (blk.type === "content") {
       if (blk.content.type === "text") {
-        parts.push(typeof blk.content.text);
+        parts.push(blk.content.text);
       }
     }
   }
