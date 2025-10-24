@@ -28,6 +28,7 @@ import process from "node:process";
 import { Readable, Writable } from "node:stream";
 import type { ACPProviderSettings } from "./types.ts";
 import { jsonSchema, tool } from "ai";
+import z from "zod";
 
 /**
  * The name of the provider tool used to represent ACP agent tool calls.
@@ -35,11 +36,21 @@ import { jsonSchema, tool } from "ai";
 export const ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME =
   "acp.acp_provider_agent_dynamic_tool";
 
+export const providerAgentDynamicToolSchema = z.object({
+  toolCallId: z.string().describe("The unique ID of the tool call."),
+  toolName: z.string().describe("The name of the tool being called."),
+  args: z.record(z.any()).describe("The input arguments for the tool call."),
+});
+
+export type ProviderAgentDynamicToolInput = z.infer<
+  typeof providerAgentDynamicToolSchema
+>;
+
 /**
  * Implements the ACP client-side logic for handling file operations and permissions.
  * This basic implementation throws errors for file ops and auto-allows permissions.
  */
-class ACPClient implements Client {
+export class ACPAISDKClient implements Client {
   private onSessionUpdateCallback?: (notification: SessionNotification) => void;
   private onPermissionRequestCallback?: (
     request: RequestPermissionRequest,
@@ -106,7 +117,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
   private agentProcess: ChildProcess | null = null;
   private connection: ClientSideConnection | null = null;
   private sessionId: string | null = null;
-  private client: ACPClient | null = null;
+  private client: ACPAISDKClient | null = null;
 
   // State for managing stream conversion
   private textBlockIndex = 0;
@@ -258,7 +269,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
       this.agentProcess.stdout!,
     ) as ReadableStream<Uint8Array>;
 
-    this.client = new ACPClient();
+    this.client = new ACPAISDKClient();
 
     this.connection = new ClientSideConnection(
       () => this.client!,
