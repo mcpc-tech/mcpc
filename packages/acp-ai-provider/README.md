@@ -6,6 +6,8 @@
 Use [ACP (Agent Client Protocol)](https://agentclientprotocol.com/) agents with
 the [AI SDK](https://ai-sdk.dev/).
 
+![acp-demo](./examples/acp-demo.gif)
+
 This package bridges ACP agents to the AI SDK. It spawns ACP agents (Claude
 Code, Gemini, Codex CLI, and more) as child processes and exposes them through
 the AI SDK's `LanguageModelV2` protocol.
