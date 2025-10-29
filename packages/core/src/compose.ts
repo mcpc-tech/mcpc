@@ -25,7 +25,7 @@ import { createLogger } from "./utils/logger.ts";
 
 // Import plugin types and utilities
 import type { ComposedTool, ToolConfig, ToolPlugin } from "./plugin-types.ts";
-import { validatePlugins } from "./plugin-utils.ts";
+import { sortPluginsByOrder, validatePlugins } from "./plugin-utils.ts";
 
 // Import new manager modules
 import { PluginManager } from "./utils/plugin-manager.ts";
@@ -104,7 +104,6 @@ export class ComposableMCPServer extends Server {
     }
 
     // Sort plugins to maintain consistent order
-    const { sortPluginsByOrder } = await import("./plugin-utils.ts");
     const sortedPlugins = sortPluginsByOrder(plugins);
 
     let currentData = data;

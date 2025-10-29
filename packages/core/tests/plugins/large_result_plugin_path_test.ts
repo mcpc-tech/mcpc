@@ -1,0 +1,70 @@
+import { mcpc } from "../../mod.ts";
+import { jsonSchema } from "../../src/utils/schema.ts";
+
+Deno.test("large-result plugin loads from path with params", async () => {
+  const server = await mcpc(
+    [
+      { name: "test-large-path", version: "1.0.0" },
+      { capabilities: { tools: { listChanged: true } } },
+    ],
+    [
+      {
+        name: "agent",
+        description: "agent with large-result plugin via path",
+        plugins: [
+          // Load via package export with query params
+          "@mcpc/core/plugins/large-result?maxSize=500&previewSize=200",
+        ],
+      } as any,
+    ],
+    (server: any) => {
+      // Tool that returns very large output; use wrapped schema to ensure compatibility
+      server.tool(
+        "huge_output",
+        "Generate huge output",
+        jsonSchema<Record<string, unknown>>({
+          type: "object",
+          properties: {},
+        }),
+        () => {
+          const SENTINEL = "SENTINEL";
+          const big = new Array(2000).fill(SENTINEL).join(" ");
+          return { content: [{ type: "text" as const, text: big }] };
+        },
+      );
+    },
+  );
+
+  // Invoke tool to trigger large-result handling
+  const res = (await server.callTool("huge_output", {})) as any;
+  const text = res?.content?.find((c: any) => c.type === "text")
+    ?.text as string;
+
+  if (!text || !text.includes("Result too large") || !text.includes("File:")) {
+    throw new Error(
+      "Large-result plugin (path) did not report truncation and file path",
+    );
+  }
+
+  // Extract saved file path from plugin message
+  const match = text.match(/File:\*\*\s+(.+)\n/) ||
+    text.match(/File:\s+(.+)\n/);
+  const filePath = match?.[1]?.trim();
+  if (!filePath) {
+    throw new Error("Could not extract file path from plugin message");
+  }
+
+  // Search for the sentinel in the saved file
+  const search = (await server.callTool("search-tool-result", {
+    pattern: "SENTINEL",
+    path: filePath,
+  })) as any;
+  const out = search?.content?.find((c: any) => c.type === "text")
+    ?.text as string;
+  if (!out || !(out.includes("Found") || out.includes("matches"))) {
+    throw new Error(`Search did not return expected matches. Output: ${out}`);
+  }
+
+  // Wait beyond search timeout to ensure internal timer has fired, avoiding test leak
+  await new Promise((r) => setTimeout(r, 60));
+});

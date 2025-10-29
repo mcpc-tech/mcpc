@@ -197,8 +197,13 @@ export async function loadPlugin(
     const searchParams = new URLSearchParams(queryString || "");
     const params = Object.fromEntries(searchParams.entries());
 
-    // Dynamic import with cache busting for development
-    const importPath = rawPath;
+    // KISS: resolve once, prefer runtime resolver, fallback to URL relative to this file
+    // deno-lint-ignore no-explicit-any
+    const resolveFn = (import.meta as any).resolve;
+    const importPath = typeof resolveFn === "function"
+      ? resolveFn(rawPath)
+      : new URL(rawPath, import.meta.url).href;
+
     const pluginModule = await import(importPath);
 
     // Get factory function and default plugin
