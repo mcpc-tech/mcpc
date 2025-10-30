@@ -6,16 +6,19 @@
 import type { JSONSchema } from "../types.ts";
 
 /**
- * Schema symbol for internal type checking
+ * Schema symbols for internal type checking
+ * Compatible with both MCPC and Vercel AI SDK
  */
 const schemaSymbol = Symbol.for("mcpc.schema");
+const vercelSchemaSymbol = Symbol.for("vercel.ai.schema");
 const validatorSymbol = Symbol.for("mcpc.validator");
 
 /**
  * Schema type that wraps JSON Schema with type information
- * Compatible with AI SDK's Schema<T> interface
+ * Compatible with both MCPC and Vercel AI SDK
  */
 export interface Schema<T = unknown> {
+  readonly [vercelSchemaSymbol]?: true;
   readonly [schemaSymbol]: true;
   readonly [validatorSymbol]: true;
   readonly _type?: T; // Phantom type for TypeScript inference
@@ -43,8 +46,9 @@ export interface Schema<T = unknown> {
  */
 export function jsonSchema<T = unknown>(
   schema: JSONSchema | Schema<T>,
-  options: { validate?: (value: unknown) => { success: boolean; value?: T } } =
-    {},
+  options: {
+    validate?: (value: unknown) => { success: boolean; value?: T };
+  } = {},
 ): Schema<T> {
   // If already wrapped, return as-is (for backward compatibility)
   if (isWrappedSchema(schema)) {
@@ -67,8 +71,9 @@ export function isWrappedSchema(value: unknown): value is Schema {
   return (
     typeof value === "object" &&
     value !== null &&
-    schemaSymbol in value &&
-    (value as any)[schemaSymbol] === true
+    ((schemaSymbol in value && (value as any)[schemaSymbol] === true) ||
+      (vercelSchemaSymbol in value &&
+        (value as any)[vercelSchemaSymbol] === true))
   );
 }
 
