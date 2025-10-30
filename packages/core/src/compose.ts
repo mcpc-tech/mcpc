@@ -468,26 +468,8 @@ export class ComposableMCPServer extends Server {
       cleanupClients: () => Promise<void>;
     };
 
-    // Warn about unmatched tool names and show available options
-    const unmatchedTools = Array.from(requestedToolNames).filter(
-      (toolName) => !availableToolNames.has(toolName),
-    );
-
-    if (unmatchedTools.length > 0) {
-      await this.logger.warning(`Tool matching warnings for agent "${name}":`);
-      for (const toolName of unmatchedTools) {
-        await this.logger.warning(`   • Tool not found: "${toolName}"`);
-      }
-      await this.logger.warning(
-        `   Available tools: ${
-          Array.from(availableToolNames)
-            .sort()
-            .join(", ")
-        }`,
-      );
-    }
-
-    // Add external tools to registry
+    // Warn about unmatched tool names
+    // Register external tools and merge with registry
     Object.entries(tools).forEach(([toolId, tool]) => {
       this.toolManager.registerTool(
         toolId,
@@ -497,16 +479,25 @@ export class ComposableMCPServer extends Server {
       );
     });
 
-    // Merge tools registered in setup hooks (e.g., via configureServer)
-    // with external tools from MCP dependencies
     const registeredTools = this.toolManager.getRegisteredToolsAsComposed();
-    const allTools = { ...tools }; // Start with external tools
-
-    // Add tools from registry that aren't already in external tools
-    for (const [toolName, tool] of Object.entries(registeredTools)) {
+    const allTools = { ...tools };
+    Object.entries(registeredTools).forEach(([toolName, tool]) => {
       if (!allTools[toolName]) {
         allTools[toolName] = tool;
       }
+    });
+
+    // Warn about unmatched tool names against final tool set
+    const unmatchedTools = Array.from(requestedToolNames).filter(
+      (toolName) => !allTools[toolName],
+    );
+    if (unmatchedTools.length > 0) {
+      await this.logger.warning(`Tool matching warnings for agent "${name}":`);
+      unmatchedTools.forEach((toolName) => {
+        this.logger.warning(`   • Tool not found: "${toolName}"`);
+      });
+      const available = Object.keys(allTools).sort().join(", ");
+      await this.logger.warning(`   Available tools: ${available}`);
     }
 
     // Trigger transformation hooks for all tools (transformTool)

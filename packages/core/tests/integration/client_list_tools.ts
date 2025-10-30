@@ -6,6 +6,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { mcpc } from "../../src/set-up-mcp-compose.ts";
 import { Client } from "@modelcontextprotocol/sdk/client";
 import { assertArrayIncludes, assertEquals } from "@std/assert";
+import { jsonSchema } from "../../src/utils/schema.ts";
 
 Deno.test("Client list tools - agentic server + public tools", async () => {
   const server = await mcpc(
@@ -26,6 +27,7 @@ Deno.test("Client list tools - agentic server + public tools", async () => {
         (args: { message: string }) => ({
           content: [{ type: "text" as const, text: `Echo: ${args.message}` }],
         }),
+        { internal: false },
       );
     },
   );
@@ -43,6 +45,7 @@ Deno.test("Client list tools - agentic server + public tools", async () => {
   await client.connect(clientTransport);
 
   const tools = await client.listTools();
+
   assertEquals(
     tools.tools.length,
     2,
@@ -106,3 +109,56 @@ Deno.test("Client list tools - agentic server + internal", async () => {
     "Agent tool should include 'echo' in its action enum",
   );
 });
+
+Deno.test(
+  "Client list tools - agentic server, jsonSchema compatibility",
+  async () => {
+    const server = await mcpc(
+      [{ name: "test-server", version: "1.0.0" }, {}],
+      [
+        {
+          name: "test-agent",
+          description: "Test agent",
+          options: {
+            refs: ['<tool name="echo"/>'],
+          },
+          deps: { mcpServers: {} },
+        },
+      ],
+      (server) => {
+        // Register a simple tool on the in-memory server
+        server.tool<{ message: string }>(
+          "echo",
+          "Echo input",
+          jsonSchema({
+            type: "object",
+            properties: { message: { type: "string" } },
+          }),
+          (args: { message: string }) => ({
+            content: [{ type: "text" as const, text: `Echo: ${args.message}` }],
+          }),
+          { internal: false },
+        );
+      },
+    );
+
+    const [clientTransport, serverTransport] = InMemoryTransport
+      .createLinkedPair();
+
+    await server.connect(serverTransport);
+
+    const client = new Client({
+      name: "test-client",
+      version: "1.0.0",
+    });
+
+    await client.connect(clientTransport);
+
+    const tools = await client.listTools();
+    assertEquals(
+      tools.tools.length,
+      2,
+      "Should have 2 tool registered and listed correctly",
+    );
+  },
+);
