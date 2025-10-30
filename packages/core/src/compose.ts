@@ -413,7 +413,6 @@ export class ComposableMCPServer extends Server {
         // Track all available tool names for warning purposes
         availableToolNames.add(toolNameWithScope);
         availableToolNames.add(toolId);
-        availableToolNames.add(`${mcpName}.${ALL_TOOLS_PLACEHOLDER}`);
 
         // Populate server-level name mappings for easier resolution at runtime
         // 1) Map fully-scoped name (e.g., "server.SearchLog") -> toolId
@@ -487,7 +486,7 @@ export class ComposableMCPServer extends Server {
       unmatchedTools.forEach((toolName) => {
         this.logger.warning(`   • Tool not found: "${toolName}"`);
       });
-      const available = Object.keys(allTools).sort().join(", ");
+      const available = Object.keys(availableToolNames).sort().join(", ");
       await this.logger.warning(`   Available tools: ${available}`);
     }
 
