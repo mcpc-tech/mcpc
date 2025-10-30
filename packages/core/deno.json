@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/core",
-  "version": "0.2.17",
+  "version": "0.3.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"

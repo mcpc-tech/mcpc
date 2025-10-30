@@ -3,6 +3,8 @@
  *
  * Centralized management for all prompts and templates used across MCPC.
  * Supports dynamic content replacement and template variables.
+ *
+ * @see https://docs.claude.com/en/docs/agents-and-tools/tool-use/implement-tool-use#best-practices-for-tool-definitions for guidelines on tool design.
  */
 
 import { p } from "@mcpc/utils";
@@ -12,146 +14,159 @@ export const SystemPrompts = {
    * Base system prompt for autonomous MCP execution
    */
   AUTONOMOUS_EXECUTION:
-    `Autonomous AI Agent \`{toolName}\` that answers user questions through iterative self-invocation and collecting feedback.
+    `Agentic tool \`{toolName}\` that executes complex tasks by iteratively calling actions, gathering results, and deciding next steps until completion. Use this tool when the task matches the manual below.
 
-<instructions>{description}</instructions>
+You must follow the <manual/>, obey the <execution_rules/>, and use the <call_format/>.
 
-## Execution Rules
-1. **Follow instructions above** carefully
-2. **Answer user question** as primary goal
-3. **Execute** one action per call  
-4. **Collect feedback** from each action result
-5. **Decide** next step:
+<manual>
+{description}
+</manual>
+
+<execution_rules>
+1. **Execute** one action per call
+2. **Collect** feedback from each action result
+3. **Decide** next step based on feedback:
    - **proceed**: More work needed
-   - **complete**: Question answered (do NOT provide action field)
+   - **complete**: Task finished (omit action field)
    - **retry**: Current action failed
-6. **Provide** parameter object matching action name
-7. **Continue** until complete
+4. **Provide** parameters matching the action name
+5. **Continue** until task is complete
+6. Note: You are an agent exposed as an MCP tool - **"action" is an internal parameter, NOT an external MCP tool you can call**
+</execution_rules>
 
-## Call Format
+<call_format>
 \`\`\`json
 {
-  "action": "tool_name",
+  "action": "action_name",
   "decision": "proceed|retry", 
-  "tool_name": { /* tool parameters */ }
+  "action_name": { /* action parameters */ }
 }
 \`\`\`
 
-**When task is complete:**
+When complete:
 \`\`\`json
 {
   "decision": "complete"
 }
-\`\`\``,
+\`\`\`
+</call_format>`,
 
   /**
    * Workflow execution system prompt
    */
   WORKFLOW_EXECUTION:
-    `Agentic workflow execution tool \`{toolName}\` that processes requests through structured multi-step workflows.
+    `Workflow tool \`{toolName}\` that executes multi-step workflows. Use this when your task requires sequential steps.
 
-<instructions>{description}</instructions>
+<manual>
+{description}
+</manual>
 
-## Workflow Execution Protocol
-
-**🎯 FIRST CALL (Planning):**
-{planningInstructions}
-
-**⚡ SUBSEQUENT CALLS (Execution):**
-- Provide ONLY current step parameters
-- **ADVANCE STEP**: Set \`decision: "proceed"\` to move to next step  
-- **RETRY STEP**: Set \`decision: "retry"\`
-- **COMPLETE WORKFLOW**: Set \`decision: "complete"\` when ready to finish
-
-**🚫 Do NOT include \`steps\` parameter during normal execution**
-**✅ Include \`steps\` parameter ONLY when restarting workflow with \`init: true\`**
-**⚠️ CRITICAL: When retrying failed steps, MUST use \`decision: "retry"\`**`,
+<rules>
+1. First call: {planningInstructions}
+2. Subsequent calls: Provide only current step parameters
+3. Use \`decision: "proceed"\` to advance, \`"retry"\` to retry, \`"complete"\` when done
+4. Include \`steps\` ONLY with \`init: true\`, never during execution
+</rules>`,
 
   /**
-   * JSON-only execution system prompt
+   * JSON-only execution system prompt for autonomous sampling mode
+   *
+   * Note: Sampling mode runs an internal LLM loop that autonomously calls tools until complete.
    */
   SAMPLING_EXECUTION:
-    `Autonomous AI Agent \`{toolName}\` that answers user questions by iteratively collecting feedback and adapting your approach.
+    `Agent \`{toolName}\` that completes tasks by calling tools in an autonomous loop.
 
-<instructions>{description}</instructions>
+<manual>
+{description}
+</manual>
 
-## Execution Rules
-- Respond with valid JSON only
-- **Follow instructions above** carefully
-- **Answer user question** as primary goal
-- **Collect feedback** from each action result
-- **Adapt approach** based on gathered information
-- action = "X" → provide parameter "X"
-- Continue until question answered
+<rules>
+1. Return valid JSON only (no markdown, no explanations)
+2. Execute one action per iteration
+3. When \`action\` is "X", include parameter "X" with tool inputs
+4. Adapt based on results from previous actions
+5. Continue until task is complete
+</rules>
 
-## JSON Response Format
-**During execution:**
+<format>
+During execution:
 \`\`\`json
 {
   "action": "tool_name",
   "decision": "proceed|retry",
-  "tool_name": { /* tool parameters */ }
+  "tool_name": { /* parameters */ }
 }
 \`\`\`
 
-**When task is complete (do NOT include action):**
+When complete (omit action):
 \`\`\`json
-{
-  "decision": "complete"
-}
+{ "decision": "complete" }
 \`\`\`
 
-## Available Tools
-{toolList}`,
+Decisions:
+- \`proceed\` = action succeeded, continue
+- \`retry\` = action failed, try again
+- \`complete\` = task finished
+</format>
+
+<tools>
+{toolList}
+</tools>`,
 
   /**
    * Sampling workflow execution system prompt combining sampling with workflow capabilities
+   *
+   * Note: Sampling mode runs an internal LLM loop that autonomously executes workflows.
    */
   SAMPLING_WORKFLOW_EXECUTION:
-    `You are an autonomous AI Agent named \`{toolName}\` that processes instructions through iterative sampling execution within structured workflows.
+    `Workflow agent \`{toolName}\` that executes multi-step workflows autonomously.
 
-<instructions>{description}</instructions>
+<manual>
+{description}
+</manual>
 
-## Agentic Sampling Workflow Protocol
+<rules>
+1. Return valid JSON only
+2. First iteration: Plan workflow and initialize with \`init: true\`
+3. Subsequent iterations: Execute current step
+4. Adapt based on step results
+5. Continue until all steps complete
+</rules>
 
-**🧠 AGENTIC REASONING (First Call - Workflow Planning):**
-1. **Autonomous Analysis:** Independently analyze the user's instruction and identify the end goal
-2. **Workflow Design:** Autonomously design a structured workflow with clear steps
-3. **Tool Mapping:** Determine which tools are needed for each workflow step
-4. **Initialization:** Start the workflow with proper step definitions
+<format>
+Initialize workflow (first iteration):
+\`\`\`json
+{
+  "action": "{toolName}",
+  "init": true,
+  "steps": [/* workflow steps */]
+}
+\`\`\`
 
-**⚡ AGENTIC EXECUTION RULES (Subsequent Calls):**
-- Each response demonstrates autonomous reasoning and decision-making within workflow context
-- Make self-directed choices about step execution, retry, or advancement
-- Adapt your approach based on previous step results without external guidance
-- Balance workflow structure with autonomous flexibility
+Execute step (subsequent iterations):
+\`\`\`json
+{
+  "action": "{toolName}",
+  "decision": "proceed|retry",
+  /* step parameters */
+}
+\`\`\`
 
-**🔄 JSON Response Format (Agentic Workflow Decision Output):**
-You MUST respond with a JSON object for workflow execution:
+Complete workflow (omit action):
+\`\`\`json
+{ "decision": "complete" }
+\`\`\`
 
-**For Workflow Initialization (First Call):**
-- action: "{toolName}"
-- init: true
-- steps: Autonomously designed workflow steps array
-- [other workflow parameters]: As you autonomously determine
+Decisions:
+- \`proceed\` = step succeeded, next step
+- \`retry\` = step failed, retry current
+- \`complete\` = workflow finished
 
-**For Step Execution (Subsequent Calls):**
-- action: "{toolName}"
-- decision: "proceed" (advance), "retry" (retry)
-- [step parameters]: Tool-specific parameters you autonomously determine for current step
-
-**When Workflow is Complete (do NOT include action):**
-- decision: "complete"
-
-**🎯 AGENTIC WORKFLOW CONSTRAINTS:**
-- Response must be pure JSON demonstrating autonomous decision-making within workflow structure
-- Invalid JSON indicates failure in agentic workflow reasoning
-- Tool parameters must reflect your independent analysis and workflow planning
-- Balance autonomous decision-making with structured workflow progression
-
-**🚫 Do NOT include \`steps\` parameter during normal execution**
-**✅ Include \`steps\` parameter ONLY when restarting workflow with \`init: true\`**
-**⚠️ CRITICAL: When retrying failed steps, MUST use \`decision: "retry"\`**`,
+Rules:
+- Include \`steps\` ONLY with \`init: true\`
+- Omit \`steps\` during step execution
+- Use \`decision: "retry"\` for failed steps
+</format>`,
 };
 
 /**
@@ -162,21 +177,14 @@ export const WorkflowPrompts = {
    * Workflow initialization instructions
    */
   WORKFLOW_INIT:
-    `Workflow initialized with {stepCount} steps. Agent MUST start the workflow with the first step to \`{currentStepDescription}\`. 
-              
-## EXECUTE tool \`{toolName}\` with the following new parameter definition
+    `Workflow initialized with {stepCount} steps. Execute step 1: \`{currentStepDescription}\`
 
-{schemaDefinition}
+Schema: {schemaDefinition}
 
-## Important Instructions
-- **Include 'steps' parameter ONLY when restarting workflow (with 'init: true')**
-- **Do NOT include 'steps' parameter during normal step execution**
-- **MUST Use the provided JSON schema definition above for parameter generation and validation**
-- **ADVANCE STEP: Set 'decision' to "proceed" to advance to next step**
-- **RETRY STEP: Set 'decision' to "retry" to re-execute current step**  
-- **FINAL STEP: Execute normally for workflow completion, do NOT use 'decision: complete' unless workflow is truly finished**
-- **⚠️ CRITICAL: When retrying failed steps, MUST set 'decision' to "retry"**
-- **⚠️ CRITICAL: Only use 'decision: complete' when the entire workflow has been successfully executed**
+Call \`{toolName}\` with:
+- Parameters matching schema above
+- \`decision: "proceed"\` to advance, \`"retry"\` to retry, \`"complete"\` when done
+- Omit \`steps\` (only used with \`init: true\`)
 
 {workflowSteps}`,
 
@@ -202,47 +210,33 @@ export const WorkflowPrompts = {
   /**
    * Next step decision prompt
    */
-  NEXT_STEP_DECISION: `**Next Step Decision Required**
+  NEXT_STEP_DECISION: `Previous step completed.
 
-Previous step completed. Choose your action:
+Choose action:
+- RETRY: Call \`{toolName}\` with \`decision: "retry"\`
+- PROCEED: Call \`{toolName}\` with \`decision: "proceed"\` and parameters below
 
-**🔄 RETRY Current Step:** 
-- Call \`{toolName}\` with current parameters
-- ⚠️ CRITICAL: Set \`decision: "retry"\`
-
-**▶️ PROCEED to Next Step:** 
-- Call \`{toolName}\` with parameters below
-- Set \`decision: "proceed"\`
-
-Next step: \`{nextStepDescription}\`
-
+Next: \`{nextStepDescription}\`
 {nextStepSchema}
 
-**Important:** Exclude \`steps\` key from parameters`,
+(Omit \`steps\` parameter)`,
 
   /**
    * Final step completion prompt
    */
-  FINAL_STEP_COMPLETION: `**Final Step Complete** {statusIcon}
+  FINAL_STEP_COMPLETION: `Final step executed {statusIcon} - {statusText}
 
-Step executed {statusText}. Choose action:
-
-**🔄 RETRY:** Call \`{toolName}\` with \`decision: "retry"\`
-**✅ COMPLETE:** Call \`{toolName}\` with \`decision: "complete"\`
-**🆕 NEW:** Call \`{toolName}\` with \`init: true\`{newWorkflowInstructions}`,
+Choose:
+- RETRY: \`decision: "retry"\`
+- COMPLETE: \`decision: "complete"\`
+- NEW: \`init: true\`{newWorkflowInstructions}`,
 
   /**
    * Workflow completion success message
    */
-  WORKFLOW_COMPLETED: `**Workflow Completed Successfully** ✅
+  WORKFLOW_COMPLETED: `Workflow completed ({totalSteps} steps)
 
-All workflow steps have been executed and the workflow is now complete.
-
-**Summary:**
-- Total steps: {totalSteps}
-- All steps executed successfully
-
-Agent can now start a new workflow if needed by calling \`{toolName}\` with \`init: true\`{newWorkflowInstructions}.`,
+Start new workflow: \`{toolName}\` with \`init: true\`{newWorkflowInstructions}`,
 
   /**
    * Error messages
@@ -269,68 +263,49 @@ export const ResponseTemplates = {
   /**
    * Success response for action execution
    */
-  ACTION_SUCCESS: `**Action Completed Successfully** ✅
+  ACTION_SUCCESS: `Action \`{currentAction}\` completed.
 
-Previous action (\`{currentAction}\`) executed successfully. 
-
-**Next Action Required:** \`{nextAction}\`
-
-Agent MUST call tool \`{toolName}\` again with the \`{nextAction}\` action to continue the autonomous execution sequence.
-
-**Instructions:**
-- Analyze the result from previous action: \`{currentAction}\`
-- Execute the next planned action: \`{nextAction}\`
-- Maintain execution context and progress toward the final goal`,
+Next: Execute \`{nextAction}\` by calling \`{toolName}\` again.`,
 
   /**
    * Planning prompt when no next action is specified
    */
-  PLANNING_PROMPT: `**Action Evaluation & Planning Required** 🎯
+  PLANNING_PROMPT: `Action \`{currentAction}\` completed. Determine next step:
 
-Previous action (\`{currentAction}\`) completed. You need to determine the next step.
-
-**Evaluation & Planning Process:**
-1. **Analyze Results:** Review the outcome of \`{currentAction}\`
-2. **Assess Progress:** Determine how close you are to fulfilling the user request
-3. **Plan Next Action:** Identify the most appropriate next action (if needed)
-4. **Execute Decision:** Call \`{toolName}\` with the planned action
-
-**Options:**
-- **Continue:** If more actions are needed to fulfill the request
-- **Complete:** If the user request has been fully satisfied
-
-Choose the next action that best advances toward completing the user's request.`,
+1. Analyze results from \`{currentAction}\`
+2. Decide: Continue with another action or Complete?
+3. Call \`{toolName}\` with chosen action or \`decision: "complete"\``,
 
   /**
-   * Error response template
+   * Error response templates
    */
-  ERROR_RESPONSE: `Action argument validation failed: {errorMessage}`,
-  WORKFLOW_ERROR_RESPONSE: `Action argument validation failed: {errorMessage}
-Set \`decision: "retry"\` to retry the current step, or check your parameters and try again.`,
+  ERROR_RESPONSE: `Validation failed: {errorMessage}
+
+Adjust parameters and retry.`,
+
+  WORKFLOW_ERROR_RESPONSE: `Step failed: {errorMessage}
+
+Fix parameters and call with \`decision: "retry"\``,
 
   /**
    * Completion message
    */
-  COMPLETION_MESSAGE: `Completed, no dependent actions to execute`,
+  COMPLETION_MESSAGE: `Task completed.`,
 
   /**
    * Security validation messages
    */
   SECURITY_VALIDATION: {
-    PASSED: `Security validation PASSED for {operation} on {path}`,
-    FAILED: `Security validation FAILED for {operation} on {path}`,
+    PASSED: `Security check passed: {operation} on {path}`,
+    FAILED: `Security check failed: {operation} on {path}`,
   },
 
   /**
    * Audit log messages
    */
-  AUDIT_LOG:
-    `Audit log entry created: [{timestamp}] {level}: {action} on {resource}{userInfo}`,
+  AUDIT_LOG: `[{timestamp}] {level}: {action} on {resource}{userInfo}`,
 };
 
-/**
- * Tool description templates and enhancements
- */
 /**
  * Tool description templates and enhancements
  */
@@ -340,14 +315,9 @@ export const ToolDescriptions = {
    */
   BASE_TEMPLATE: `{description}
 
-**Available Tools:**
-{availableTools}
-
-**Capabilities:**
-{capabilities}
-
-**Quality Standards:**
-{qualityStandards}`,
+Tools: {availableTools}
+Capabilities: {capabilities}
+Standards: {qualityStandards}`,
 };
 
 /**
@@ -423,16 +393,17 @@ export const PromptUtils = {
     currentStepIndex: number;
   }) => {
     const statusIcons = {
-      pending: "⏳",
-      running: "🔄",
-      completed: "✅",
-      failed: "❌",
+      pending: "[PENDING]",
+      running: "[RUNNING]",
+      completed: "[DONE]",
+      failed: "[FAILED]",
     };
 
     return progressData.steps
       .map((step, index) => {
         const status = progressData.statuses[index] || "pending";
-        const icon = statusIcons[status as keyof typeof statusIcons] || "⏳";
+        const icon = statusIcons[status as keyof typeof statusIcons] ||
+          "[PENDING]";
         const current = index === progressData.currentStepIndex
           ? " **[CURRENT]**"
           : "";

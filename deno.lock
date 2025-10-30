@@ -1,7 +1,7 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.39.10",
+    "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.41.0",
     "jsr:@std/assert@1": "1.0.14",
     "jsr:@std/assert@^1.0.14": "1.0.14",
     "jsr:@std/cli@^1.0.21": "1.0.21",
@@ -15,8 +15,6 @@
     "jsr:@std/net@^1.0.4": "1.0.5",
     "jsr:@std/path@^1.1.1": "1.1.2",
     "jsr:@std/streams@^1.0.10": "1.0.11",
-    "npm:@agentclientprotocol/sdk@*": "0.4.8",
-    "npm:@agentclientprotocol/sdk@0.4.8": "0.4.8",
     "npm:@agentclientprotocol/sdk@~0.4.8": "0.4.8",
     "npm:@ai-sdk/provider-utils@^2.2.8": "2.2.8_zod@3.25.76",
     "npm:@ai-sdk/provider@2": "2.0.0",
@@ -44,8 +42,8 @@
     "npm:zod@^3.24.2": "3.25.76"
   },
   "jsr": {
-    "@es-toolkit/es-toolkit@1.39.10": {
-      "integrity": "8757072a13aa64b3b349ba2b9d7d22fbe7ea6f138506c6cd2222d767cd79918f"
+    "@es-toolkit/es-toolkit@1.41.0": {
+      "integrity": "4df54a18e80b869880cee8a8a9ff7a5e1c424a9fd0916dccd38d34686f110071"
     },
     "@std/assert@1.0.14": {
       "integrity": "68d0d4a43b365abc927f45a9b85c639ea18a9fab96ad92281e493e4ed84abaa4",
@@ -514,13 +512,7 @@
     "@types/node@24.2.0": {
       "integrity": "sha512-3xyG3pMCq3oYCNg7/ZP+E1ooTaGB4cG8JWRsqqOYQdbWNY4zbaV0Ennrd7stjiJEFZCaybcIgpTjJWHRfBSIDw==",
       "dependencies": [
-        "undici-types@7.10.0"
-      ]
-    },
-    "@types/node@24.6.2": {
-      "integrity": "sha512-d2L25Y4j+W3ZlNAeMKcy7yDsK425ibcAOO2t7aPTz6gNMH0z2GThtwENCDc0d/Pw9wgyRqE5Px1wkV7naz8ang==",
-      "dependencies": [
-        "undici-types@7.13.0"
+        "undici-types"
       ]
     },
     "@vercel/oidc@3.0.1": {
@@ -1093,7 +1085,7 @@
         "@protobufjs/path",
         "@protobufjs/pool",
         "@protobufjs/utf8",
-        "@types/node@24.6.2",
+        "@types/node",
         "long"
       ],
       "scripts": true
@@ -1251,9 +1243,6 @@
     "undici-types@7.10.0": {
       "integrity": "sha512-t5Fy/nfn+14LuOc2KNYg75vZqClpAiqscVvMygNnlsHBFpSXdJaYtXMcdNLpl/Qvc3P2cB3s6lOV51nqsFq4ag=="
     },
-    "undici-types@7.13.0": {
-      "integrity": "sha512-Ov2Rr9Sx+fRgagJ5AX0qvItZG/JKKoBRAVITs1zk7IqZGTJUwgUr7qoYBpWwakpWilTZFM98rG/AFRocu10iIQ=="
-    },
     "undici@7.16.0": {
       "integrity": "sha512-QEg3HPMll0o3t2ourKwOeUAZ159Kn9mx5pnzHRQO8+Wixmh88YdZRiIwat0iNzNNXn0yoEtXJqFpyW7eM8BV7g=="
     },
@@ -1311,7 +1300,7 @@
     "members": {
       "packages/acp-ai-provider": {
         "dependencies": [
-          "jsr:@mcpc/core@0.2",
+          "jsr:@mcpc/core@0.3",
           "jsr:@std/assert@1",
           "npm:@agentclientprotocol/sdk@~0.4.8",
           "npm:@ai-sdk/provider-utils@^2.2.8",
@@ -1323,7 +1312,7 @@
       },
       "packages/cli": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.2.8",
+          "jsr:@mcpc/core@0.3",
           "jsr:@mcpc/utils@~0.2.2",
           "jsr:@std/assert@^1.0.14",
           "jsr:@std/http@^1.0.14",
@@ -1358,7 +1347,7 @@
       },
       "packages/mcp-sampling-ai-provider": {
         "dependencies": [
-          "jsr:@mcpc/core@0.2",
+          "jsr:@mcpc/core@0.3",
           "jsr:@std/assert@1",
           "npm:@ai-sdk/provider-utils@^2.2.8",
           "npm:@ai-sdk/provider@2",
@@ -1369,7 +1358,7 @@
       },
       "packages/mcpc-builder": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.2.9",
+          "jsr:@mcpc/core@0.3",
           "jsr:@std/assert@^1.0.14",
           "npm:@modelcontextprotocol/sdk@^1.8.0",
           "npm:zod@^3.24.2"
