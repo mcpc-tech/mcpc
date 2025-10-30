@@ -475,6 +475,7 @@ export class ComposableMCPServer extends Server {
       if (!allTools[toolName]) {
         allTools[toolName] = tool;
       }
+      availableToolNames.add(toolName);
     });
 
     // Warn about unmatched tool names against final tool set
@@ -486,7 +487,7 @@ export class ComposableMCPServer extends Server {
       unmatchedTools.forEach((toolName) => {
         this.logger.warning(`   • Tool not found: "${toolName}"`);
       });
-      const available = Object.keys(availableToolNames).sort().join(", ");
+      const available = Array.from(availableToolNames).sort().join(", ");
       await this.logger.warning(`   Available tools: ${available}`);
     }
 

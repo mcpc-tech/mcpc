@@ -162,3 +162,77 @@ Deno.test(
     );
   },
 );
+
+Deno.test(
+  "Client list tools - agentic server with MCP deps",
+  {
+    sanitizeResources: false, // Allow resource leaks from external MCP server
+    sanitizeOps: false,
+  },
+  async () => {
+    const server = await mcpc(
+      [{ name: "test-server", version: "1.0.0" }, {}],
+      [
+        {
+          name: "test-agent",
+          description: `Test agent with dependencies.
+<tool name="desktop-commander.read_file"/>
+<tool name="desktop-commander.write_file"/>`,
+          deps: {
+            mcpServers: {
+              "desktop-commander": {
+                command: "npx",
+                args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+                transportType: "stdio",
+              },
+            },
+          },
+        },
+      ],
+    );
+
+    try {
+      const [clientTransport, serverTransport] = InMemoryTransport
+        .createLinkedPair();
+
+      await server.connect(serverTransport);
+
+      const client = new Client({
+        name: "test-client",
+        version: "1.0.0",
+      });
+
+      await client.connect(clientTransport);
+
+      const tools = await client.listTools();
+
+      assertEquals(
+        tools.tools.length,
+        1,
+        "Should have 1 tool (the agent)",
+      );
+
+      // Check that the agent tool has the correct action enum with the dependency tools
+      const agentTool = tools.tools.find((t) => t.name === "test-agent");
+      assertEquals(
+        agentTool !== undefined,
+        true,
+        "Agent tool should exist",
+      );
+
+      const actionEnum = (
+        agentTool!.inputSchema.properties?.action as unknown as {
+          enum: string[];
+        }
+      ).enum;
+
+      assertArrayIncludes(
+        actionEnum,
+        ["desktop-commander_read_file", "desktop-commander_write_file"],
+        "Agent should include tools from MCP dependencies",
+      );
+    } finally {
+      await server.close();
+    }
+  },
+);
