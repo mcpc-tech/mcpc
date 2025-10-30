@@ -6,6 +6,7 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { ToolConfig } from "../plugin-types.ts";
 import type { JSONSchema, ToolCallback } from "../types.ts";
+import { jsonSchema } from "./schema.ts";
 
 /**
  * Manages tool registration, configuration, and resolution
@@ -265,7 +266,9 @@ export class ToolManager {
       composedTools[name] = {
         name,
         description: tool.description,
-        inputSchema: tool.schema || { type: "object", properties: {} },
+        inputSchema: jsonSchema(
+          tool.schema || { type: "object", properties: {} },
+        ),
         execute: tool.callback,
       };
     }
