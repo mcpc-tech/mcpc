@@ -143,8 +143,7 @@ Deno.test("Plugin lifecycle - finalizeComposition receives all tools", async () 
     ],
     (server) => {
       // Register tools directly on the server
-      // Note: These won't be included in finalizeComposition's tools parameter
-      // as that only includes tools from external MCP dependencies
+      // These SHOULD be included in finalizeComposition's tools parameter
       server.tool(
         "tool1",
         "Tool 1",
@@ -161,11 +160,12 @@ Deno.test("Plugin lifecycle - finalizeComposition receives all tools", async () 
     },
   );
 
-  // finalizeComposition receives tools from external MCP deps, not directly registered tools
-  // Since we have no MCP deps, the tools object should be empty
-  assertEquals(Object.keys(receivedTools).length, 0);
+  // finalizeComposition now receives ALL tools including directly registered ones
+  assertEquals(Object.keys(receivedTools).length, 2);
+  assertEquals(receivedTools["tool1"] !== undefined, true);
+  assertEquals(receivedTools["tool2"] !== undefined, true);
 
-  // But the server should still have the registered tools
+  // And the server should still have the registered tools
   assertEquals(server.hasToolNamed("tool1"), true);
   assertEquals(server.hasToolNamed("tool2"), true);
 });

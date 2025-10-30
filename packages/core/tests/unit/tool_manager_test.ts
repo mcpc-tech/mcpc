@@ -50,9 +50,24 @@ Deno.test("ToolManager - tool name resolution", async () => {
 });
 
 Deno.test("ToolManager - internal tool visibility", async () => {
+  const transformedTools: string[] = [];
+
   const server = await mcpc(
     [{ name: "test-server", version: "1.0.0" }, {}],
-    [],
+    [
+      {
+        name: "test-agent",
+        description: "Test agent",
+        deps: { mcpServers: {} },
+        plugins: [{
+          name: "transform-test",
+          transformTool: (tool) => {
+            transformedTools.push(tool.name);
+            return tool;
+          },
+        }],
+      },
+    ],
     (server) => {
       server.tool(
         "internal-tool",
@@ -81,6 +96,10 @@ Deno.test("ToolManager - internal tool visibility", async () => {
 
   assertEquals(hiddenTools.includes("internal-tool"), true);
   assertEquals(publicTools.includes("internal-tool"), false);
+
+  // Verify that tools registered in setup hooks are processed by plugins
+  assertEquals(transformedTools.includes("internal-tool"), true);
+  assertEquals(transformedTools.includes("public-tool"), true);
 });
 
 Deno.test("ToolManager - tool configuration", async () => {

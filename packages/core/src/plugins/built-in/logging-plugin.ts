@@ -41,15 +41,30 @@ export const createLoggingPlugin = (
         const publicTools = Array.from(
           new Set(server.getPublicToolNames().map(String)),
         );
+        const internalTools = Array.from(
+          new Set(server.getInternalToolNames().map(String)),
+        );
         const hiddenTools = Array.from(
           new Set(server.getHiddenToolNames().map(String)),
+        );
+
+        // Split internal tools into normal and hidden
+        const normalInternal = internalTools.filter(
+          (name) => !hiddenTools.includes(name),
         );
 
         if (publicTools.length > 0) {
           await logger.info(`   ├─ Public: ${publicTools.join(", ")}`);
         }
-        if (hiddenTools.length > 0) {
-          await logger.info(`   ├─ Hidden: ${hiddenTools.join(", ")}`);
+        if (internalTools.length > 0) {
+          const parts: string[] = [];
+          if (normalInternal.length > 0) {
+            parts.push(normalInternal.join(", "));
+          }
+          if (hiddenTools.length > 0) {
+            parts.push(`(${hiddenTools.join(", ")})`);
+          }
+          await logger.info(`   ├─ Internal: ${parts.join(", ")}`);
         }
         await logger.info(`   └─ Total: ${stats.totalTools} tools`);
       }

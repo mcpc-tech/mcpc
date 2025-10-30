@@ -253,4 +253,23 @@ export class ToolManager {
   > {
     return this.toolRegistry;
   }
+
+  /**
+   * Get all registered tools as ComposedTool objects
+   * This includes tools registered via server.tool() in setup hooks
+   */
+  getRegisteredToolsAsComposed(): Record<string, any> {
+    const composedTools: Record<string, any> = {};
+
+    for (const [name, tool] of this.toolRegistry.entries()) {
+      composedTools[name] = {
+        name,
+        description: tool.description,
+        inputSchema: tool.schema || { type: "object", properties: {} },
+        execute: tool.callback,
+      };
+    }
+
+    return composedTools;
+  }
 }

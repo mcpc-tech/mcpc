@@ -283,6 +283,17 @@ export class ComposableMCPServer extends Server {
   }
 
   /**
+   * Get all internal tool names (tools that are not public)
+   */
+  getInternalToolNames(): string[] {
+    const allToolNames = Array.from(
+      this.toolManager.getToolRegistry().keys(),
+    );
+    const publicToolNames = this.getPublicToolNames();
+    return allToolNames.filter((name) => !publicToolNames.includes(name));
+  }
+
+  /**
    * Get hidden tool schema by name (for internal access)
    */
   getHiddenToolSchema(
@@ -412,7 +423,6 @@ export class ComposableMCPServer extends Server {
         availableToolNames.add(toolNameWithScope);
         availableToolNames.add(toolId);
         availableToolNames.add(`${mcpName}.${ALL_TOOLS_PLACEHOLDER}`);
-        availableToolNames.add(mcpName);
 
         // Populate server-level name mappings for easier resolution at runtime
         // 1) Map fully-scoped name (e.g., "server.SearchLog") -> toolId
@@ -481,21 +491,33 @@ export class ComposableMCPServer extends Server {
     Object.entries(tools).forEach(([toolId, tool]) => {
       this.toolManager.registerTool(
         toolId,
-        tool.description || "No description available",
+        tool.description || "",
         tool.inputSchema as JSONSchema,
         tool.execute,
       );
     });
 
+    // Merge tools registered in setup hooks (e.g., via configureServer)
+    // with external tools from MCP dependencies
+    const registeredTools = this.toolManager.getRegisteredToolsAsComposed();
+    const allTools = { ...tools }; // Start with external tools
+
+    // Add tools from registry that aren't already in external tools
+    for (const [toolName, tool] of Object.entries(registeredTools)) {
+      if (!allTools[toolName]) {
+        allTools[toolName] = tool;
+      }
+    }
+
     // Trigger transformation hooks for all tools (transformTool)
-    await this.processToolsWithPlugins(tools, options.mode ?? "agentic");
+    await this.processToolsWithPlugins(allTools, options.mode ?? "agentic");
 
     // Trigger finalizeComposition hooks after transformation
-    await this.pluginManager.triggerFinalizeComposition(tools, {
+    await this.pluginManager.triggerFinalizeComposition(allTools, {
       serverName: name ?? "anonymous",
       mode: options.mode ?? "agentic",
       server: this,
-      toolNames: Object.keys(tools),
+      toolNames: Object.keys(allTools),
     });
 
     // Cleanup clients when server is closed (pretty-printed to match logging plugin)
@@ -518,7 +540,7 @@ export class ComposableMCPServer extends Server {
       );
     };
 
-    const toolNameToDetailList = Object.entries(tools);
+    const toolNameToDetailList = Object.entries(allTools);
 
     // Get public and hidden tool names
     const publicToolNames = this.getPublicToolNames();
@@ -531,18 +553,18 @@ export class ComposableMCPServer extends Server {
 
     // Add public tools to server (these are exposed to MCP clients)
     publicToolNames.forEach((toolId) => {
-      const tool = tools[toolId];
+      const tool = allTools[toolId];
       if (!tool) {
         throw new Error(
           `Public tool ${toolId} not found in registry, available: ${
-            Object.keys(tools).join(", ")
+            Object.keys(allTools).join(", ")
           }`,
         );
       }
       // Register tool and mark as public
       this.tool(
         toolId,
-        tool.description || "No description available",
+        tool.description || "",
         jsonSchema(tool.inputSchema as any),
         tool.execute,
         { internal: false }, // Not internal, will be added to publicTools
@@ -573,7 +595,7 @@ export class ComposableMCPServer extends Server {
     description = processToolTags({
       ...desTags,
       description: description,
-      tools,
+      tools: allTools,
       toolOverrides: new Map(), // We'll need to expose this differently
       toolNameMapping: toolNameToIdMapping,
     });

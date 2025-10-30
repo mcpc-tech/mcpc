@@ -17,7 +17,7 @@ Deno.test("callTool resolves tools from registry (no config)", async () => {
     (server: any) => {
       // Register a tool without any visibility config entry
       server.tool(
-        "cls_SearchLog",
+        "search_logs",
         "Search logs",
         jsonSchema<Record<string, unknown>>({
           type: "object",
@@ -31,7 +31,7 @@ Deno.test("callTool resolves tools from registry (no config)", async () => {
     },
   );
 
-  const res = (await server.callTool("cls_SearchLog", { q: "ping" })) as any;
+  const res = (await server.callTool("search_logs", { q: "ping" })) as any;
   const text = res?.content?.find((c: any) => c.type === "text")?.text ?? "";
   if (!text.includes("ok:ping")) {
     throw new Error(`Unexpected result: ${text}`);
