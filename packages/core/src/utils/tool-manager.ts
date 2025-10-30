@@ -263,7 +263,7 @@ export class ToolManager {
     const composedTools: Record<string, any> = {};
 
     for (const [name, tool] of this.toolRegistry.entries()) {
-      if (this.toolConfigs.get(name)?.visibility?.public) {
+      if (this.toolConfigs.get(name)?.visibility?.public === true) {
         continue;
       }
       composedTools[name] = {
