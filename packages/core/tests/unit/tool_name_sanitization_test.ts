@@ -19,4 +19,9 @@ Deno.test("sanitizePropertyKey removes special characters", () => {
     sanitizePropertyKey("server-tool-name"),
     "server-tool-name",
   );
+
+  assertEquals(
+    sanitizePropertyKey("你好.hey"),
+    "你好_hey",
+  );
 });

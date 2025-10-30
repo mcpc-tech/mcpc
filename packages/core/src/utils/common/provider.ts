@@ -6,18 +6,20 @@ import { GEMINI_PREFERRED_FORMAT } from "./config.ts";
 import { optionalObject } from "./json.ts";
 
 /**
- * Provider restriction: tools.0.custom.input_schema.properties: Property keys should match pattern '^[a-zA-Z0-9_-]{1,64}$
+ * Provider restriction: tools.0.custom.input_schema.properties: Property keys should match pattern '^[a-zA-Z0-9_\-\p{L}\p{N}]{1,64}$
+ * Supports: alphanumeric (ASCII + unicode), underscore, dash, and unicode letters (including Chinese)
  */
-export const ToolNameRegex = /^[a-zA-Z0-9_-]{1,64}$/;
+export const ToolNameRegex = /^[a-zA-Z0-9_\-\p{L}\p{N}]{1,64}$/u;
 
 /**
  * Sanitize tool name to match provider requirements
- * Replaces any character that's not alphanumeric, underscore, or dash with underscore
+ * Replaces special characters (like @ . , / etc) with underscore
+ * Preserves alphanumeric, underscore, dash, and unicode characters
  * Truncates to 64 characters max
  */
 export function sanitizePropertyKey(name: string): string {
   return name
-    .replace(/[^a-zA-Z0-9_-]/g, "_") // Replace invalid characters with underscore
+    .replace(/[@.,/\\:;!?#$%^&*()[\]{}]/g, "_") // Replace special characters with underscore
     .substring(0, 64); // Truncate to max length
 }
 

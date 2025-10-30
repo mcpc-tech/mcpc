@@ -1,10 +1,3 @@
-/**
- * Integration tests for AI SDK Adapter
- *
- * Tests the convertToAISDKTools function that converts MCPC server tools
- * to AI SDK compatible format.
- */
-
 import { assertEquals, assertExists } from "@std/assert";
 import { type ComposeDefinition, convertToAISDKTools, mcpc } from "@mcpc/core";
 
