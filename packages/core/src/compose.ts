@@ -31,6 +31,7 @@ import { sortPluginsByOrder, validatePlugins } from "./plugin-utils.ts";
 import { PluginManager } from "./utils/plugin-manager.ts";
 import { ToolManager } from "./utils/tool-manager.ts";
 import { buildDependencyGroups } from "./utils/compose-helpers.ts";
+import { sanitizePropertyKey } from "./utils/common/provider.ts";
 
 const ALL_TOOLS_PLACEHOLDER = "__ALL__";
 
@@ -95,9 +96,7 @@ export class ComposableMCPServer extends Server {
     const hookName = direction === "input"
       ? "transformInput"
       : "transformOutput";
-    const plugins = this.pluginManager.getPlugins().filter(
-      (p) => p[hookName],
-    );
+    const plugins = this.pluginManager.getPlugins().filter((p) => p[hookName]);
 
     if (plugins.length === 0) {
       return data;
@@ -153,9 +152,7 @@ export class ComposableMCPServer extends Server {
     options: { internal?: boolean; plugins?: ToolPlugin[] } = {},
   ) {
     // Extract JSON Schema from wrapped or unwrapped format
-    const jsonSchemaObj = extractJsonSchema(
-      paramsSchema as Schema<T>,
-    );
+    const jsonSchemaObj = extractJsonSchema(paramsSchema as Schema<T>);
 
     this.toolManager.registerTool(
       name,
@@ -168,11 +165,7 @@ export class ComposableMCPServer extends Server {
     // Add to public tools if not internal (for tools registered via server.tool())
     // This makes tools registered in setup callbacks public by default
     if (!options.internal) {
-      this.toolManager.addPublicTool(
-        name,
-        description,
-        jsonSchemaObj,
-      );
+      this.toolManager.addPublicTool(name, description, jsonSchemaObj);
     }
 
     // Add any plugins specified for this tool to plugin manager
@@ -286,9 +279,7 @@ export class ComposableMCPServer extends Server {
    * Get all internal tool names (tools that are not public)
    */
   getInternalToolNames(): string[] {
-    const allToolNames = Array.from(
-      this.toolManager.getToolRegistry().keys(),
-    );
+    const allToolNames = Array.from(this.toolManager.getToolRegistry().keys());
     const publicToolNames = this.getPublicToolNames();
     return allToolNames.filter((name) => !publicToolNames.includes(name));
   }
@@ -410,7 +401,7 @@ export class ComposableMCPServer extends Server {
     // Collect all requested tool names from XML tags
     tagToResults.tool.forEach((tool: any) => {
       if (tool.attribs.name) {
-        requestedToolNames.add(tool.attribs.name);
+        requestedToolNames.add(sanitizePropertyKey(tool.attribs.name));
       }
     });
 
@@ -548,7 +539,9 @@ export class ComposableMCPServer extends Server {
       if (!tool) {
         throw new Error(
           `Public tool ${toolId} not found in registry, available: ${
-            Object.keys(allTools).join(", ")
+            Object.keys(
+              allTools,
+            ).join(", ")
           }`,
         );
       }
