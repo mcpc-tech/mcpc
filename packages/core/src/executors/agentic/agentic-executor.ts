@@ -154,6 +154,7 @@ export class AgenticExecutor {
             type: "text",
             text: CompiledPrompts.planningPrompt({
               currentAction: actionName,
+              toolName: this.name,
             }),
           });
         }
@@ -209,6 +210,7 @@ export class AgenticExecutor {
               type: "text",
               text: CompiledPrompts.planningPrompt({
                 currentAction: actionName,
+                toolName: this.name,
               }),
             });
           }

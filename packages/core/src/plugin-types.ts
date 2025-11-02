@@ -6,6 +6,7 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { ToolCallback } from "./types.ts";
 import type { ComposableMCPServer } from "./compose.ts";
+import type { ExecutionMode } from "./prompts/types.ts";
 
 export interface ComposedTool extends Tool {
   execute: ToolCallback;
@@ -24,7 +25,7 @@ export interface ToolPlugin {
   enforce?: "pre" | "post";
 
   /** Apply plugin conditionally based on mode */
-  apply?: "agentic" | "workflow" | ((mode: string) => boolean);
+  apply?: ExecutionMode | ((mode: string) => boolean);
 
   /** Plugin dependencies - names of plugins that must be loaded first */
   dependencies?: string[];
@@ -47,6 +48,15 @@ export interface ToolPlugin {
   finalizeComposition?: (
     tools: Record<string, ComposedTool>,
     context: FinalizeContext,
+  ) => void | Promise<void>;
+
+  /**
+   * Called to register the final agent tool (execution mode).
+   * If multiple plugins implement this, the last one wins.
+   * Use this to implement custom execution modes.
+   */
+  registerAgentTool?: (
+    context: AgentToolRegistrationContext,
   ) => void | Promise<void>;
 
   /** Called after composition is complete - for logging and cleanup */
@@ -84,7 +94,7 @@ export interface CompositionInfo {
 export interface ComposeStartContext {
   serverName: string;
   description: string;
-  mode: "agentic" | "agentic_workflow";
+  mode: ExecutionMode;
   server: ComposableMCPServer;
   /** All available tool names before composition */
   availableTools: string[];
@@ -94,7 +104,7 @@ export interface ComposeStartContext {
 export interface TransformContext {
   toolName: string;
   server: ComposableMCPServer;
-  mode: "agentic" | "agentic_workflow";
+  mode: ExecutionMode;
   /** Original tool definition before any transformations */
   originalTool: ComposedTool;
   /** Index of current transformation (how many plugins have processed this tool) */
@@ -104,17 +114,38 @@ export interface TransformContext {
 /** Context for finalizeComposition hook */
 export interface FinalizeContext {
   serverName: string;
-  mode: "agentic" | "agentic_workflow";
+  mode: ExecutionMode;
   server: ComposableMCPServer;
   /** Names of all composed tools */
   toolNames: string[];
+}
+
+/** Context for registerAgentTool hook - implements custom execution modes */
+export interface AgentToolRegistrationContext {
+  server: ComposableMCPServer;
+  name: string;
+  description: string;
+  mode: ExecutionMode | string;
+  allToolNames: string[];
+  toolNameToDetailList: [string, ComposedTool][];
+  depGroups: Record<string, unknown>;
+  toolNameToIdMapping?: Map<string, string>;
+  publicToolNames: string[];
+  hiddenToolNames: string[];
+  options: {
+    mode?: string;
+    sampling?: boolean | { maxIterations?: number; summarize?: boolean };
+    steps?: Array<{ description: string; actions: string[] }>;
+    ensureStepActions?: string[];
+    [key: string]: unknown;
+  };
 }
 
 /** Context for composeEnd hook */
 export interface ComposeEndContext {
   toolName: string | null;
   pluginNames: string[];
-  mode: "agentic" | "agentic_workflow";
+  mode: ExecutionMode;
   server: ComposableMCPServer;
   /** Composition statistics - simplified */
   stats: {
