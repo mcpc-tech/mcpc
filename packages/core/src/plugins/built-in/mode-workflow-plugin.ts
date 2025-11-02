@@ -22,7 +22,6 @@ export const createWorkflowModePlugin = (): ToolPlugin => ({
       depGroups: context.depGroups,
       toolNameToDetailList: context.toolNameToDetailList,
       predefinedSteps: context.options.steps,
-      sampling: context.options.sampling,
       ensureStepActions: context.options.ensureStepActions,
       toolNameToIdMapping: context.toolNameToIdMapping,
     });

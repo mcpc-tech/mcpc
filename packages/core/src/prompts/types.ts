@@ -29,7 +29,11 @@ export interface WorkflowStep {
 /**
  * Execution mode types
  */
-export type ExecutionMode = "agentic" | "agentic_workflow";
+export type ExecutionMode =
+  | "agentic"
+  | "agentic_workflow"
+  | "agentic_sampling"
+  | "agentic_workflow_sampling";
 
 /**
  * Prompt template configuration

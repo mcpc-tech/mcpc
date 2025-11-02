@@ -17,7 +17,6 @@ export interface RegisterToolParams {
   allToolNames: string[];
   depGroups: Record<string, unknown>;
   toolNameToDetailList: [string, unknown][];
-  sampling?: boolean | SamplingConfig;
 }
 
 export interface RegisterWorkflowToolParams extends RegisterToolParams {

@@ -55,7 +55,7 @@ const server = await mcpc(
   [
     {
       name: "mcpc-builder-agent",
-      options: { mode: "agentic", sampling: false },
+      options: { mode: "agentic" },
       description,
       deps,
     },

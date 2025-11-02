@@ -7,6 +7,7 @@ import type { ComposableMCPServer } from "../compose.ts";
 import type { ComposedTool } from "../plugin-types.ts";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { JSONSchema } from "../types.ts";
+import type { ExecutionMode } from "../prompts/types.ts";
 import { updateRefPaths } from "./common/schema.ts";
 import { jsonSchema } from "./schema.ts";
 import { sanitizePropertyKey } from "./common/provider.ts";
@@ -17,7 +18,7 @@ import { sanitizePropertyKey } from "./common/provider.ts";
 export async function processToolsWithPlugins(
   server: ComposableMCPServer,
   externalTools: Record<string, ComposedTool>,
-  mode: "agentic" | "agentic_workflow",
+  mode: ExecutionMode,
 ): Promise<void> {
   const toolManager = (server as any).toolManager;
   const pluginManager = (server as any).pluginManager;
