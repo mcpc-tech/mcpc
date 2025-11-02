@@ -50,6 +50,18 @@
 
 export * from "./src/compose.ts";
 
+// Plugin system
+export type {
+  AgentToolRegistrationContext,
+  ComposedTool,
+  ComposeEndContext,
+  ComposeStartContext,
+  FinalizeContext,
+  ToolConfig,
+  ToolPlugin,
+  TransformContext,
+} from "./src/plugin-types.ts";
+
 export * from "./src/utils/common/env.ts";
 export * from "./src/utils/common/json.ts";
 export * from "./src/utils/common/mcp.ts";

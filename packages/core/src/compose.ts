@@ -17,14 +17,13 @@ import { parseTags } from "@mcpc/utils";
 import { composeMcpDepTools } from "./utils/common/mcp.ts";
 import type { ComposeDefinition } from "./set-up-mcp-compose.ts";
 import type { JSONSchema, ToolCallback } from "./types.ts";
-import { registerAgenticTool } from "./executors/agentic/agentic-tool-registrar.ts";
-import { registerAgenticWorkflowTool } from "./executors/workflow/workflow-tool-registrar.ts";
 import { processToolTags } from "./utils/common/tool-tag-processor.ts";
 import { getBuiltInPlugins } from "./plugins/built-in/index.ts";
 import { createLogger } from "./utils/logger.ts";
 
 // Import plugin types and utilities
 import type { ComposedTool, ToolConfig, ToolPlugin } from "./plugin-types.ts";
+import type { ExecutionMode } from "./prompts/types.ts";
 import { sortPluginsByOrder, validatePlugins } from "./plugin-utils.ts";
 
 // Import new manager modules
@@ -343,7 +342,7 @@ export class ComposableMCPServer extends Server {
    */
   private async processToolsWithPlugins(
     externalTools: Record<string, ComposedTool>,
-    mode: "agentic" | "agentic_workflow",
+    mode: ExecutionMode,
   ): Promise<void> {
     const { processToolsWithPlugins: processTools } = await import(
       "./utils/compose-helpers.ts"
@@ -595,30 +594,29 @@ export class ComposableMCPServer extends Server {
       this,
     );
 
-    switch (options.mode ?? "agentic") {
-      case "agentic":
-        registerAgenticTool(this, {
-          description,
-          name,
-          allToolNames,
-          depGroups,
-          toolNameToDetailList,
-          sampling: options.sampling,
-        });
-        break;
-      case "agentic_workflow":
-        registerAgenticWorkflowTool(this, {
-          description,
-          name,
-          allToolNames,
-          depGroups,
-          toolNameToDetailList,
-          predefinedSteps: options.steps,
-          sampling: options.sampling,
-          ensureStepActions: options.ensureStepActions,
-          toolNameToIdMapping,
-        });
-        break;
+    const mode = options.mode ?? "agentic";
+    const context = {
+      server: this,
+      name,
+      description,
+      mode,
+      allToolNames,
+      toolNameToDetailList,
+      depGroups,
+      toolNameToIdMapping,
+      publicToolNames,
+      hiddenToolNames,
+      options,
+    };
+
+    // Trigger registerAgentTool hook - last plugin wins
+    const handled = await this.pluginManager.triggerRegisterAgentTool(context);
+
+    if (!handled) {
+      throw new Error(
+        `No plugin registered to handle execution mode "${mode}". ` +
+          `Did you override the default mode plugin, but in the wrong way?`,
+      );
     }
   }
 }

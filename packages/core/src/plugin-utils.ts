@@ -15,12 +15,12 @@ const pluginCache = new Map<string, ToolPlugin>();
  */
 export function shouldApplyPlugin(
   plugin: ToolPlugin,
-  mode: "agentic" | "agentic_workflow",
+  mode: string,
 ): boolean {
   if (!plugin.apply) return true;
 
   if (typeof plugin.apply === "string") {
-    return mode.includes(plugin.apply);
+    return mode === plugin.apply;
   }
 
   if (typeof plugin.apply === "function") {
@@ -112,6 +112,7 @@ export function isValidPlugin(plugin: unknown): plugin is ToolPlugin {
     typeof p.composeStart === "function" ||
     typeof p.transformTool === "function" ||
     typeof p.finalizeComposition === "function" ||
+    typeof p.registerAgentTool === "function" ||
     typeof p.composeEnd === "function" ||
     typeof p.transformInput === "function" ||
     typeof p.transformOutput === "function" ||

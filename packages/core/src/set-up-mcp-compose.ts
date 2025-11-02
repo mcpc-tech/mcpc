@@ -5,6 +5,7 @@ import type { MCPSetting } from "./service/tools.ts";
 import type { SamplingConfig } from "./types.ts";
 import type { ToolPlugin } from "./plugin-types.ts";
 import type { ToolRefXml } from "./types.ts";
+import type { ExecutionMode } from "./prompts/types.ts";
 
 export interface ComposeDefinition {
   /**
@@ -39,7 +40,7 @@ export interface ComposeDefinition {
      * - "agentic_workflow": Agent workflow mode that can either generate steps at runtime or use predefined steps
      * @default "agentic"
      */
-    mode?: "agentic" | "agentic_workflow";
+    mode?: ExecutionMode;
 
     /**
      * Enable MCP sampling-based autonomous execution capability

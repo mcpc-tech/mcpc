@@ -4,6 +4,7 @@
  */
 
 import type {
+  AgentToolRegistrationContext,
   ComposedTool,
   ComposeEndContext,
   ComposeStartContext,
@@ -232,6 +233,44 @@ export class PluginManager {
         }
       }
     }
+  }
+
+  /**
+   * Trigger registerAgentTool hook - allows plugins to register the main agent tool
+   * Returns true if any plugin handled the registration
+   */
+  async triggerRegisterAgentTool(
+    context: AgentToolRegistrationContext,
+  ): Promise<boolean> {
+    const registerPlugins = this.plugins.filter(
+      (p) => p.registerAgentTool && shouldApplyPlugin(p, context.mode),
+    );
+
+    if (registerPlugins.length === 0) {
+      return false;
+    }
+
+    // Sort plugins - last one wins (reverse order)
+    const sortedPlugins = sortPluginsByOrder(registerPlugins).reverse();
+
+    for (const plugin of sortedPlugins) {
+      if (plugin.registerAgentTool) {
+        try {
+          await plugin.registerAgentTool(context);
+          // First successful registration wins
+          return true;
+        } catch (error) {
+          const errorMsg = error instanceof Error
+            ? error.message
+            : String(error);
+          await this.logger.error(
+            `Plugin "${plugin.name}" registerAgentTool failed: ${errorMsg}`,
+          );
+        }
+      }
+    }
+
+    return false;
   }
 
   /**
