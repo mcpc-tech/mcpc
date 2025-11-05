@@ -134,7 +134,7 @@ export interface AgentToolRegistrationContext {
   hiddenToolNames: string[];
   options: {
     mode?: string;
-    sampling?: boolean | { maxIterations?: number; summarize?: boolean };
+    samplingConfig?: { maxIterations?: number; summarize?: boolean };
     steps?: Array<{ description: string; actions: string[] }>;
     ensureStepActions?: string[];
     [key: string]: unknown;

@@ -18,8 +18,7 @@ export const toolDefinitions: ComposeDefinition[] = [
   {
     name: "file-organizer",
     options: {
-      sampling: true,
-      mode: "agentic_workflow",
+      mode: "agentic_sampling",
     },
     description:
       `I am a smart file organizer that helps users manage their files efficiently.

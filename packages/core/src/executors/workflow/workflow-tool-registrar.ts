@@ -6,8 +6,6 @@ import { WorkflowExecutor } from "./workflow-executor.ts";
 import type { ComposableMCPServer } from "../../compose.ts";
 import { CompiledPrompts } from "../../prompts/index.ts";
 import { createArgsDefFactory } from "../../factories/args-def-factory.ts";
-import { WorkflowSamplingExecutor } from "../sampling/workflow-sampling-executor.ts";
-import type { ExternalTool } from "../sampling/base-sampling-executor.ts";
 
 export function registerAgenticWorkflowTool(
   server: ComposableMCPServer,
@@ -18,7 +16,6 @@ export function registerAgenticWorkflowTool(
     depGroups,
     toolNameToDetailList,
     predefinedSteps,
-    sampling = false,
     ensureStepActions,
     toolNameToIdMapping,
   }: RegisterWorkflowToolParams,
@@ -31,11 +28,7 @@ export function registerAgenticWorkflowTool(
     ensureStepActions,
   );
 
-  // Determine if sampling mode is enabled and extract config
-  const isSamplingMode = sampling === true || typeof sampling === "object";
-  const samplingConfig = typeof sampling === "object" ? sampling : undefined;
-
-  // Create executors
+  // Create executor
   const workflowExecutor = new WorkflowExecutor(
     name,
     allToolNames,
@@ -47,44 +40,26 @@ export function registerAgenticWorkflowTool(
     toolNameToIdMapping,
   );
 
-  const workflowSamplingExecutor = new WorkflowSamplingExecutor(
-    name,
-    description,
-    allToolNames,
-    toolNameToDetailList as [string, ExternalTool][],
-    createArgsDef,
-    server,
-    predefinedSteps,
-    samplingConfig,
-  );
-
   const workflowState = new WorkflowState();
 
   const planningInstructions = predefinedSteps
     ? "- Set `init: true` (steps are predefined)"
     : "- Set `init: true` and define complete `steps` array";
 
-  // Generate description based on mode
-  const baseDescription = isSamplingMode
-    ? CompiledPrompts.samplingExecution({
-      toolName: name,
-      description,
-      toolList: allToolNames.map((name) => `- ${name}`).join("\n"),
-    })
-    : CompiledPrompts.workflowExecution({
-      toolName: name,
-      description: description,
-      planningInstructions,
-    });
+  // Generate description
+  const baseDescription = CompiledPrompts.workflowExecution({
+    toolName: name,
+    description: description,
+    planningInstructions,
+  });
 
-  // Generate schema based on mode
-  const argsDef = isSamplingMode
-    ? createArgsDef.forSampling()
-    : createArgsDef.forTool();
+  // Generate schema
+  const argsDef = createArgsDef.forTool();
 
-  const toolDescription = isSamplingMode
-    ? baseDescription
-    : createArgsDef.forToolDescription(baseDescription, workflowState);
+  const toolDescription = createArgsDef.forToolDescription(
+    baseDescription,
+    workflowState,
+  );
 
   server.tool(
     name,
@@ -94,16 +69,7 @@ export function registerAgenticWorkflowTool(
     ),
     async (args: Record<string, unknown>) => {
       try {
-        // Use appropriate executor based on mode
-        if (isSamplingMode) {
-          return await workflowSamplingExecutor.executeWorkflowSampling(
-            args as Record<string, unknown>,
-            argsDef as Record<string, unknown>,
-            workflowState,
-          );
-        } else {
-          return await workflowExecutor.execute(args, workflowState);
-        }
+        return await workflowExecutor.execute(args, workflowState);
       } catch (error) {
         workflowState.reset();
         return {
