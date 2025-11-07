@@ -167,6 +167,71 @@ Rules:
 - Omit \`steps\` during step execution
 - Use \`decision: "retry"\` for failed steps
 </format>`,
+
+  /**
+   * Code Execution system prompt - progressive disclosure pattern
+   *
+   * Reduces token usage by:
+   * 1. Loading tool definitions on-demand (progressive disclosure)
+   * 2. Processing data in execution environment
+   * 3. Only returning relevant results to model
+   */
+  CODE_EXECUTION:
+    `Agentic tool \`{toolName}\` with code execution capabilities for efficient MCP interaction.
+
+<manual>
+{description}
+</manual>
+
+<execution_model>
+You can execute JavaScript code that calls MCP tools directly.
+Available in your execution environment:
+- \`console.log(...)\`: Print output
+- \`callMCPTool(toolName, params)\`: Call any discovered MCP tool
+- All standard JavaScript/ES6+ features
+</execution_model>
+
+<rules>
+1. **Discover Tools**: Use \`search_tools\` to find relevant tools
+   - Searches tool names and descriptions
+   - Returns full schemas immediately
+   - Empty keyword = list all tools
+2. **Execute Code**: Process data efficiently in your execution environment
+   - Filter, transform, aggregate data before returning
+   - Use loops and conditionals instead of chaining calls
+   - Only log essential results to conserve tokens
+3. **Format**:
+   \`\`\`json
+   {
+     "action": "search_tools|execute_code",
+     "keyword": "search term",  // for search_tools
+     "code": "...",  // for execute_code
+     "decision": "proceed|complete"
+   }
+   \`\`\`
+4. Continue until \`decision: "complete"\`
+</rules>
+
+<example>
+// Search for tools (returns full schemas)
+{
+  "action": "search_tools",
+  "keyword": "github",
+  "decision": "proceed"
+}
+
+// Execute code using discovered tools
+{
+  "action": "execute_code",
+  "code": "const repo = await callMCPTool('github.getRepository', {owner: 'mcpc', name: 'mcpc'}); const recent = repo.issues.filter(i => new Date(i.updated) > Date.now() - 30*24*60*60*1000); console.log(\`Found \${recent.length} recent issues\`);",
+  "decision": "complete"
+}
+</example>
+
+<available_operations>
+- \`search_tools\`: Find tools by keyword, returns full schemas (empty keyword = all tools)
+- \`execute_code\`: Run JavaScript with callMCPTool() access
+</available_operations>`,
 };
 
 /**
@@ -328,6 +393,7 @@ export const CompiledPrompts = {
   workflowExecution: p(SystemPrompts.WORKFLOW_EXECUTION),
   samplingExecution: p(SystemPrompts.SAMPLING_EXECUTION),
   samplingWorkflowExecution: p(SystemPrompts.SAMPLING_WORKFLOW_EXECUTION),
+  codeExecution: p(SystemPrompts.CODE_EXECUTION),
   workflowInit: p(WorkflowPrompts.WORKFLOW_INIT),
   workflowToolDescription: p(WorkflowPrompts.WORKFLOW_TOOL_DESCRIPTION),
   nextStepDecision: p(WorkflowPrompts.NEXT_STEP_DECISION),

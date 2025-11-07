@@ -14,8 +14,8 @@ const ajv = new Ajv({
   allErrors: true,
   verbose: true,
 });
-// @ts-ignore -
-addFormats(ajv);
+
+addFormats.default(ajv);
 
 export interface ConversationMessage {
   role: "user" | "assistant";

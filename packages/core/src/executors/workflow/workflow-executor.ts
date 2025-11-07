@@ -16,8 +16,8 @@ const ajv = new Ajv({
   allErrors: true,
   verbose: true,
 });
-// @ts-ignore -
-addFormats(ajv);
+
+addFormats.default(ajv);
 
 export class WorkflowExecutor {
   constructor(
