@@ -11,22 +11,13 @@
  */
 
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { Ajv } from "ajv";
-import { AggregateAjvError } from "@segment/ajv-human-errors";
-import addFormats from "ajv-formats";
 import type { ComposableMCPServer } from "../../compose.ts";
 import { CompiledPrompts } from "../../prompts/index.ts";
 import { createLogger, type MCPLogger } from "../../utils/logger.ts";
+import { validateSchema } from "../../utils/schema-validator.ts";
 import type { Span } from "@opentelemetry/api";
 import { endSpan, initializeTracing, startSpan } from "../../utils/tracing.ts";
 import process from "node:process";
-
-const ajv = new Ajv({
-  allErrors: true,
-  verbose: true,
-});
-
-addFormats.default(ajv);
 
 export class CodeExecutionExecutor {
   private logger: MCPLogger;
@@ -67,19 +58,26 @@ export class CodeExecutionExecutor {
     schema: Record<string, unknown>,
     parentSpan?: Span | null,
   ): Promise<CallToolResult> {
+    const definitionsOf = (args.definitionsOf as string[]) || [];
+    const hasDefinitions = (args.hasDefinitions as string[]) || [];
+    const needsDefinitions = definitionsOf.filter(
+      (def) => !hasDefinitions.includes(def),
+    );
+
     const executeSpan: Span | null = this.tracingEnabled
-      ? startSpan("mcpc.code_execution_execute", {
-        agent: this.name,
-        action: String(args.action ?? "unknown"),
-        decision: String(args.decision ?? "proceed"),
-      }, parentSpan ?? undefined)
+      ? startSpan(
+        "mcpc.code_execution_execute",
+        {
+          agent: this.name,
+          hasCode: Boolean(args.code),
+          needsDefinitions: needsDefinitions.length > 0,
+        },
+        parentSpan ?? undefined,
+      )
       : null;
 
     try {
-      // Validate input
-      const validationResult = await Promise.resolve(
-        this.validate(args, schema),
-      );
+      const validationResult = validateSchema(args, schema);
       if (!validationResult.valid) {
         if (executeSpan) {
           executeSpan.setAttributes({
@@ -90,71 +88,70 @@ export class CodeExecutionExecutor {
         }
 
         return {
-          content: [{
-            type: "text",
-            text: CompiledPrompts.errorResponse({
-              errorMessage: validationResult.error || "Validation failed",
-            }),
-          }],
+          content: [
+            {
+              type: "text",
+              text: CompiledPrompts.errorResponse({
+                errorMessage: validationResult.error || "Validation failed",
+              }),
+            },
+          ],
           isError: true,
         };
       }
 
-      const action = args.action as string;
-      const decision = args.decision as string;
+      const hasCode = Boolean(args.code);
 
-      if (executeSpan) {
-        executeSpan.setAttribute("action", action);
-      }
+      // Build combined result
+      const contentParts: Array<{ type: "text"; text: string }> = [];
 
-      // Handle completion
-      if (decision === "complete") {
-        if (executeSpan) {
-          executeSpan.setAttribute("completed", true);
-          endSpan(executeSpan);
+      if (hasCode && hasDefinitions.length > 0) {
+        const codeResult = await this.handleExecuteCode(args, executeSpan);
+
+        // If code execution failed, return error immediately
+        if (codeResult.isError) {
+          if (executeSpan) {
+            endSpan(executeSpan);
+          }
+          return codeResult;
         }
 
-        this.logger.info({
-          message: "Code execution completed",
-          agent: this.name,
-        });
-
-        return {
-          content: [{
-            type: "text",
-            text: CompiledPrompts.completionMessage(),
-          }],
-        };
+        if (codeResult.content) {
+          contentParts.push(
+            ...codeResult.content.filter((c) => c.type === "text"),
+          );
+        }
       }
 
-      // Route to appropriate handler
-      let result: CallToolResult;
+      // Get definitions if requested
+      if (needsDefinitions.length > 0) {
+        const definitionsResult = this.getToolDefinitions(needsDefinitions);
+        if (definitionsResult.content) {
+          contentParts.push(
+            ...definitionsResult.content.filter((c) => c.type === "text"),
+          );
+        }
 
-      switch (action) {
-        case "search_tools":
-          result = this.handleSearchTools(args, executeSpan);
-          break;
-
-        case "execute_code":
-          result = await this.handleExecuteCode(args, executeSpan);
-          break;
-
-        default:
-          result = {
-            content: [{
-              type: "text",
-              text:
-                `Unknown action: ${action}. Available actions: search_tools, execute_code`,
-            }],
-            isError: true,
-          };
+        if (executeSpan) {
+          executeSpan.setAttribute("toolsRequested", needsDefinitions.length);
+        }
       }
 
       if (executeSpan) {
         endSpan(executeSpan);
       }
 
-      return result;
+      const combinedText = contentParts.map((part) => part.text).join("\n");
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: combinedText ||
+              "No output generated, use console.log() to log output",
+          },
+        ],
+      };
     } catch (error) {
       if (executeSpan) {
         executeSpan.setAttribute("error", true);
@@ -168,58 +165,17 @@ export class CodeExecutionExecutor {
       });
 
       return {
-        content: [{
-          type: "text",
-          text: `Error: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `Error: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          },
+        ],
         isError: true,
       };
     }
-  }
-
-  /**
-   * Search for tools and return their full schemas
-   */
-  private handleSearchTools(
-    args: Record<string, unknown>,
-    span?: Span | null,
-  ): CallToolResult {
-    const keyword = String(args.keyword || "").toLowerCase();
-
-    if (span) {
-      span.setAttribute("keyword", keyword);
-    }
-
-    // Empty keyword = list all tools
-    const matchingTools = keyword
-      ? this.toolNameToDetailList.filter(([name, tool]) => {
-        const toolName = name.toLowerCase();
-        const toolDesc =
-          (tool as { description?: string }).description?.toLowerCase() || "";
-        return toolName.includes(keyword) || toolDesc.includes(keyword);
-      })
-      : this.toolNameToDetailList;
-
-    // Always return full schemas
-    const output = `Found ${matchingTools.length} tools:\n\n` +
-      matchingTools.map(([name, tool]) =>
-        `## ${name}\n${JSON.stringify(tool, null, 2)}`
-      ).join("\n\n");
-
-    this.logger.info({
-      message: "Tool search",
-      keyword: keyword || "(all)",
-      matches: matchingTools.length,
-    });
-
-    return {
-      content: [{
-        type: "text",
-        text: output,
-      }],
-    };
   }
 
   /**
@@ -234,10 +190,12 @@ export class CodeExecutionExecutor {
 
     if (!code) {
       return {
-        content: [{
-          type: "text",
-          text: "Error: No code provided",
-        }],
+        content: [
+          {
+            type: "text",
+            text: "Error: No code provided",
+          },
+        ],
         isError: true,
       };
     }
@@ -257,13 +215,15 @@ export class CodeExecutionExecutor {
       const consoleProxy = {
         log: (...args: unknown[]) => {
           logs.push(
-            args.map((a) => {
-              // Stringify objects for better readability
-              if (typeof a === "object" && a !== null) {
-                return JSON.stringify(a, null, 2);
-              }
-              return String(a);
-            }).join(" "),
+            args
+              .map((a) => {
+                // Stringify objects for better readability
+                if (typeof a === "object" && a !== null) {
+                  return JSON.stringify(a, null, 2);
+                }
+                return String(a);
+              })
+              .join(" "),
           );
         },
         error: (...args: unknown[]) => {
@@ -277,6 +237,7 @@ export class CodeExecutionExecutor {
           message: "Code calling MCP tool",
           toolName,
         });
+
         return await this.server.callTool(toolName, params);
       };
 
@@ -295,13 +256,18 @@ export class CodeExecutionExecutor {
         result !== undefined
           ? `\n**Result:** ${JSON.stringify(result, null, 2)}`
           : "",
-      ].filter(Boolean).join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
 
       return {
-        content: [{
-          type: "text",
-          text: output || "Code executed successfully (no output)",
-        }],
+        content: [
+          {
+            type: "text",
+            text: output ||
+              "Code executed successfully (no output), use console.log() to log output",
+          },
+        ],
       };
     } catch (error) {
       this.logger.error({
@@ -310,42 +276,74 @@ export class CodeExecutionExecutor {
       });
 
       return {
-        content: [{
-          type: "text",
-          text: `Execution error: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `Execution error: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          },
+        ],
         isError: true,
       };
     }
   }
 
   /**
-   * Validate input arguments against schema
+   * Get tool definitions for the specified tool names
+   * Returns schemas that describe how to call these tools
    */
-  private validate(
-    args: Record<string, unknown>,
-    schema: Record<string, unknown>,
-  ): { valid: boolean; error?: string } {
-    try {
-      const validate = ajv.compile(schema);
-      const valid = validate(args);
+  private getToolDefinitions(toolNames: string[]): CallToolResult {
+    const definitions: Array<{ name: string; schema: unknown }> = [];
+    const notFound: string[] = [];
 
-      if (!valid && validate.errors) {
-        const aggregatedError = new AggregateAjvError(validate.errors);
-        return {
-          valid: false,
-          error: aggregatedError.message,
-        };
+    for (const toolName of toolNames) {
+      const toolDetail = this.toolNameToDetailList.find(
+        ([name]) => name === toolName,
+      );
+
+      if (toolDetail) {
+        definitions.push({
+          name: toolDetail[0],
+          schema: toolDetail[1],
+        });
+      } else {
+        notFound.push(toolName);
       }
-
-      return { valid: true };
-    } catch (error) {
-      return {
-        valid: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
     }
+
+    let text = "";
+
+    if (definitions.length > 0) {
+      text += "<tool_definitions>\n";
+      for (const { name, schema } of definitions) {
+        text += `<tool name="${name}">\n${
+          JSON.stringify(
+            schema,
+            null,
+            2,
+          )
+        }\n</tool>\n`;
+      }
+      text += "</tool_definitions>\n";
+    }
+
+    if (notFound.length > 0) {
+      text += `<not_found>${notFound.join(", ")}</not_found>\n`;
+      this.logger.warning({
+        message: "Some tools not found",
+        notFound,
+      });
+    }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: text || "No tool definitions found",
+        },
+      ],
+      isError: notFound.length > 0 && definitions.length === 0,
+    };
   }
 }

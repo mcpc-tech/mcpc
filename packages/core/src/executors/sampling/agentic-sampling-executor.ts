@@ -9,6 +9,7 @@ import {
   BaseSamplingExecutor,
   type ExternalTool,
 } from "./base-sampling-executor.ts";
+import { validateSchema } from "../../utils/schema-validator.ts";
 
 export class SamplingExecutor extends BaseSamplingExecutor {
   private agenticExecutor: AgenticExecutor;
@@ -68,7 +69,7 @@ export class SamplingExecutor extends BaseSamplingExecutor {
     args: Record<string, unknown>,
     schema: Record<string, unknown>,
   ) {
-    const validationResult = this.validateSchema(args, schema);
+    const validationResult = validateSchema(args, schema);
     if (!validationResult.valid) {
       return {
         content: [

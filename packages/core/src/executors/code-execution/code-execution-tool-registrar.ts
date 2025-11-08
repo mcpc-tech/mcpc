@@ -45,38 +45,37 @@ export function registerCodeExecutionTool(
   });
 
   // Schema for code execution mode
+  // Both parameters can be used together for maximum efficiency
   const schema: Schema<{
-    action: string;
-    keyword?: string;
     code?: string;
-    decision: string;
-    [key: string]: unknown;
+    definitionsOf?: string[];
+    hasDefinitions?: string[];
   }>["jsonSchema"] = {
     type: "object",
     properties: {
-      action: {
-        type: "string",
-        enum: ["search_tools", "execute_code"],
-        description:
-          "Action: 'search_tools' to discover tools, 'execute_code' to run JavaScript",
-      },
-      keyword: {
-        type: "string",
-        description:
-          "Search keyword for tools (empty = all tools). Used with 'search_tools' action.",
-      },
       code: {
         type: "string",
         description:
-          "JavaScript code to execute. Used with 'execute_code' action.",
+          "JavaScript to run. You can use callMCPTool(toolName, params) and console.log(). Before calling a tool, request its schema with definitionsOf, then use it in your code.",
       },
-      decision: {
-        type: "string",
-        enum: ["proceed", "complete"],
-        description: "proceed = continue execution, complete = task finished",
+      definitionsOf: {
+        type: "array",
+        items: allToolNames.length > 0
+          ? { type: "string", enum: allToolNames }
+          : { type: "string" },
+        default: [],
+        description:
+          `Tool names whose schemas you need. The agent uses these to understand available tools before calling them.`,
+      },
+      hasDefinitions: {
+        type: "array",
+        items: allToolNames.length > 0
+          ? { type: "string", enum: allToolNames }
+          : { type: "string" },
+        description:
+          `Tool names whose schemas were already provided in this conversation. List all tools you have schemas for to avoid duplicate schema requests`,
       },
     },
-    required: ["action", "decision"],
   };
 
   server.tool(
@@ -86,7 +85,32 @@ export function registerCodeExecutionTool(
       createGoogleCompatibleJSONSchema(schema as Record<string, unknown>),
     ),
     async (args: Record<string, unknown>) => {
-      return await executor.execute(args, schema as Record<string, unknown>);
+      return await executor.execute(args, {
+        ...schema,
+        // Use if-then to enforce: if code exists, hasDefinitions must be non-empty
+        if: {
+          properties: { code: { type: "string" } },
+          required: ["code"],
+        },
+        then: {
+          properties: {
+            hasDefinitions: {
+              type: "array",
+            },
+          },
+          required: ["hasDefinitions"],
+        },
+        // At least one of code or definitionsOf must be provided
+        anyOf: [
+          { required: ["code"] },
+          {
+            properties: {
+              definitionsOf: { type: "array", minItems: 1 },
+            },
+            required: ["definitionsOf"],
+          },
+        ],
+      } as Record<string, unknown>);
     },
   );
 }

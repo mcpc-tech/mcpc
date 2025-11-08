@@ -10,6 +10,7 @@ import {
   BaseSamplingExecutor,
   type ExternalTool,
 } from "./base-sampling-executor.ts";
+import { validateSchema } from "../../utils/schema-validator.ts";
 
 export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
   private workflowExecutor: WorkflowExecutor;
@@ -49,7 +50,7 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
     schema: Record<string, unknown>,
     state: WorkflowState,
   ): Promise<CallToolResult> {
-    const validationResult = this.validateSchema(args, schema);
+    const validationResult = validateSchema(args, schema);
     if (!validationResult.valid) {
       return {
         content: [
@@ -130,7 +131,8 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
     // Create workflow-specific sampling prompt using existing patterns
     let contextInfo = "";
     if (
-      args.context && typeof args.context === "object" &&
+      args.context &&
+      typeof args.context === "object" &&
       Object.keys(args.context).length > 0
     ) {
       contextInfo = `\n\nContext:\n${JSON.stringify(args.context, null, 2)}`;

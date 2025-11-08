@@ -1,20 +1,11 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { Ajv } from "ajv";
-import { AggregateAjvError } from "@segment/ajv-human-errors";
-import addFormats from "ajv-formats";
 import type { ComposableMCPServer } from "../../compose.ts";
 import { CompiledPrompts } from "../../prompts/index.ts";
 import { createLogger, type MCPLogger } from "../../utils/logger.ts";
+import { validateSchema } from "../../utils/schema-validator.ts";
 import type { Span } from "@opentelemetry/api";
 import { endSpan, initializeTracing, startSpan } from "../../utils/tracing.ts";
 import process from "node:process";
-
-const ajv = new Ajv({
-  allErrors: true,
-  verbose: true,
-});
-
-addFormats.default(ajv);
 
 export class AgenticExecutor {
   private logger: MCPLogger;
@@ -313,14 +304,6 @@ export class AgenticExecutor {
     if (args.decision === "complete") {
       return { valid: true };
     }
-    const validate = ajv.compile(schema);
-    if (!validate(args)) {
-      const errors = new AggregateAjvError(validate.errors!);
-      return {
-        valid: false,
-        error: errors.message,
-      };
-    }
-    return { valid: true };
+    return validateSchema(args, schema);
   }
 }

@@ -1,30 +1,25 @@
 /**
- * Example: Code Execution Mode with Progressive Disclosure
+ * Example: Code Execution Mode (KISS Pattern)
  *
- * Demonstrates the efficient code execution pattern from Anthropic's MCP guidelines.
+ * Demonstrates the simplified code execution pattern with clear parameter names.
  * This example shows how to:
- * 1. Use progressive disclosure to load only needed tools
- * 2. Process data in execution environment to reduce token usage
- * 3. Execute actual JavaScript code with MCP tool access
+ * 1. Use definitionsOf to get tool schemas
+ * 2. Execute JavaScript code with hasDefinitions declaring known tools
  *
  * Based on: https://www.anthropic.com/engineering/code-execution-with-mcp
  *
- * Key benefits vs traditional agentic mode:
- * - 98.7% reduction in token usage for tool definitions
- * - Data filtering/transformation happens before model sees results
- * - Familiar code patterns (loops, conditionals) vs chaining tool calls
- * - Actual code execution using new Function() - simple and effective
- */
-/**
- * MCPC Example 01: Basic File Manager
+ * Simple workflow:
+ * 1. First call: { definitionsOf: ['read_file', 'move_file'] } - get schemas
+ * 2. Second call: {
+ *      code: 'const result = await callMCPTool("read_file", {...})',
+ *      hasDefinitions: ['read_file']
+ *    } - execute code
  *
- * Demonstrates the fundamental MCPC features:
- * - Basic server creation and composition
- * - Dependency management with external MCP servers
- * - Simple tool orchestration with file operations
- * - Tool selection using <tool> tags
- *
- * This creates a smart file organizer that can manage files efficiently.
+ * Key benefits:
+ * - Clear parameter names: definitionsOf, hasDefinitions, code
+ * - Schema enforces: code requires hasDefinitions (non-empty)
+ * - Both code and definitionsOf can be used together
+ * - Simple, intuitive workflow
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";

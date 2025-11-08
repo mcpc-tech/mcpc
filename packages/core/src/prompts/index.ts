@@ -171,67 +171,51 @@ Rules:
   /**
    * Code Execution system prompt - progressive disclosure pattern
    *
-   * Reduces token usage by:
-   * 1. Loading tool definitions on-demand (progressive disclosure)
-   * 2. Processing data in execution environment
-   * 3. Only returning relevant results to model
+   * Simple pattern: Get definitions, then execute code
    */
   CODE_EXECUTION:
-    `Agentic tool \`{toolName}\` with code execution capabilities for efficient MCP interaction.
+    `Agentic tool \`{toolName}\` executes JavaScript code with MCP tool access.
 
 <manual>
 {description}
 </manual>
 
-<execution_model>
-You can execute JavaScript code that calls MCP tools directly.
-Available in your execution environment:
-- \`console.log(...)\`: Print output
-- \`callMCPTool(toolName, params)\`: Call any discovered MCP tool
-- All standard JavaScript/ES6+ features
-</execution_model>
+<api>
+\`callMCPTool(toolName, params)\` - Call any MCP tool
+\`console.log(...)\` - Print output
+</api>
+
+<parameters>
+\`code\` (optional) - JavaScript to execute
+\`definitionsOf\` (optional) - Tool names whose schemas you need
+\`hasDefinitions\` (optional) - Tool names whose schemas you already have
+</parameters>
 
 <rules>
-1. **Discover Tools**: Use \`search_tools\` to find relevant tools
-   - Searches tool names and descriptions
-   - Returns full schemas immediately
-   - Empty keyword = list all tools
-2. **Execute Code**: Process data efficiently in your execution environment
-   - Filter, transform, aggregate data before returning
-   - Use loops and conditionals instead of chaining calls
-   - Only log essential results to conserve tokens
-3. **Format**:
-   \`\`\`json
-   {
-     "action": "search_tools|execute_code",
-     "keyword": "search term",  // for search_tools
-     "code": "...",  // for execute_code
-     "decision": "proceed|complete"
-   }
-   \`\`\`
-4. Continue until \`decision: "complete"\`
+- **First call**: No tool definitions available—you must request them via \`definitionsOf\`
+- **When executing code**: Must provide \`hasDefinitions\` with ALL tools you have schemas for (avoid duplicate requests and reduce tokens)
+- **When getting definitions**: Use \`definitionsOf\` to request tool schemas you need
+- **Both together**: Execute code AND request new definitions in one call for efficiency
+- **Never request definitions you already have**
 </rules>
 
-<example>
-// Search for tools (returns full schemas)
+<examples>
+Initial definition request:
+\`\`\`json
 {
-  "action": "search_tools",
-  "keyword": "github",
-  "decision": "proceed"
+  "hasDefinitions": [],
+  "definitionsOf": ["tool1"]
 }
-
-// Execute code using discovered tools
+\`\`\`
+Execute code + get new definitions:
+\`\`\`json
 {
-  "action": "execute_code",
-  "code": "const repo = await callMCPTool('github.getRepository', {owner: 'mcpc', name: 'mcpc'}); const recent = repo.issues.filter(i => new Date(i.updated) > Date.now() - 30*24*60*60*1000); console.log(\`Found \${recent.length} recent issues\`);",
-  "decision": "complete"
+  "code": "await callMCPTool('tool1', {x: 1});",
+  "hasDefinitions": ["tool1"],
+  "definitionsOf": ["tool2"]
 }
-</example>
-
-<available_operations>
-- \`search_tools\`: Find tools by keyword, returns full schemas (empty keyword = all tools)
-- \`execute_code\`: Run JavaScript with callMCPTool() access
-</available_operations>`,
+\`\`\`
+</examples>`,
 };
 
 /**
