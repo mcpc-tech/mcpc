@@ -153,7 +153,7 @@ sequenceDiagram
     activate Sandbox
     Sandbox->>Host: callTool('http.fetch', {url: 'https://google.com'})
     activate Host
-    Note over Host: Execute with --allow-net
+    Note over Host: Execute MCP tool
     Host-->>Sandbox: {status: 200, body: "..."}
     deactivate Host
     Sandbox-->>Host: execution result
