@@ -13,7 +13,8 @@
     "./packages/cli",
     "./packages/mcp-sampling-ai-provider",
     "./packages/acp-ai-provider",
-    "./packages/mcpc-builder"
+    "./packages/mcpc-builder",
+    "./packages/plugin-code-execution"
   ],
   "imports": {
     "@es-toolkit/es-toolkit": "jsr:@es-toolkit/es-toolkit@^1.37.2",

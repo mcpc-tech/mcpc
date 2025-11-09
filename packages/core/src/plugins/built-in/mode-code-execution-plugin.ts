@@ -8,31 +8,11 @@
  * - Progressive disclosure: Load tool definitions on-demand
  * - Context efficiency: Process data in execution environment
  * - Reduced token usage: Only results that matter pass through model
+ *
+ * This is a wrapper that uses the @mcpc/plugin-code-execution package.
  */
 
-import type { ToolPlugin } from "../../plugin-types.ts";
-import { registerCodeExecutionTool } from "../../executors/code-execution/code-execution-tool-registrar.ts";
+import { codeExecutionPlugin } from "@mcpc/plugin-code-execution";
 
-export const createCodeExecutionModePlugin = (): ToolPlugin => ({
-  name: "mode-code-execution",
-  version: "1.0.0",
-
-  // Only apply to code execution mode
-  apply: "code_execution",
-
-  // Register the agent tool
-  registerAgentTool: (context) => {
-    registerCodeExecutionTool(context.server, {
-      description: context.description,
-      name: context.name,
-      allToolNames: context.allToolNames,
-      depGroups: context.depGroups,
-      toolNameToDetailList: context.toolNameToDetailList,
-      publicToolNames: context.publicToolNames,
-      hiddenToolNames: context.hiddenToolNames,
-    });
-  },
-});
-
-// Export default instance for auto-loading
-export default createCodeExecutionModePlugin();
+// Export the plugin from the standalone package
+export default codeExecutionPlugin;
