@@ -1,23 +1,14 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { Ajv } from "ajv";
-import { AggregateAjvError } from "@segment/ajv-human-errors";
-import addFormats from "ajv-formats";
 import type { MCPCStep } from "../../utils/state.ts";
 import type { WorkflowState } from "../../utils/state.ts";
 import type { ArgsDefCreator } from "../../types.ts";
 import type { ComposableMCPServer } from "../../compose.ts";
+import { validateSchema } from "../../utils/schema-validator.ts";
 import {
   CompiledPrompts,
   PromptUtils,
   WorkflowPrompts,
 } from "../../prompts/index.ts";
-
-const ajv = new Ajv({
-  allErrors: true,
-  verbose: true,
-});
-// @ts-ignore -
-addFormats(ajv);
 
 export class WorkflowExecutor {
   constructor(
@@ -154,7 +145,7 @@ export class WorkflowExecutor {
         const nextStepValidationSchema = this.createArgsDef.forCurrentState(
           state,
         );
-        const nextStepValidationResult = this.validate(
+        const nextStepValidationResult = this.validateInput(
           args,
           nextStepValidationSchema,
         );
@@ -233,7 +224,7 @@ export class WorkflowExecutor {
     if (decision !== "proceed") {
       const validationSchema = this.createArgsDef.forCurrentState(state);
 
-      const validationResult = this.validate(args, validationSchema);
+      const validationResult = this.validateInput(args, validationSchema);
       if (!validationResult.valid) {
         return {
           content: [
@@ -420,21 +411,13 @@ ${this.formatProgress(state)}`,
   }
 
   // Validate arguments using JSON schema
-  validate(
+  private validateInput(
     args: Record<string, unknown>,
     schema: Record<string, unknown>,
   ): {
     valid: boolean;
     error?: string;
   } {
-    const validate = ajv.compile(schema);
-    if (!validate(args)) {
-      const errors = new AggregateAjvError(validate.errors!);
-      return {
-        valid: false,
-        error: errors.message,
-      };
-    }
-    return { valid: true };
+    return validateSchema(args, schema);
   }
 }

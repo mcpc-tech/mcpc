@@ -1,21 +1,12 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ComposableMCPServer } from "../../compose.ts";
 import type { SamplingConfig } from "../../types.ts";
-import { Ajv } from "ajv";
-import { AggregateAjvError } from "@segment/ajv-human-errors";
-import addFormats from "ajv-formats";
 import { parseJSON } from "@mcpc/utils";
 import process from "node:process";
 import { createLogger, type MCPLogger } from "../../utils/logger.ts";
+import { validateSchema } from "../../utils/schema-validator.ts";
 import type { Span } from "@opentelemetry/api";
 import { endSpan, initializeTracing, startSpan } from "../../utils/tracing.ts";
-
-const ajv = new Ajv({
-  allErrors: true,
-  verbose: true,
-});
-// @ts-ignore -
-addFormats(ajv);
 
 export interface ConversationMessage {
   role: "user" | "assistant";
@@ -559,21 +550,13 @@ VALID: {"key":"value"}`,
   }
 
   // Validate arguments using JSON schema
-  protected validateSchema(
+  private validateInput(
     args: Record<string, unknown>,
     schema: Record<string, unknown>,
   ): {
     valid: boolean;
     error?: string;
   } {
-    const validate = ajv.compile(schema);
-    if (!validate(args)) {
-      const errors = new AggregateAjvError(validate.errors!);
-      return {
-        valid: false,
-        error: errors.message,
-      };
-    }
-    return { valid: true };
+    return validateSchema(args, schema);
   }
 }

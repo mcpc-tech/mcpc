@@ -1,3 +1,5 @@
+import type { MCPCStep, WorkflowState } from "./utils/state.ts";
+
 export type JSONSchema = Record<string, unknown>;
 
 export type ToolCallback = (args: unknown, extra?: unknown) => unknown;
@@ -20,7 +22,7 @@ export interface RegisterToolParams {
 }
 
 export interface RegisterWorkflowToolParams extends RegisterToolParams {
-  predefinedSteps?: import("./utils/state.ts").MCPCStep[];
+  predefinedSteps?: MCPCStep[];
   ensureStepActions?: string[];
   toolNameToIdMapping?: Map<string, string>;
 }
@@ -36,9 +38,9 @@ export interface ArgsDefCreator {
   action: () => JSONSchema;
   forTool: () => JSONSchema;
   forCurrentState: (
-    state: import("./utils/state.ts").WorkflowState,
+    state: WorkflowState,
   ) => JSONSchema;
-  forNextState: (state: import("./utils/state.ts").WorkflowState) => JSONSchema;
+  forNextState: (state: WorkflowState) => JSONSchema;
   forSampling: () => JSONSchema;
   forAgentic: (
     toolNameToDetailList: [string, unknown][],
@@ -48,11 +50,11 @@ export interface ArgsDefCreator {
   ) => JSONSchema;
   forToolDescription: (
     description: string,
-    state: import("./utils/state.ts").WorkflowState,
+    state: WorkflowState,
   ) => string;
   forInitialStepDescription: (
-    steps: import("./utils/state.ts").MCPCStep[],
-    state: import("./utils/state.ts").WorkflowState,
+    steps: MCPCStep[],
+    state: WorkflowState,
   ) => string;
 }
 

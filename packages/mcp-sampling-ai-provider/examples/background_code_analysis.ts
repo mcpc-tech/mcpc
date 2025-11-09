@@ -21,6 +21,8 @@ import { createMCPSamplingProvider } from "../mod.ts";
 import { generateText, jsonSchema, stepCountIs, tool } from "ai";
 import process from "node:process";
 import { convertToAISDKTools } from "../../core/src/ai-sdk-adapter.ts";
+import { promisify } from "node:util";
+import { execFile } from "node:child_process";
 
 // Store analysis results
 const analysisResults = new Map<
@@ -84,8 +86,6 @@ const server = await mcpc(
 
 // Get git diff for changed files
 async function getGitDiff(workDir: string, filePath?: string): Promise<string> {
-  const { promisify } = await import("node:util");
-  const { execFile } = await import("node:child_process");
   const execFilePromise = promisify(execFile);
 
   const args = filePath ? ["diff", "HEAD", filePath] : ["diff", "HEAD"];
