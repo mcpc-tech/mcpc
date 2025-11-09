@@ -73,7 +73,7 @@ export function registerCodeExecutionTool(
           ? { type: "string", enum: allToolNames }
           : { type: "string" },
         description:
-          `Tool names whose schemas were already provided in this conversation. List all tools you have schemas for to avoid duplicate schema requests`,
+          `Tool names whose schemas were already provided in this conversation. List all tools you have schemas for to avoid duplicate schema requests.`,
       },
     },
   };
