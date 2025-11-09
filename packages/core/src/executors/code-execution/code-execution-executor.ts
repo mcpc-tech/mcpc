@@ -241,7 +241,8 @@ export class CodeExecutionExecutor {
         return await this.server.callTool(toolName, params);
       };
 
-      // Create and execute function with injected APIs
+      // Create and execute function with injected APIs,
+      // TODO: using new Function() with user-provided code creates a code injection vulnerability, using deno to sandbox would be safer.
       const fn = new Function(
         "console",
         "callMCPTool",
