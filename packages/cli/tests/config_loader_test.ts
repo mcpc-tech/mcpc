@@ -2,6 +2,48 @@ import { assertEquals, assertExists } from "@std/assert";
 import { loadConfig } from "../src/config/loader.ts";
 import process from "node:process";
 
+Deno.test("Config Loader - inline agent arguments", async () => {
+  const originalArgv = [...process.argv];
+  delete process.env.MCPC_CONFIG;
+
+  process.argv = [
+    "deno",
+    "test",
+    "--agent-name",
+    "inline-agent",
+    "--agent-description",
+    "Inline agent description",
+    "--mcp",
+    'desktop={"command":"npx","args":["-y","@wonderwhy-er/desktop-commander@latest"],"transportType":"stdio"}',
+    "--agent-plugin",
+    "@mcpc/core/plugins/large-result?maxSize=9000",
+    "--agent-options",
+    '{"mode":"agentic"}',
+    "--server-name",
+    "cli-inline",
+    "--server-version",
+    "0.2.0",
+  ];
+
+  try {
+    const config = await loadConfig();
+
+    assertExists(config);
+    assertEquals(config.name, "cli-inline");
+    assertEquals(config.version, "0.2.0");
+    assertEquals(config.agents.length, 1);
+
+    const agent = config.agents[0];
+    assertEquals(agent.name, "inline-agent");
+    assertEquals(agent.description, "Inline agent description");
+    assertExists(agent.deps?.mcpServers?.desktop);
+    assertEquals(agent.plugins?.length, 1);
+    assertEquals(agent.options?.mode, "agentic");
+  } finally {
+    process.argv = originalArgv;
+  }
+});
+
 Deno.test("Config Loader - load from MCPC_CONFIG env var", async () => {
   // Setup
   const testConfig = [

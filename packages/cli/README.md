@@ -32,6 +32,19 @@ Load configuration using command-line arguments:
 - `--config-file <path>` - Path to configuration file
 - `--request-headers <header>`, `-H <header>` - Add custom HTTP header for URL
   fetching (can be used multiple times)
+- `--agent-name <name>` - Compose an agent from CLI flags with no config file
+- `--agent-description <text>` - Set the inline agent description
+- `--agent-deps <json>` - Provide agent dependency JSON
+  (`ComposeDefinition['deps']`)
+- `--mcp <name=json>` - Add an MCP dependency (repeatable)
+- `--agent-plugin <value>` - Add a plugin (repeatable, accepts JSON or module
+  path)
+- `--agent-options <json>` - Provide agent options JSON (`mode`,
+  `samplingConfig`, etc.)
+- `--agent-ref <xml>` - Append `<tool name="..."/>` references to `options.refs`
+- `--server-name <name>` / `--server-version <version>` - Override server
+  metadata
+- `--server-capabilities <json>` - Override server capabilities JSON
 - No arguments - Uses `./mcpc.config.json` if available
 
 ## Usage
@@ -74,6 +87,20 @@ npx -y deno run -A jsr:@mcpc/cli/bin --config-file ./my-config.json
 ```bash
 npx -y deno run -A jsr:@mcpc/cli/bin
 ```
+
+**Inline agent without a config file:**
+
+```bash
+npx -y deno run -A jsr:@mcpc/cli/bin \
+  --agent-name codex-inline \
+  --agent-description "Code agent wrapping desktop commander" \
+  --mcp 'desktop-commander={"command":"npx","args":["-y","@wonderwhy-er/desktop-commander@latest"],"transportType":"stdio"}' \
+  --agent-plugin '@mcpc/core/plugins/large-result?maxSize=12000' \
+  --agent-options '{"mode":"agentic"}'
+```
+
+Supply `--mcp` multiple times to add more dependencies or combine it with
+`--agent-deps` for full control of the `deps` structure.
 
 **Environment variable substitution:**
 

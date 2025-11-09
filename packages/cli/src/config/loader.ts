@@ -43,7 +43,7 @@
  * @module
  */
 
-import type { ComposeDefinition } from "@mcpc/core";
+import type { ComposeDefinition, ToolPlugin } from "@mcpc/core";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import process from "node:process";
@@ -70,6 +70,33 @@ export interface MCPCConfig {
   agents: ComposeDefinition[];
 }
 
+type ComposeRefs = NonNullable<ComposeDefinition["options"]> extends
+  { refs?: infer R } ? R extends Array<infer U> ? U[]
+  : string[]
+  : string[];
+
+interface InlineAgentArgs {
+  name?: string;
+  description?: string;
+  depsJson?: string;
+  pluginStrings?: string[];
+  optionsJson?: string;
+  refs?: ComposeRefs;
+  mcpEntries?: string[];
+}
+
+interface ParsedArgs {
+  config?: string;
+  configUrl?: string;
+  configFile?: string;
+  requestHeaders?: Record<string, string>;
+  help?: boolean;
+  inlineAgent?: InlineAgentArgs;
+  serverName?: string;
+  serverVersion?: string;
+  serverCapabilitiesJson?: string;
+}
+
 /**
  * Print help message
  */
@@ -85,6 +112,18 @@ OPTIONS:
     --config <json>         Inline JSON configuration string
     --config-url <url>      Fetch configuration from URL
     --config-file <path>    Load configuration from file path
+  --agent-name <name>     Create inline agent without a config file
+  --agent-description <text>
+               Description for the inline agent
+  --agent-deps <json>     JSON for agent deps (ComposeDefinition.deps)
+  --mcp <name=json>       Add MCP dependency (repeatable)
+  --agent-plugin <value>  Add plugin (repeatable, JSON or module path)
+  --agent-options <json>  JSON for agent options
+  --agent-ref <xml>       Add <tool/> reference (repeatable)
+  --server-name <name>    Override server metadata name
+  --server-version <ver>  Override server metadata version
+  --server-capabilities <json>
+               JSON object for server capabilities
     --request-headers <header>, -H <header>
                            Add custom HTTP header for URL fetching
                            Format: "Key: Value" or "Key=Value"
@@ -136,34 +175,22 @@ For more information, visit: https://github.com/mcpc-tech/mcpc
 /**
  * Parse command-line arguments
  */
-function parseArgs(): {
-  config?: string;
-  configUrl?: string;
-  configFile?: string;
-  requestHeaders?: Record<string, string>;
-  help?: boolean;
-} {
+function parseArgs(): ParsedArgs {
   const args = process.argv.slice(2);
-  const result: {
-    config?: string;
-    configUrl?: string;
-    configFile?: string;
-    requestHeaders?: Record<string, string>;
-    help?: boolean;
-  } = {};
+  const result: ParsedArgs = {};
 
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === "--config" && i + 1 < args.length) {
+    const current = args[i];
+    if (current === "--config" && i + 1 < args.length) {
       result.config = args[++i];
-    } else if (arg === "--config-url" && i + 1 < args.length) {
+    } else if (current === "--config-url" && i + 1 < args.length) {
       result.configUrl = args[++i];
-    } else if (arg === "--config-file" && i + 1 < args.length) {
+    } else if (current === "--config-file" && i + 1 < args.length) {
       result.configFile = args[++i];
     } else if (
-      (arg === "--request-headers" || arg === "-H") && i + 1 < args.length
+      (current === "--request-headers" || current === "-H") && i + 1 <
+        args.length
     ) {
-      // Parse header in format "Key: Value" or "Key=Value"
       const headerStr = args[++i];
       const colonIdx = headerStr.indexOf(":");
       const equalIdx = headerStr.indexOf("=");
@@ -179,12 +206,161 @@ function parseArgs(): {
         }
         result.requestHeaders[key] = value;
       }
-    } else if (arg === "--help" || arg === "-h") {
+    } else if (current === "--agent-name" && i + 1 < args.length) {
+      result.inlineAgent ??= {};
+      result.inlineAgent.name = args[++i];
+    } else if (current === "--agent-description" && i + 1 < args.length) {
+      result.inlineAgent ??= {};
+      result.inlineAgent.description = args[++i];
+    } else if (current === "--agent-deps" && i + 1 < args.length) {
+      result.inlineAgent ??= {};
+      result.inlineAgent.depsJson = args[++i];
+    } else if (current === "--agent-plugin" && i + 1 < args.length) {
+      result.inlineAgent ??= {};
+      result.inlineAgent.pluginStrings ??= [];
+      result.inlineAgent.pluginStrings.push(args[++i]);
+    } else if (current === "--agent-options" && i + 1 < args.length) {
+      result.inlineAgent ??= {};
+      result.inlineAgent.optionsJson = args[++i];
+    } else if (current === "--agent-ref" && i + 1 < args.length) {
+      result.inlineAgent ??= {};
+      result.inlineAgent.refs ??= [];
+      result.inlineAgent.refs.push(args[++i] as ComposeRefs[number]);
+    } else if (current === "--mcp" && i + 1 < args.length) {
+      result.inlineAgent ??= {};
+      result.inlineAgent.mcpEntries ??= [];
+      result.inlineAgent.mcpEntries.push(args[++i]);
+    } else if (current === "--server-name" && i + 1 < args.length) {
+      result.serverName = args[++i];
+    } else if (current === "--server-version" && i + 1 < args.length) {
+      result.serverVersion = args[++i];
+    } else if (current === "--server-capabilities" && i + 1 < args.length) {
+      result.serverCapabilitiesJson = args[++i];
+    } else if (current === "--help" || current === "-h") {
       result.help = true;
     }
   }
 
   return result;
+}
+
+function hasInlineAgentArgs(value?: InlineAgentArgs): value is InlineAgentArgs {
+  if (!value) {
+    return false;
+  }
+
+  return Boolean(
+    value.name !== undefined ||
+      value.description !== undefined ||
+      value.depsJson ||
+      value.optionsJson ||
+      (value.pluginStrings && value.pluginStrings.length > 0) ||
+      (value.refs && value.refs.length > 0) ||
+      (value.mcpEntries && value.mcpEntries.length > 0),
+  );
+}
+
+function parseJsonWithContext<T>(raw: string, context: string): T {
+  try {
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to parse ${context} JSON: ${message}`);
+  }
+}
+
+function parsePluginString(value: string): ToolPlugin | string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error("Plugin value cannot be empty");
+  }
+
+  try {
+    return JSON.parse(trimmed) as ToolPlugin;
+  } catch (_error) {
+    return trimmed;
+  }
+}
+
+function buildInlineAgentConfig(
+  inline: InlineAgentArgs,
+  serverName?: string,
+  serverVersion?: string,
+  serverCapabilitiesJson?: string,
+): MCPCConfig {
+  let deps = inline.depsJson
+    ? parseJsonWithContext<ComposeDefinition["deps"]>(
+      inline.depsJson,
+      "--agent-deps",
+    )
+    : undefined;
+
+  if (inline.mcpEntries && inline.mcpEntries.length > 0) {
+    deps ??= { mcpServers: {} };
+    deps.mcpServers ??= {};
+
+    for (const entry of inline.mcpEntries) {
+      const separator = entry.indexOf("=");
+      if (separator === -1) {
+        throw new Error(
+          `Invalid --mcp value '${entry}'. Expected format name=json`,
+        );
+      }
+
+      const name = entry.slice(0, separator).trim();
+      const json = entry.slice(separator + 1);
+
+      if (!name) {
+        throw new Error(`Invalid --mcp value '${entry}'. Name cannot be empty`);
+      }
+
+      deps.mcpServers![name] = parseJsonWithContext<unknown>(
+        json,
+        `--mcp ${name}`,
+      ) as Record<string, unknown>;
+    }
+  }
+
+  const plugins = inline.pluginStrings
+    ? inline.pluginStrings.map((value) => parsePluginString(value))
+    : undefined;
+
+  let options = inline.optionsJson
+    ? parseJsonWithContext<ComposeDefinition["options"]>(
+      inline.optionsJson,
+      "--agent-options",
+    )
+    : undefined;
+
+  if (inline.refs && inline.refs.length > 0) {
+    options ??= {};
+    const existingRefs = options.refs ? [...options.refs] : [] as ComposeRefs;
+    options.refs = [...existingRefs, ...inline.refs] as ComposeRefs;
+  }
+
+  const agent: ComposeDefinition = {
+    name: inline.name ?? "inline-agent",
+    description: inline.description,
+    deps,
+    plugins,
+    options,
+  };
+
+  const capabilities = serverCapabilitiesJson
+    ? parseJsonWithContext<unknown>(
+      serverCapabilitiesJson,
+      "--server-capabilities",
+    ) as MCPCConfig["capabilities"]
+    : undefined;
+
+  const config: MCPCConfig = {
+    name: serverName || "mcpc-server",
+    version: serverVersion || "0.1.0",
+    capabilities,
+    agents: [agent],
+  };
+
+  return normalizeConfig(config);
 }
 
 /**
@@ -211,7 +387,17 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
     }
   }
 
-  // Priority 2: MCPC_CONFIG environment variable (for testing and scripting)
+  // Priority 2: Inline agent CLI arguments
+  if (hasInlineAgentArgs(args.inlineAgent)) {
+    return buildInlineAgentConfig(
+      args.inlineAgent,
+      args.serverName,
+      args.serverVersion,
+      args.serverCapabilitiesJson,
+    );
+  }
+
+  // Priority 3: MCPC_CONFIG environment variable (for testing and scripting)
   if (process.env.MCPC_CONFIG) {
     try {
       const parsed = JSON.parse(process.env.MCPC_CONFIG);
@@ -222,7 +408,7 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
     }
   }
 
-  // Priority 3: --config-url or MCPC_CONFIG_URL (fetch from URL)
+  // Priority 4: --config-url or MCPC_CONFIG_URL (fetch from URL)
   const configUrl = args.configUrl || process.env.MCPC_CONFIG_URL;
   if (configUrl) {
     try {
@@ -243,7 +429,7 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
     }
   }
 
-  // Priority 4: --config-file or MCPC_CONFIG_FILE (file path)
+  // Priority 5: --config-file or MCPC_CONFIG_FILE (file path)
   const configFile = args.configFile || process.env.MCPC_CONFIG_FILE;
   if (configFile) {
     try {
@@ -261,7 +447,7 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
     }
   }
 
-  // Priority 5: ./mcpc.config.json in current directory
+  // Priority 6: ./mcpc.config.json in current directory
   const defaultConfigPath = resolve(process.cwd(), "mcpc.config.json");
   try {
     const content = await readFile(defaultConfigPath, "utf-8");
