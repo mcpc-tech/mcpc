@@ -1,4 +1,7 @@
-# @mcpc/agentic-js-sandbox
+# @mcpc/plugin-code-execution
+
+[![JSR](https://jsr.io/badges/@mcpc/plugin-code-execution)](https://jsr.io/@mcpc/plugin-code-execution)
+[![npm](https://img.shields.io/npm/v/@mcpc-tech/plugin-code-execution)](https://www.npmjs.com/package/@mcpc-tech/plugin-code-execution)
 
 Secure JavaScript code execution sandbox using Deno for MCPC agents. This
 package provides a safe environment to execute user-provided JavaScript code
@@ -10,19 +13,20 @@ with MCP tool access via JSON-RPC IPC.
   execution
 - 🔌 **JSON-RPC IPC**: Tool calls are transmitted via JSON-RPC between sandbox
   and host
-- 🚀 **Easy Integration**: Drop-in replacement for the built-in code execution
-  mode
+- 🚀 **Easy Integration**: Plugin-based integration with MCPC
 - 📦 **Zero Config**: Automatically locates Deno binary from npm package
 - 🛡️ **Resource Limits**: Configurable timeouts and memory limits
 
 ## Installation
 
 ```bash
-npm install @mcpc/agentic-js-sandbox
-# or
-pnpm add @mcpc/agentic-js-sandbox
-# or
-yarn add @mcpc/agentic-js-sandbox
+# npm
+npm install @mcpc-tech/plugin-code-execution
+pnpm add @mcpc-tech/plugin-code-execution
+
+# jsr
+npx jsr add @mcpc/plugin-code-execution
+pnpm add jsr:@mcpc/plugin-code-execution
 ```
 
 ## Usage
@@ -31,7 +35,7 @@ yarn add @mcpc/agentic-js-sandbox
 
 ```typescript
 import { mcpc } from "@mcpc/core";
-import { createSandboxExecutor } from "@mcpc/agentic-js-sandbox";
+import { createCodeExecutionPlugin } from "@mcpc/plugin-code-execution/plugin";
 
 const server = await mcpc(
   [{ name: "my-agent", version: "1.0.0" }, {
@@ -53,13 +57,17 @@ const server = await mcpc(
         },
       },
     },
-    options: {
-      mode: "code_execution",
-      // Use custom sandbox executor
-      customExecutor: createSandboxExecutor({
-        timeout: 30000, // 30 seconds
-        memoryLimit: 512, // 512 MB
+    plugins: [
+      createCodeExecutionPlugin({
+        sandbox: {
+          timeout: 30000, // 30 seconds
+          memoryLimit: 512, // 512 MB
+          permissions: [], // No extra permissions
+        },
       }),
+    ],
+    options: {
+      mode: "custom",
     },
   }],
 );
@@ -67,14 +75,17 @@ const server = await mcpc(
 
 ### How It Works
 
-The sandbox executor:
+The plugin uses bidirectional JSON-RPC communication:
 
-1. Spawns a Deno subprocess with restricted permissions
-2. Sends code to execute via stdin (JSON-RPC)
-3. When code calls `callMCPTool()`, it sends a JSON-RPC request
-4. Host process receives request, calls actual MCP tool, returns result
-5. Sandbox receives result and continues execution
-6. Final output is returned via JSON-RPC response
+1. Host spawns Deno sandbox subprocess
+2. Host sends `executeCode` request with user's JavaScript code
+3. Sandbox runs the code
+4. When code calls `callMCPTool(toolName, params)`:
+   - Sandbox sends `callTool` request to host
+   - Host executes the actual MCP tool
+   - Host sends response back to sandbox
+   - Sandbox receives result and continues code execution
+5. Sandbox returns final execution result to host
 
 ### Security Model
 
@@ -83,16 +94,20 @@ passing Deno permission flags directly:
 
 ```typescript
 // No permissions - can only call MCP tools
-createSandboxExecutor();
+createCodeExecutionPlugin();
 
 // Allow network access to specific domains
-createSandboxExecutor({
-  permissions: ["--allow-net=github.com,api.example.com"],
+createCodeExecutionPlugin({
+  sandbox: {
+    permissions: ["--allow-net=github.com,api.example.com"],
+  },
 });
 
 // Allow reading specific directories
-createSandboxExecutor({
-  permissions: ["--allow-read=/tmp,/var/log"],
+createCodeExecutionPlugin({
+  sandbox: {
+    permissions: ["--allow-read=/tmp,/var/log"],
+  },
 });
 ```
 
@@ -109,51 +124,43 @@ interface SandboxConfig {
 Example with custom permissions:
 
 ```typescript
-createSandboxExecutor({
-  timeout: 60000,
-  permissions: [
-    "--allow-net=api.example.com",
-    "--allow-read=/tmp",
-    "--allow-env=HOME,USER",
-  ],
+createCodeExecutionPlugin({
+  sandbox: {
+    timeout: 60000,
+    permissions: [
+      "--allow-net=api.example.com",
+      "--allow-read=/tmp",
+      "--allow-env=HOME,USER",
+    ],
+  },
 });
 ```
 
 ## Architecture
 
+```mermaid
+sequenceDiagram
+    participant Host as Host (Node)
+    participant Sandbox as Sandbox (Deno)
+    
+    Host->>Sandbox: executeCode(code)
+    activate Sandbox
+    Note over Sandbox: Run user code
+    Sandbox->>Host: callTool(name, params)
+    activate Host
+    Note over Host: Execute MCP tool
+    Host-->>Sandbox: tool result
+    deactivate Host
+    Note over Sandbox: Continue execution
+    Sandbox-->>Host: final result
+    deactivate Sandbox
 ```
-┌─────────────────┐
-│   MCPC Agent    │
-│   (Host Node)   │
-└────────┬────────┘
-         │ JSON-RPC
-         │ (stdin/stdout)
-         ↓
-┌─────────────────┐
-│  Deno Sandbox   │
-│  (npm:deno)     │
-│                 │
-│  Execute Code   │
-│  callMCPTool()  │
-└─────────────────┘
-```
-
-## Comparison with Built-in Executor
-
-| Feature     | Built-in (`new Function`) | Sandbox (`npm:deno`)        |
-| ----------- | ------------------------- | --------------------------- |
-| Security    | Low (same process)        | High (isolated)             |
-| Performance | Fast                      | Slower (IPC overhead)       |
-| Permissions | Full Node.js access       | Restricted                  |
-| Setup       | Zero deps                 | Requires `deno` npm package |
 
 ## Examples
 
 See `examples/` directory for complete examples:
 
-- `basic-usage.ts` - Simple code execution
-- `file-operations.ts` - Working with filesystem MCP tools
-- `custom-permissions.ts` - Custom Deno permissions
+- `basic-usage.ts` - Simple code execution with plugin integration
 
 ## Development
 
