@@ -143,17 +143,46 @@ sequenceDiagram
     participant Host as Host (Node)
     participant Sandbox as Sandbox (Deno)
     
-    Host->>Sandbox: executeCode(code)
+    Host->>Sandbox: executeCode("fetch('https://google.com')")
     activate Sandbox
-    Note over Sandbox: Run user code
-    Sandbox->>Host: callTool(name, params)
-    activate Host
-    Note over Host: Execute MCP tool
-    Host-->>Sandbox: tool result
-    deactivate Host
-    Note over Sandbox: Continue execution
-    Sandbox-->>Host: final result
+    Note over Sandbox: deno run --no-prompt
+    Sandbox--xHost: PermissionDenied: --allow-net needed
     deactivate Sandbox
+    
+    Host->>Sandbox: executeCode("callMCPTool('http.fetch', ...)")
+    activate Sandbox
+    Sandbox->>Host: callTool('http.fetch', {url: 'https://google.com'})
+    activate Host
+    Note over Host: Execute with --allow-net
+    Host-->>Sandbox: {status: 200, body: "..."}
+    deactivate Host
+    Sandbox-->>Host: execution result
+    deactivate Sandbox
+```
+
+**Permission Model**
+
+```typescript
+// Sandbox runs WITHOUT permissions by default
+// ❌ These operations will fail:
+const code = `
+  await Deno.readTextFile('/file.txt');        // PermissionDenied: --allow-read needed
+  await fetch('https://api.com');               // PermissionDenied: --allow-net needed
+  Deno.env.get('SECRET');                       // PermissionDenied: --allow-env needed
+`;
+
+// ✅ All operations must go through MCP tools:
+const code = `
+  await callMCPTool('desktop-commander.read_file', { path: '/file.txt' });
+  await callMCPTool('http-client.fetch', { url: 'https://api.com' });
+`;
+
+// Or grant specific permissions if needed:
+createCodeExecutionPlugin({
+  sandbox: {
+    permissions: ["--allow-net=api.example.com", "--allow-read=/tmp"],
+  },
+});
 ```
 
 ## Examples
