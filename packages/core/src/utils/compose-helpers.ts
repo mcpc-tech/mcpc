@@ -17,7 +17,7 @@ import { sanitizePropertyKey } from "./common/provider.ts";
  */
 export async function processToolsWithPlugins(
   server: ComposableMCPServer,
-  externalTools: Record<string, ComposedTool>,
+  _externalTools: Record<string, ComposedTool>,
   mode: ExecutionMode,
 ): Promise<void> {
   const toolManager = (server as any).toolManager;
@@ -54,25 +54,6 @@ export async function processToolsWithPlugins(
       processedTool.inputSchema as JSONSchema,
       processedTool.execute,
     );
-
-    if (externalTools[toolId]) {
-      // If a visibility processor is provided by built-in plugins, try to call it.
-      try {
-        const builtIn: any = await import("../plugins/built-in/index.ts");
-        if (builtIn && typeof builtIn.processToolVisibility === "function") {
-          builtIn.processToolVisibility(
-            toolId,
-            processedTool,
-            server,
-            externalTools,
-          );
-        }
-      } catch {
-        // ignore if not present
-      }
-
-      externalTools[toolId] = processedTool;
-    }
   }
 }
 
@@ -98,12 +79,12 @@ export function buildDependencyGroups(
     }
 
     if (!tool) {
-      const allToolNames = [
-        ...toolNameToDetailList.map(([n]) => n),
-      ];
+      const allToolNames = [...toolNameToDetailList.map(([n]) => n)];
       throw new Error(
         `Action ${toolName} not found, available action list: ${
-          allToolNames.join(", ")
+          allToolNames.join(
+            ", ",
+          )
         }`,
       );
     }
@@ -153,7 +134,9 @@ export function registerGlobalTools(
     if (!tool) {
       throw new Error(
         `Global tool ${toolId} not found in registry, available: ${
-          Object.keys(tools).join(", ")
+          Object.keys(
+            tools,
+          ).join(", ")
         }`,
       );
     }

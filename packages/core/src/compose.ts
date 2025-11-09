@@ -29,7 +29,10 @@ import { sortPluginsByOrder, validatePlugins } from "./plugin-utils.ts";
 // Import new manager modules
 import { PluginManager } from "./utils/plugin-manager.ts";
 import { ToolManager } from "./utils/tool-manager.ts";
-import { buildDependencyGroups } from "./utils/compose-helpers.ts";
+import {
+  buildDependencyGroups,
+  processToolsWithPlugins,
+} from "./utils/compose-helpers.ts";
 import { sanitizePropertyKey } from "./utils/common/provider.ts";
 
 const ALL_TOOLS_PLACEHOLDER = "__ALL__";
@@ -344,10 +347,7 @@ export class ComposableMCPServer extends Server {
     externalTools: Record<string, ComposedTool>,
     mode: ExecutionMode,
   ): Promise<void> {
-    const { processToolsWithPlugins: processTools } = await import(
-      "./utils/compose-helpers.ts"
-    );
-    await processTools(this, externalTools, mode);
+    await processToolsWithPlugins(this, externalTools, mode);
   }
 
   /**

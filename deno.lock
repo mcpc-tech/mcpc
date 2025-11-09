@@ -2,6 +2,7 @@
   "version": "5",
   "specifiers": {
     "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.41.0",
+    "jsr:@mcpc/core@0.3": "0.3.1",
     "jsr:@std/assert@1": "1.0.14",
     "jsr:@std/assert@^1.0.14": "1.0.14",
     "jsr:@std/cli@^1.0.21": "1.0.21",
@@ -44,6 +45,27 @@
   "jsr": {
     "@es-toolkit/es-toolkit@1.41.0": {
       "integrity": "4df54a18e80b869880cee8a8a9ff7a5e1c424a9fd0916dccd38d34686f110071"
+    },
+    "@mcpc/core@0.3.1": {
+      "integrity": "440d96a5bc96742305c034dcaf15a381f7d599c8cdc94a9416b844294244e9ff",
+      "dependencies": [
+        "jsr:@es-toolkit/es-toolkit",
+        "npm:@modelcontextprotocol/sdk",
+        "npm:@opentelemetry/api",
+        "npm:@opentelemetry/exporter-trace-otlp-http",
+        "npm:@opentelemetry/resources",
+        "npm:@opentelemetry/sdk-trace-base",
+        "npm:@opentelemetry/sdk-trace-node",
+        "npm:@opentelemetry/semantic-conventions",
+        "npm:@segment/ajv-human-errors",
+        "npm:ajv",
+        "npm:ajv-formats",
+        "npm:cheerio",
+        "npm:json-schema-to-zod",
+        "npm:json-schema-traverse",
+        "npm:jsonrepair",
+        "npm:zod"
+      ]
     },
     "@std/assert@1.0.14": {
       "integrity": "68d0d4a43b365abc927f45a9b85c639ea18a9fab96ad92281e493e4ed84abaa4",
@@ -1312,7 +1334,7 @@
       },
       "packages/cli": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.1",
+          "jsr:@mcpc/core@~0.3.2-beta.1",
           "jsr:@mcpc/utils@~0.2.2",
           "jsr:@std/assert@^1.0.14",
           "jsr:@std/http@^1.0.14",
