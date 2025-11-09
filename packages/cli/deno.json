@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/cli",
-  "version": "0.1.12-beta.1",
+  "version": "0.1.12",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -12,7 +12,7 @@
     "./app": "./src/app.ts"
   },
   "imports": {
-    "@mcpc/core": "jsr:@mcpc/core@^0.3.2-beta.1",
+    "@mcpc/core": "jsr:@mcpc/core@^0.3.2",
     "@mcpc/utils": "jsr:@mcpc/utils@^0.2.2",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
     "@mcpc-tech/ripgrep-napi": "npm:@mcpc-tech/ripgrep-napi@^0.0.4",

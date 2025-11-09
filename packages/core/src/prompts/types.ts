@@ -34,7 +34,6 @@ export type ExecutionMode =
   | "agentic_workflow"
   | "agentic_sampling"
   | "agentic_workflow_sampling"
-  | "code_execution"
   | "custom";
 
 /**

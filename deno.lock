@@ -1377,7 +1377,7 @@
       },
       "packages/cli": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.2-beta.1",
+          "jsr:@mcpc/core@~0.3.2",
           "jsr:@mcpc/utils@~0.2.2",
           "jsr:@std/assert@^1.0.14",
           "jsr:@std/http@^1.0.14",
@@ -1431,7 +1431,7 @@
       },
       "packages/plugin-code-execution": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.2-beta.1",
+          "jsr:@mcpc/core@~0.3.2",
           "jsr:@std/assert@1",
           "npm:@modelcontextprotocol/sdk@^1.8.0",
           "npm:deno@^2.5.6"
