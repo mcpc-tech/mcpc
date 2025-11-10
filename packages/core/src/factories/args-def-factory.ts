@@ -168,46 +168,92 @@ Workflow step definitions - provide ONLY on initial call.
     forAgentic: function (
       toolNameToDetailList: [string, unknown][],
       _sampling: boolean = false,
-      ACTION_KEY: string = "action",
-      NEXT_ACTION_KEY: string = "nextAction",
+      USE_TOOL_KEY: string = "useTool",
     ): JSONSchema {
-      const allOf = toolNameToDetailList.map(
-        ([toolName, _toolDetail]: [string, unknown]) => {
-          return {
-            if: {
-              properties: { [ACTION_KEY]: { const: toolName } },
-              required: [ACTION_KEY],
+      const allOf = [
+        // When hasDefinitions is empty, definitionsOf must be provided
+        {
+          if: {
+            properties: {
+              hasDefinitions: {
+                type: "array",
+                maxItems: 0,
+              },
             },
-            then: {
-              required: [toolName],
-            },
-          };
+            required: ["hasDefinitions"],
+          },
+          then: {
+            required: ["definitionsOf"],
+          },
         },
-      );
+        // When useTool is present, hasDefinitions must contain that tool
+        ...toolNameToDetailList.map(
+          ([toolName, _toolDetail]: [string, unknown]) => {
+            return {
+              if: {
+                properties: { [USE_TOOL_KEY]: { const: toolName } },
+                required: [USE_TOOL_KEY],
+              },
+              then: {
+                properties: {
+                  hasDefinitions: {
+                    type: "array",
+                    contains: { const: toolName },
+                  },
+                },
+                required: ["hasDefinitions"],
+              },
+            };
+          },
+        ),
+        // When a specific tool is selected, its parameters must be provided
+        ...toolNameToDetailList.map(
+          ([toolName, _toolDetail]: [string, unknown]) => {
+            return {
+              if: {
+                properties: { [USE_TOOL_KEY]: { const: toolName } },
+                required: [USE_TOOL_KEY],
+              },
+              then: {
+                required: [toolName],
+              },
+            };
+          },
+        ),
+      ];
 
-      const actionDescription =
-        `Specifies the action to be performed from the enum. **⚠️ When setting \`action: "example_action"\`, you MUST also provide \`"example_action": { ... }\`**`;
+      const useToolDescription =
+        `Specifies which tool to execute from the available options. **When setting \`useTool: "example_tool"\`, you MUST also provide \`"example_tool": { ...parameters }\` with that tool's parameters**`;
+
+      const toolItems = allToolNames.length > 0
+        ? { type: "string", enum: allToolNames }
+        : { type: "string" };
 
       const baseProperties = {
-        [ACTION_KEY]: {
+        [USE_TOOL_KEY]: {
           type: "string",
           enum: allToolNames,
-          description: actionDescription,
+          description: useToolDescription,
         },
-        [NEXT_ACTION_KEY]: {
-          type: "string",
-          enum: allToolNames,
+        hasDefinitions: {
+          type: "array",
+          items: toolItems,
           description:
-            "Optional: Specify the next action to execute. Only include this when you know additional actions are needed after the current one completes.",
+            "Tool names whose schemas you already have. List all tools you have schemas for to avoid duplicate schema requests and reduce token usage.",
         },
-        decision: this.decision(),
-        ...depGroups,
+        definitionsOf: {
+          type: "array",
+          items: toolItems,
+          description:
+            "Tool names whose schemas you need. Request tool schemas before calling them to understand their parameters.",
+        },
+        // ...depGroups,
       };
 
-      const requiredFields = [ACTION_KEY, "decision"];
+      const requiredFields: Array<string> = [];
 
       const schema: JSONSchema = {
-        additionalProperties: false,
+        additionalProperties: true,
         type: "object",
         properties: baseProperties,
         required: requiredFields,

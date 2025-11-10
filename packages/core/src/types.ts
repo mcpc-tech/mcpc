@@ -45,8 +45,7 @@ export interface ArgsDefCreator {
   forAgentic: (
     toolNameToDetailList: [string, unknown][],
     sampling?: boolean,
-    ACTION_KEY?: string,
-    NEXT_ACTION_KEY?: string,
+    USE_TOOL_KEY?: string,
   ) => JSONSchema;
   forToolDescription: (
     description: string,

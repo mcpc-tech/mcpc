@@ -32,11 +32,11 @@ Deno.test("processToolTags replaces existing tools and removes missing ones", ()
     toolNameMapping: new Map([["existing", "existing"]]),
   });
 
-  // Should replace existing tool
+  // Should keep the tool tag with normalized name
   assertEquals(
-    result.includes('action="existing"'),
+    result.includes('<tool name="existing"'),
     true,
-    "Should replace existing tool with action tag",
+    "Should keep tool tag with normalized name",
   );
 
   // Should remove missing tool tag

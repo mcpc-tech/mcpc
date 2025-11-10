@@ -16,8 +16,7 @@ export class AgenticExecutor {
     private allToolNames: string[],
     private toolNameToDetailList: [string, unknown][],
     private server: ComposableMCPServer,
-    private ACTION_KEY: string = "action",
-    private NEXT_ACTION_KEY: string = "nextAction",
+    private USE_TOOL_KEY: string = "useTool",
   ) {
     this.logger = createLogger(`mcpc.agentic.${name}`, server);
 
@@ -48,12 +47,15 @@ export class AgenticExecutor {
   ): Promise<CallToolResult> {
     // Create a span for this execute call
     const executeSpan: Span | null = this.tracingEnabled
-      ? startSpan("mcpc.agentic_execute", {
-        agent: this.name,
-        action: String(args[this.ACTION_KEY] ?? "unknown"),
-        nextAction: String(args[this.NEXT_ACTION_KEY] ?? "none"),
-        args: JSON.stringify(args),
-      }, parentSpan ?? undefined)
+      ? startSpan(
+        "mcpc.agentic_execute",
+        {
+          agent: this.name,
+          selectTool: String(args[this.USE_TOOL_KEY] ?? "unknown"),
+          args: JSON.stringify(args),
+        },
+        parentSpan ?? undefined,
+      )
       : null;
 
     try {
@@ -69,7 +71,7 @@ export class AgenticExecutor {
 
         this.logger.warning({
           message: "Validation failed",
-          action: args[this.ACTION_KEY],
+          selectTool: args[this.USE_TOOL_KEY],
           error: validationResult.error,
         });
 
@@ -86,16 +88,16 @@ export class AgenticExecutor {
         };
       }
 
-      const actionName = args[this.ACTION_KEY] as string;
+      const useTool = args[this.USE_TOOL_KEY] as string;
+      const definitionsOf = (args.definitionsOf as string[]) || [];
+      const hasDefinitions = (args.hasDefinitions as string[]) || [];
 
-      // Update span name to include action
-      if (executeSpan && actionName) {
+      // Update span name to include selected tool
+      if (executeSpan && useTool) {
         try {
-          const safeAction = String(actionName).replace(/\s+/g, "_");
+          const safeTool = String(useTool).replace(/\s+/g, "_");
           if (typeof (executeSpan as any).updateName === "function") {
-            (executeSpan as any).updateName(
-              `mcpc.agentic_execute.${safeAction}`,
-            );
+            (executeSpan as any).updateName(`mcpc.agentic_execute.${safeTool}`);
           }
         } catch {
           // Ignore errors while updating span name
@@ -104,58 +106,37 @@ export class AgenticExecutor {
 
       // First check external tools
       const currentTool = this.toolNameToDetailList.find(
-        ([name, _detail]: [string, unknown]) => name === actionName,
+        ([name, _detail]: [string, unknown]) => name === useTool,
       )?.[1] as
         | { execute: (args: unknown) => Promise<CallToolResult> }
         | undefined;
 
       if (currentTool) {
         // Execute external tool
-        const nextAction = args[this.NEXT_ACTION_KEY] as string;
-
         if (executeSpan) {
           executeSpan.setAttributes({
             toolType: "external",
-            actionName: actionName,
-            nextAction: nextAction || "none",
+            selectedTool: useTool,
           });
         }
 
         this.logger.debug({
           message: "Executing external tool",
-          action: actionName,
-          nextAction: nextAction,
+          selectTool: useTool,
         });
 
         const currentResult = await currentTool.execute({
-          ...(args[actionName] as Record<string, unknown>),
+          ...(args[useTool] as Record<string, unknown>),
         });
 
-        if (args[nextAction]) {
-          currentResult?.content?.push({
-            type: "text",
-            text: CompiledPrompts.actionSuccess({
-              toolName: this.name,
-              nextAction: nextAction,
-              currentAction: actionName,
-            }),
-          });
-        } else {
-          currentResult?.content?.push({
-            type: "text",
-            text: CompiledPrompts.planningPrompt({
-              currentAction: actionName,
-              toolName: this.name,
-            }),
-          });
-        }
+        // Provide tool schemas if requested
+        this.appendToolSchemas(currentResult, definitionsOf, hasDefinitions);
 
         if (executeSpan) {
           executeSpan.setAttributes({
             success: true,
             isError: !!currentResult.isError,
             resultContentLength: currentResult.content?.length || 0,
-            hasNextAction: !!args[nextAction],
             toolResult: JSON.stringify(currentResult),
           });
           endSpan(executeSpan);
@@ -165,54 +146,35 @@ export class AgenticExecutor {
       }
 
       // If not found in external tools, check internal tools
-      if (this.allToolNames.includes(actionName)) {
+      if (this.allToolNames.includes(useTool)) {
         if (executeSpan) {
           executeSpan.setAttributes({
             toolType: "internal",
-            actionName: actionName,
+            selectedTool: useTool,
           });
         }
 
         this.logger.debug({
           message: "Executing internal tool",
-          action: actionName,
+          selectTool: useTool,
         });
 
         try {
           const result = await this.server.callTool(
-            actionName,
-            args[actionName] as Record<string, unknown>,
+            useTool,
+            args[useTool] as Record<string, unknown>,
           );
 
-          const nextAction = args[this.NEXT_ACTION_KEY] as string;
           const callToolResult = (result as CallToolResult) ?? { content: [] };
 
-          if (nextAction && this.allToolNames.includes(nextAction)) {
-            callToolResult.content.push({
-              type: "text",
-              text: CompiledPrompts.actionSuccess({
-                toolName: this.name,
-                nextAction: nextAction,
-                currentAction: actionName,
-              }),
-            });
-          } else {
-            callToolResult.content.push({
-              type: "text",
-              text: CompiledPrompts.planningPrompt({
-                currentAction: actionName,
-                toolName: this.name,
-              }),
-            });
-          }
+          // Provide tool schemas if requested
+          this.appendToolSchemas(callToolResult, definitionsOf, hasDefinitions);
 
           if (executeSpan) {
             executeSpan.setAttributes({
               success: true,
               isError: !!callToolResult.isError,
               resultContentLength: callToolResult.content?.length || 0,
-              hasNextAction:
-                !!(nextAction && this.allToolNames.includes(nextAction)),
               toolResult: JSON.stringify(callToolResult),
             });
             endSpan(executeSpan);
@@ -226,7 +188,7 @@ export class AgenticExecutor {
 
           this.logger.error({
             message: "Error executing internal tool",
-            action: actionName,
+            useTool,
             error: String(error),
           });
 
@@ -234,7 +196,7 @@ export class AgenticExecutor {
             content: [
               {
                 type: "text",
-                text: `Error executing internal tool ${actionName}: ${
+                text: `Error executing internal tool ${useTool}: ${
                   error instanceof Error ? error.message : String(error)
                 }`,
               },
@@ -248,7 +210,7 @@ export class AgenticExecutor {
       if (executeSpan) {
         executeSpan.setAttributes({
           toolType: "not_found",
-          actionName: actionName || "unknown",
+          useTool: useTool || "unknown",
           completion: true,
         });
         endSpan(executeSpan);
@@ -256,17 +218,14 @@ export class AgenticExecutor {
 
       this.logger.debug({
         message: "Tool not found, returning completion message",
-        action: actionName,
+        useTool,
       });
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: CompiledPrompts.completionMessage(),
-          },
-        ],
+      const result: CallToolResult = {
+        content: [],
       };
+      this.appendToolSchemas(result, definitionsOf, hasDefinitions);
+      return result;
     } catch (error) {
       // Catch any unexpected errors
       if (executeSpan) {
@@ -292,6 +251,45 @@ export class AgenticExecutor {
     }
   }
 
+  // Append tool schemas to result if requested
+  private appendToolSchemas(
+    result: CallToolResult,
+    definitionsOf: string[],
+    hasDefinitions: string[],
+  ): void {
+    // Filter out tools that are already available
+    const schemasToProvide = definitionsOf.filter(
+      (toolName) => !hasDefinitions.includes(toolName),
+    );
+
+    if (schemasToProvide.length === 0) {
+      return;
+    }
+
+    const definitionTexts: string[] = [];
+
+    for (const toolName of schemasToProvide) {
+      const toolDetail = this.toolNameToDetailList.find(
+        ([name]) => name === toolName,
+      );
+
+      if (toolDetail) {
+        const [name, schema] = toolDetail;
+        const schemaJson = JSON.stringify(schema, null, 2);
+        definitionTexts.push(
+          `<tool_definition name="${name}">\n${schemaJson}\n</tool_definition>`,
+        );
+      }
+    }
+
+    if (definitionTexts.length > 0) {
+      result.content.push({
+        type: "text",
+        text: `${definitionTexts.join("\n\n")}`,
+      });
+    }
+  }
+
   // Validate arguments using JSON schema
   validate(
     args: Record<string, unknown>,
@@ -300,10 +298,6 @@ export class AgenticExecutor {
     valid: boolean;
     error?: string;
   } {
-    // Skip validation for complete decision
-    if (args.decision === "complete") {
-      return { valid: true };
-    }
     return validateSchema(args, schema);
   }
 }
