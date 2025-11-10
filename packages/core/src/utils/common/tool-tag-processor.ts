@@ -69,8 +69,8 @@ export function processToolTags({
     } else {
       const toolId = findToolId(toolName, tools, toolNameMapping);
       if (toolId) {
-        // Replace <tool> with <action action="..."/> in the DOM
-        $(toolEl).replaceWith(`<action action="${toolId}"/>`);
+        // Replace <tool> with <tool name="..."/> in the manual
+        $(toolEl).replaceWith(`<tool name="${toolId}"/>`);
       } else {
         // Tool not found, remove the tag completely
         $(toolEl).remove();

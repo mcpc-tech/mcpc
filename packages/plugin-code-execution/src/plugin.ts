@@ -103,7 +103,7 @@ export function createCodeExecutionPlugin(
                 const [name, schema] = toolDetail;
                 const schemaJson = JSON.stringify(schema, null, 2);
                 definitionTexts.push(
-                  `<tool name="${name}">\n${schemaJson}\n</tool>`,
+                  `<tool_definition name="${name}">\n${schemaJson}\n</tool_definition>`,
                 );
               }
             }

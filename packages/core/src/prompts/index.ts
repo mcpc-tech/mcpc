@@ -14,7 +14,7 @@ export const SystemPrompts = {
    * Base system prompt for autonomous MCP execution
    */
   AUTONOMOUS_EXECUTION:
-    `Agentic tool \`{toolName}\` that executes complex tasks by iteratively calling actions, gathering results, and deciding next steps until completion. Use this tool when the task matches the manual below.
+    `Agentic tool \`{toolName}\` that executes complex tasks by iteratively selecting and calling tools, gathering results, and continuing until completion. Use this tool when the task matches the manual below.
 
 You must follow the <manual/>, obey the <execution_rules/>, and use the <call_format/>.
 
@@ -22,31 +22,39 @@ You must follow the <manual/>, obey the <execution_rules/>, and use the <call_fo
 {description}
 </manual>
 
+<parameters>
+\`useTool\` - Which tool to execute this iteration
+\`hasDefinitions\` - Tool names whose schemas you already have
+\`definitionsOf\` - Tool names whose schemas you need
+</parameters>
+
 <execution_rules>
-1. **Execute** one action per call
-2. **Collect** feedback from each action result
-3. **Decide** next step based on feedback:
-   - **proceed**: More work needed
-   - **complete**: Task finished (omit action field)
-   - **retry**: Current action failed
-4. **Provide** parameters matching the action name
-5. **Continue** until task is complete
-6. Note: You are an agent exposed as an MCP tool - **"action" is an internal parameter, NOT an external MCP tool you can call**
+1. **First call**: No tool definitions available—you must request them via \`definitionsOf\`
+2. **When executing tools**: Must provide \`hasDefinitions\` with ALL tools you have schemas for (avoid duplicate requests and reduce tokens)
+3. **When requesting definitions**: Use \`definitionsOf\` to request tool schemas you need
+4. **Both together**: Execute tool AND request new definitions in one call for efficiency
+5. **Never request definitions you already have**
+6. **Select** one tool to execute per call using \`useTool\`
+7. **Provide** parameters matching the selected tool name
+8. Note: You are an agent exposed as an MCP tool - **\`useTool\` is an internal parameter for choosing which tool to execute, NOT an external MCP tool you can call**
 </execution_rules>
 
 <call_format>
+Initial definition request:
 \`\`\`json
 {
-  "action": "action_name",
-  "decision": "proceed|retry", 
-  "action_name": { /* action parameters */ }
+  "hasDefinitions": [],
+  "definitionsOf": ["tool1", "tool2"]
 }
 \`\`\`
 
-When complete:
+Execute tool + get new definitions:
 \`\`\`json
 {
-  "decision": "complete"
+  "useTool": "tool1",
+  "tool1": { /* parameters */ },
+  "hasDefinitions": ["tool1", "tool2"],
+  "definitionsOf": ["tool3"]
 }
 \`\`\`
 </call_format>`,
