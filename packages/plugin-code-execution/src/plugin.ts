@@ -90,7 +90,6 @@ export function createCodeExecutionPlugin(
           const needsDefinitions = definitionsOf.filter(
             (def) => !hasDefinitions.includes(def),
           );
-          console.log("Needs definitions for:", needsDefinitions);
 
           if (needsDefinitions.length > 0) {
             const definitionTexts: string[] = [];
@@ -125,12 +124,10 @@ export function createCodeExecutionPlugin(
       );
     },
 
-    dispose: async () => {
+    dispose: () => {
       if (executor) {
         executor.stop();
         executor = null;
-        // Wait for process to terminate
-        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     },
   };

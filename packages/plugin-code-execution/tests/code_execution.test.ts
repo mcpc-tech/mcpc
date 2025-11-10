@@ -39,6 +39,7 @@ Deno.test(
       assertEquals(result.content.length > 0, true);
     } finally {
       await server.close?.();
+      await new Promise((r) => setTimeout(r, 1000));
     }
   },
 );
@@ -76,6 +77,7 @@ Deno.test(
       assertEquals(result.content.length > 0, true);
     } finally {
       await server.close?.();
+      await new Promise((r) => setTimeout(r, 1000));
     }
   },
 );
@@ -120,6 +122,7 @@ Deno.test(
       }
     } finally {
       await server.close?.();
+      await new Promise((r) => setTimeout(r, 1000));
     }
   },
 );
