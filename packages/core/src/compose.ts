@@ -357,6 +357,14 @@ export class ComposableMCPServer extends Server {
     await this.pluginManager.dispose();
   }
 
+  /**
+   * Close the server and ensure all plugins are disposed
+   */
+  override async close(): Promise<void> {
+    await this.disposePlugins();
+    await super.close();
+  }
+
   async compose(
     name: string | null,
     description: string,

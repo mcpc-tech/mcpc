@@ -77,7 +77,7 @@ export function createCodeExecutionPlugin(
           const contentParts: CallToolResult["content"] = [];
 
           // Execute code
-          if (code && hasDefinitions.length > 0) {
+          if (code) {
             if (!executor) throw new Error("Sandbox not initialized");
 
             const result = await executor.executeCode(code, hasDefinitions);
