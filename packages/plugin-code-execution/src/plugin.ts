@@ -77,7 +77,7 @@ export function createCodeExecutionPlugin(
           const contentParts: CallToolResult["content"] = [];
 
           // Execute code
-          if (code && hasDefinitions.length > 0) {
+          if (code) {
             if (!executor) throw new Error("Sandbox not initialized");
 
             const result = await executor.executeCode(code, hasDefinitions);
@@ -90,6 +90,7 @@ export function createCodeExecutionPlugin(
           const needsDefinitions = definitionsOf.filter(
             (def) => !hasDefinitions.includes(def),
           );
+          console.log("Needs definitions for:", needsDefinitions);
 
           if (needsDefinitions.length > 0) {
             const definitionTexts: string[] = [];
@@ -124,10 +125,12 @@ export function createCodeExecutionPlugin(
       );
     },
 
-    dispose: () => {
+    dispose: async () => {
       if (executor) {
         executor.stop();
         executor = null;
+        // Wait for process to terminate
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     },
   };
