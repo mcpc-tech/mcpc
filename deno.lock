@@ -19,7 +19,7 @@
     "npm:@ai-sdk/provider-utils@^2.2.8": "2.2.8_zod@3.25.76",
     "npm:@ai-sdk/provider@2": "2.0.0",
     "npm:@hono/zod-openapi@~0.19.2": "0.19.10_hono@4.9.10_zod@3.25.76",
-    "npm:@mcpc-tech/handle-sandbox@^0.0.7": "0.0.7",
+    "npm:@mcpc-tech/handle-sandbox@^0.0.8": "0.0.8",
     "npm:@mcpc-tech/plugin-code-execution@^0.0.5": "0.0.5_@opentelemetry+api@1.9.0_ajv@8.17.1",
     "npm:@mcpc-tech/ripgrep-napi@^0.0.4": "0.0.4",
     "npm:@modelcontextprotocol/sdk@^1.8.0": "1.17.5_express@5.1.0_zod@3.25.76",
@@ -238,10 +238,16 @@
         "deno"
       ]
     },
+    "@mcpc-tech/handle-sandbox@0.0.8": {
+      "integrity": "sha512-I0wvrMMpRHzhosns2mQaBrOAtgFLtxb9mu4CR/9FNz7cUe0HaeZDaP7RFQR44T57ahQAZ8FMJxAbZ17Kmv2EnA==",
+      "dependencies": [
+        "deno"
+      ]
+    },
     "@mcpc-tech/plugin-code-execution@0.0.5_@opentelemetry+api@1.9.0_ajv@8.17.1": {
       "integrity": "sha512-FM4JHmYYC1D8sVeotFk9DQnmFK6y+GpNPe4kpSdNmUP65vvYpe03hBhiijhrAbl7UMKhSWQQYmzBelr58uALJQ==",
       "dependencies": [
-        "@mcpc-tech/handle-sandbox",
+        "@mcpc-tech/handle-sandbox@0.0.7",
         "@mcpc-tech/ripgrep-napi",
         "@modelcontextprotocol/sdk",
         "@opentelemetry/api",
@@ -1439,7 +1445,7 @@
         "dependencies": [
           "jsr:@mcpc/core@~0.3.5",
           "jsr:@std/assert@1",
-          "npm:@mcpc-tech/handle-sandbox@^0.0.7",
+          "npm:@mcpc-tech/handle-sandbox@^0.0.8",
           "npm:@modelcontextprotocol/sdk@^1.8.0"
         ]
       },
