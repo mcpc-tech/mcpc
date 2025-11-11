@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/cli",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -12,7 +12,7 @@
     "./app": "./src/app.ts"
   },
   "imports": {
-    "@mcpc-tech/plugin-code-execution": "npm:@mcpc-tech/plugin-code-execution@^0.0.5",
+    "@mcpc-tech/plugin-code-execution": "npm:@mcpc-tech/plugin-code-execution@^0.0.6",
     "@mcpc/core": "jsr:@mcpc/core@^0.3.4",
     "@mcpc/utils": "jsr:@mcpc/utils@^0.2.2",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
