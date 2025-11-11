@@ -71,6 +71,28 @@ export interface MCPCConfig {
 }
 
 /**
+ * Extract server name from command and arguments
+ * Simply sanitizes the first non-flag argument or command name
+ */
+function extractServerName(command: string, commandArgs: string[]): string {
+  // Try first non-flag argument
+  for (const arg of commandArgs) {
+    if (!arg.startsWith("-")) {
+      const name = arg
+        .replace(/[@.,/\\:;!?#$%^&*()[\]{}]/g, "_")
+        .substring(0, 64);
+      if (name) return name;
+    }
+  }
+
+  // Fall back to command itself
+  const name = command
+    .replace(/[@.,/\\:;!?#$%^&*()[\]{}]/g, "_")
+    .substring(0, 64);
+  return name || "agentic-tool";
+}
+
+/**
  * Create proxy configuration from command-line arguments
  * This generates an MCPC config that wraps an existing MCP server
  */
@@ -78,6 +100,7 @@ function createProxyConfig(args: {
   transportType?: string;
   proxyCommand?: string[];
   mode?: string;
+  name?: string;
 }): MCPCConfig {
   if (!args.proxyCommand || args.proxyCommand.length === 0) {
     console.error("Error: --proxy requires a command after --");
@@ -106,19 +129,8 @@ function createProxyConfig(args: {
   const command = args.proxyCommand[0];
   const commandArgs = args.proxyCommand.slice(1);
 
-  // Extract server name from command (e.g., "@wonderwhy-er/desktop-commander" -> "desktop-commander")
-  let serverName = "mcp-server";
-  const npmPackageMatch = command.match(/@[\w-]+\/([\w-]+)/) ||
-    commandArgs.join(" ").match(/@[\w-]+\/([\w-]+)/);
-  if (npmPackageMatch) {
-    serverName = npmPackageMatch[1];
-  } else {
-    // Try to get name from command itself
-    const baseName = command.split("/").pop()?.replace(/\.js$/, "");
-    if (baseName && baseName !== "npx" && baseName !== "node") {
-      serverName = baseName;
-    }
-  }
+  // Use custom name if provided, otherwise extract from command
+  const serverName = args.name || extractServerName(command, commandArgs);
 
   // Create configuration
   const config: MCPCConfig = {
@@ -131,9 +143,7 @@ function createProxyConfig(args: {
     agents: [
       {
         name: serverName,
-        description:
-          `Agentic tool to orchestrate ${serverName} MCP server tools:
-<tool name="${serverName}.__ALL__"/>`,
+        description: `Orchestrate ${serverName} MCP server tools`,
         deps: {
           mcpServers: {
             [serverName]: {
@@ -147,7 +157,10 @@ function createProxyConfig(args: {
           },
         },
         options: {
-          mode: (args.mode || "agentic") as any,
+          mode: (args.mode || "agentic"),
+          refs: [
+            `<tool name="${serverName}.__ALL__"/>`,
+          ],
         },
       },
     ],
@@ -194,6 +207,7 @@ OPTIONS:
                            Example: --proxy --transport-type stdio -- npx -y @wonderwhy-er/desktop-commander
     --transport-type <type> Transport type for proxy mode
                            Supported types: stdio, streamable-http, sse
+    --name <name>           Custom server name for proxy mode (overrides auto-detection)
 
 ENVIRONMENT VARIABLES:
     MCPC_CONFIG            Inline JSON configuration (same as --config)
@@ -206,6 +220,9 @@ EXAMPLES:
 
     # Proxy mode - wrap an existing MCP server (stdio)
     mcpc --proxy --transport-type stdio -- npx -y @wonderwhy-er/desktop-commander
+
+    # Proxy mode with custom server name
+    mcpc --proxy --transport-type stdio --name my-server -- npx shadcn@latest mcp
 
     # Proxy mode - wrap an MCP server (streamable-http)
     mcpc --proxy --transport-type streamable-http -- https://api.example.com/mcp
@@ -263,6 +280,7 @@ function parseArgs(): {
   transportType?: string;
   proxyCommand?: string[];
   mode?: string;
+  name?: string;
 } {
   const args = process.argv.slice(2);
   const result: {
@@ -275,6 +293,7 @@ function parseArgs(): {
     transportType?: string;
     proxyCommand?: string[];
     mode?: string;
+    name?: string;
   } = {};
 
   for (let i = 0; i < args.length; i++) {
@@ -313,6 +332,8 @@ function parseArgs(): {
       result.transportType = args[++i];
     } else if (arg === "--mode" && i + 1 < args.length) {
       result.mode = args[++i];
+    } else if (arg === "--name" && i + 1 < args.length) {
+      result.name = args[++i];
     } else if (arg === "--") {
       // Everything after -- is the proxy command
       result.proxyCommand = args.slice(i + 1);

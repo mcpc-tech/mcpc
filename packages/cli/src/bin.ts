@@ -48,7 +48,13 @@ config?.agents.forEach((agent) => {
   if (agent.plugins?.length ?? 0 === 0) {
     agent.plugins = [];
   }
-  agent.plugins?.push(createCodeExecutionPlugin());
+  agent.plugins?.push(
+    createCodeExecutionPlugin({
+      sandbox: {
+        timeout: 300_000,
+      },
+    }),
+  );
 });
 
 if (config) {
