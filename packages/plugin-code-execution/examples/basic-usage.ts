@@ -42,7 +42,7 @@ The code can call MCP tools via \`callMCPTool(toolName, params)\` function.`,
       }),
     ],
     options: {
-      mode: "custom" as const,
+      mode: "code_execution" as const,
     },
   },
 ];

@@ -67,7 +67,7 @@ const server = await mcpc(
       }),
     ],
     options: {
-      mode: "custom",
+      mode: "code_execution",
     },
   }],
 );

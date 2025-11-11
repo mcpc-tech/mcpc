@@ -23,7 +23,7 @@ Deno.test(
           deps: { mcpServers: {} },
           plugins: [createCodeExecutionPlugin()],
           options: {
-            mode: "custom",
+            mode: "code_execution",
           },
         },
       ],
@@ -61,7 +61,7 @@ Deno.test(
           deps: { mcpServers: {} },
           plugins: [createCodeExecutionPlugin()],
           options: {
-            mode: "custom",
+            mode: "code_execution",
           },
         },
       ],
@@ -99,7 +99,7 @@ Deno.test(
           deps: { mcpServers: {} },
           plugins: [createCodeExecutionPlugin()],
           options: {
-            mode: "custom",
+            mode: "code_execution",
           },
         },
       ],
