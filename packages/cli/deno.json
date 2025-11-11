@@ -12,6 +12,7 @@
     "./app": "./src/app.ts"
   },
   "imports": {
+    "@mcpc-tech/plugin-code-execution": "npm:@mcpc-tech/plugin-code-execution@^0.0.3",
     "@mcpc/core": "jsr:@mcpc/core@^0.3.4",
     "@mcpc/utils": "jsr:@mcpc/utils@^0.2.2",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
