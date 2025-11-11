@@ -38,9 +38,18 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer } from "./app.ts";
 import { loadConfig } from "./config/loader.ts";
+import { createCodeExecutionPlugin } from "@mcpc-tech/plugin-code-execution";
 
 // Load configuration from environment or file
 const config = await loadConfig();
+
+// Add plugins
+config?.agents.forEach((agent) => {
+  if (agent.plugins?.length ?? 0 === 0) {
+    agent.plugins = [];
+  }
+  agent.plugins?.push(createCodeExecutionPlugin());
+});
 
 if (config) {
   console.error(`Loaded configuration with ${config.agents.length} agent(s)`);

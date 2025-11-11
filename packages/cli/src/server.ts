@@ -30,12 +30,21 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config/loader.ts";
 import process from "node:process";
+import { createCodeExecutionPlugin } from "@mcpc-tech/plugin-code-execution";
 
 const port = Number(process.env.PORT || "9000");
 const hostname = "0.0.0.0";
 
 // Load configuration from environment or file
 const config = await loadConfig();
+
+// Add plugins
+config?.agents.forEach((agent) => {
+  if (agent.plugins?.length ?? 0 === 0) {
+    agent.plugins = [];
+  }
+  agent.plugins?.push(createCodeExecutionPlugin());
+});
 
 if (config) {
   console.log(`Loaded configuration with ${config.agents.length} agent(s)`);

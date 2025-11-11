@@ -71,6 +71,99 @@ export interface MCPCConfig {
 }
 
 /**
+ * Create proxy configuration from command-line arguments
+ * This generates an MCPC config that wraps an existing MCP server
+ */
+function createProxyConfig(args: {
+  transportType?: string;
+  proxyCommand?: string[];
+  mode?: string;
+}): MCPCConfig {
+  if (!args.proxyCommand || args.proxyCommand.length === 0) {
+    console.error("Error: --proxy requires a command after --");
+    console.error(
+      "Example: mcpc --proxy --transport-type stdio -- npx -y @wonderwhy-er/desktop-commander",
+    );
+    process.exit(1);
+  }
+
+  if (!args.transportType) {
+    console.error("Error: --proxy requires --transport-type to be specified");
+    console.error("Supported types: stdio, streamable-http, sse");
+    console.error(
+      "Example: mcpc --proxy --transport-type stdio -- npx -y @wonderwhy-er/desktop-commander",
+    );
+    process.exit(1);
+  }
+
+  const validTransports = ["stdio", "streamable-http", "sse"];
+  if (!validTransports.includes(args.transportType)) {
+    console.error(`Error: Invalid transport type '${args.transportType}'`);
+    console.error(`Supported types: ${validTransports.join(", ")}`);
+    process.exit(1);
+  }
+
+  const command = args.proxyCommand[0];
+  const commandArgs = args.proxyCommand.slice(1);
+
+  // Extract server name from command (e.g., "@wonderwhy-er/desktop-commander" -> "desktop-commander")
+  let serverName = "mcp-server";
+  const npmPackageMatch = command.match(/@[\w-]+\/([\w-]+)/) ||
+    commandArgs.join(" ").match(/@[\w-]+\/([\w-]+)/);
+  if (npmPackageMatch) {
+    serverName = npmPackageMatch[1];
+  } else {
+    // Try to get name from command itself
+    const baseName = command.split("/").pop()?.replace(/\.js$/, "");
+    if (baseName && baseName !== "npx" && baseName !== "node") {
+      serverName = baseName;
+    }
+  }
+
+  // Create configuration
+  const config: MCPCConfig = {
+    name: `${serverName}-proxy`,
+    version: "0.1.0",
+    capabilities: {
+      tools: {},
+      sampling: {},
+    },
+    agents: [
+      {
+        name: serverName,
+        description:
+          `Agentic tool to orchestrate ${serverName} MCP server tools:
+<tool name="${serverName}.__ALL__"/>`,
+        deps: {
+          mcpServers: {
+            [serverName]: {
+              command: command,
+              args: commandArgs,
+              transportType: args.transportType as
+                | "stdio"
+                | "streamable-http"
+                | "sse",
+            },
+          },
+        },
+        options: {
+          mode: (args.mode || "agentic") as any,
+        },
+      },
+    ],
+  };
+
+  console.error(`Created proxy configuration for ${serverName}`);
+  console.error(`Transport: ${args.transportType}`);
+  console.error(`Command: ${command} ${commandArgs.join(" ")}`);
+  if (args.mode) {
+    console.error(`Mode: ${args.mode}`);
+  }
+
+  return config;
+}
+
+/**
  * Print help message
  */
 function printHelp(): void {
@@ -78,7 +171,7 @@ function printHelp(): void {
 MCPC CLI - Model Context Protocol Composer
 
 USAGE:
-    npx -y deno run -A jsr:@mcpc/cli/bin [OPTIONS]
+    mcpc [OPTIONS]
 
 OPTIONS:
     --help, -h              Show this help message
@@ -89,6 +182,18 @@ OPTIONS:
                            Add custom HTTP header for URL fetching
                            Format: "Key: Value" or "Key=Value"
                            Can be used multiple times
+    --mode <mode>           Set execution mode for all agents
+                           Supported modes:
+                           - agentic: Fully autonomous agent mode (default)
+                           - agentic_workflow: Agent workflow mode with dynamic or predefined steps
+                           - agentic_sampling: Autonomous sampling mode for agentic execution
+                           - agentic_workflow_sampling: Autonomous sampling mode for workflow execution
+                           - code_execution: Code execution mode for most efficient token usage
+    --proxy                 Proxy mode: automatically configure MCPC to wrap an MCP server
+                           Use with --transport-type to specify the transport
+                           Example: --proxy --transport-type stdio -- npx -y @wonderwhy-er/desktop-commander
+    --transport-type <type> Transport type for proxy mode
+                           Supported types: stdio, streamable-http, sse
 
 ENVIRONMENT VARIABLES:
     MCPC_CONFIG            Inline JSON configuration (same as --config)
@@ -97,27 +202,39 @@ ENVIRONMENT VARIABLES:
 
 EXAMPLES:
     # Show help
-    npx -y deno run -A jsr:@mcpc/cli/bin --help
+    mcpc --help
+
+    # Proxy mode - wrap an existing MCP server (stdio)
+    mcpc --proxy --transport-type stdio -- npx -y @wonderwhy-er/desktop-commander
+
+    # Proxy mode - wrap an MCP server (streamable-http)
+    mcpc --proxy --transport-type streamable-http -- https://api.example.com/mcp
+
+    # Proxy mode - wrap an MCP server (sse)
+    mcpc --proxy --transport-type sse -- https://api.example.com/sse
 
     # Load from URL
-    npx -y deno run -A jsr:@mcpc/cli/bin --config-url \\
+    mcpc --config-url \\
       "https://raw.githubusercontent.com/mcpc-tech/mcpc/main/packages/cli/examples/configs/codex-fork.json"
 
     # Load from URL with custom headers
-    npx -y deno run -A jsr:@mcpc/cli/bin \\
+    mcpc \\
       --config-url "https://api.example.com/config.json" \\
       -H "Authorization: Bearer token123" \\
       -H "X-Custom-Header: value"
 
     # Load from file
-    npx -y deno run -A jsr:@mcpc/cli/bin --config-file ./my-config.json
+    mcpc --config-file ./my-config.json
+
+    # Override execution mode for all agents
+    mcpc --config-file ./my-config.json --mode agentic_workflow
 
     # Using environment variable
     export MCPC_CONFIG='[{"name":"agent","description":"..."}]'
-    npx -y deno run -A jsr:@mcpc/cli/bin
+    mcpc
 
     # Use default configuration (./mcpc.config.json)
-    npx -y deno run -A jsr:@mcpc/cli/bin
+    mcpc
 
 CONFIGURATION:
     Configuration files support environment variable substitution using $VAR_NAME syntax.
@@ -142,6 +259,10 @@ function parseArgs(): {
   configFile?: string;
   requestHeaders?: Record<string, string>;
   help?: boolean;
+  proxy?: boolean;
+  transportType?: string;
+  proxyCommand?: string[];
+  mode?: string;
 } {
   const args = process.argv.slice(2);
   const result: {
@@ -150,6 +271,10 @@ function parseArgs(): {
     configFile?: string;
     requestHeaders?: Record<string, string>;
     help?: boolean;
+    proxy?: boolean;
+    transportType?: string;
+    proxyCommand?: string[];
+    mode?: string;
   } = {};
 
   for (let i = 0; i < args.length; i++) {
@@ -161,14 +286,15 @@ function parseArgs(): {
     } else if (arg === "--config-file" && i + 1 < args.length) {
       result.configFile = args[++i];
     } else if (
-      (arg === "--request-headers" || arg === "-H") && i + 1 < args.length
+      (arg === "--request-headers" || arg === "-H") &&
+      i + 1 < args.length
     ) {
       // Parse header in format "Key: Value" or "Key=Value"
       const headerStr = args[++i];
       const colonIdx = headerStr.indexOf(":");
       const equalIdx = headerStr.indexOf("=");
       const separatorIdx = colonIdx !== -1
-        ? (equalIdx !== -1 ? Math.min(colonIdx, equalIdx) : colonIdx)
+        ? equalIdx !== -1 ? Math.min(colonIdx, equalIdx) : colonIdx
         : equalIdx;
 
       if (separatorIdx !== -1) {
@@ -181,6 +307,16 @@ function parseArgs(): {
       }
     } else if (arg === "--help" || arg === "-h") {
       result.help = true;
+    } else if (arg === "--proxy") {
+      result.proxy = true;
+    } else if (arg === "--transport-type" && i + 1 < args.length) {
+      result.transportType = args[++i];
+    } else if (arg === "--mode" && i + 1 < args.length) {
+      result.mode = args[++i];
+    } else if (arg === "--") {
+      // Everything after -- is the proxy command
+      result.proxyCommand = args.slice(i + 1);
+      break;
     }
   }
 
@@ -200,11 +336,16 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
     process.exit(0);
   }
 
+  // Handle --proxy mode
+  if (args.proxy) {
+    return createProxyConfig(args);
+  }
+
   // Priority 1: --config (inline JSON string)
   if (args.config) {
     try {
       const parsed = JSON.parse(args.config);
-      return normalizeConfig(parsed);
+      return applyModeOverride(normalizeConfig(parsed), args.mode);
     } catch (error) {
       console.error("Failed to parse --config argument:", error);
       throw error;
@@ -215,7 +356,7 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
   if (process.env.MCPC_CONFIG) {
     try {
       const parsed = JSON.parse(process.env.MCPC_CONFIG);
-      return normalizeConfig(parsed);
+      return applyModeOverride(normalizeConfig(parsed), args.mode);
     } catch (error) {
       console.error("Failed to parse MCPC_CONFIG environment variable:", error);
       throw error;
@@ -236,7 +377,7 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
       }
       const content = await response.text();
       const parsed = JSON.parse(content);
-      return normalizeConfig(parsed);
+      return applyModeOverride(normalizeConfig(parsed), args.mode);
     } catch (error) {
       console.error(`Failed to fetch config from ${configUrl}:`, error);
       throw error;
@@ -249,7 +390,7 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
     try {
       const content = await readFile(configFile, "utf-8");
       const parsed = JSON.parse(content);
-      return normalizeConfig(parsed);
+      return applyModeOverride(normalizeConfig(parsed), args.mode);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
         console.error(`Config file not found: ${configFile}`);
@@ -266,16 +407,13 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
   try {
     const content = await readFile(defaultConfigPath, "utf-8");
     const parsed = JSON.parse(content);
-    return normalizeConfig(parsed);
+    return applyModeOverride(normalizeConfig(parsed), args.mode);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       // No config file found, this is okay
       return null;
     } else {
-      console.error(
-        `Failed to load config from ${defaultConfigPath}:`,
-        error,
-      );
+      console.error(`Failed to load config from ${defaultConfigPath}:`, error);
       throw error;
     }
   }
@@ -309,6 +447,21 @@ function replaceEnvVarsInConfig(obj: unknown): unknown {
     return result;
   }
   return obj;
+}
+
+/**
+ * Apply mode override to all agents in the configuration
+ */
+function applyModeOverride(config: MCPCConfig, mode?: string): MCPCConfig {
+  if (!mode) return config;
+
+  // Apply mode to all agents
+  config.agents.forEach((agent) => {
+    if (!agent.options) agent.options = {};
+    agent.options.mode = mode as any;
+  });
+
+  return config;
 }
 
 /**
