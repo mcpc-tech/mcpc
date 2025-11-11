@@ -20,6 +20,7 @@
     "npm:@ai-sdk/provider@2": "2.0.0",
     "npm:@hono/zod-openapi@~0.19.2": "0.19.10_hono@4.9.10_zod@3.25.76",
     "npm:@mcpc-tech/handle-sandbox@^0.0.7": "0.0.7",
+    "npm:@mcpc-tech/plugin-code-execution@^0.0.3": "0.0.3_@opentelemetry+api@1.9.0_ajv@8.17.1",
     "npm:@mcpc-tech/ripgrep-napi@^0.0.4": "0.0.4",
     "npm:@modelcontextprotocol/sdk@^1.8.0": "1.17.5_express@5.1.0_zod@3.25.76",
     "npm:@opentelemetry/api@^1.9.0": "1.9.0",
@@ -257,6 +258,29 @@
         "deno"
       ],
       "tarball": "https://mirrors.tencent.com/npm/@mcpc-tech/handle-sandbox/-/handle-sandbox-0.0.7.tgz"
+    },
+    "@mcpc-tech/plugin-code-execution@0.0.3_@opentelemetry+api@1.9.0_ajv@8.17.1": {
+      "integrity": "sha512-kfefq7H1CvmGEzzfytK3HY6bDwXJpddAHDwQnS0PZ+x+F9hYIu1tGtN/OTC8cD/dK59kpPkeZv1sek3YZ4ZHmg==",
+      "dependencies": [
+        "@mcpc-tech/handle-sandbox",
+        "@mcpc-tech/ripgrep-napi",
+        "@modelcontextprotocol/sdk",
+        "@opentelemetry/api",
+        "@opentelemetry/exporter-trace-otlp-http",
+        "@opentelemetry/resources@1.30.1_@opentelemetry+api@1.9.0",
+        "@opentelemetry/sdk-trace-base@1.30.1_@opentelemetry+api@1.9.0",
+        "@opentelemetry/sdk-trace-node",
+        "@opentelemetry/semantic-conventions@1.38.0",
+        "@segment/ajv-human-errors",
+        "ajv@8.17.1",
+        "ajv-formats",
+        "cheerio",
+        "json-schema-to-zod",
+        "json-schema-traverse@1.0.0",
+        "jsonrepair",
+        "zod"
+      ],
+      "tarball": "https://mirrors.tencent.com/npm/@mcpc-tech/plugin-code-execution/-/plugin-code-execution-0.0.3.tgz"
     },
     "@mcpc-tech/ripgrep-napi-android-arm-eabi@0.0.4": {
       "integrity": "sha512-Y52S9IdbqMYvet7hDGk/DRdKFM7ED6tSQmBtrWVzdeqVWPMayZvrKdlcceBykdKjbmgnlqtulzEtHBF2iXmXwA==",
@@ -1575,6 +1599,7 @@
           "jsr:@std/assert@^1.0.14",
           "jsr:@std/http@^1.0.14",
           "npm:@hono/zod-openapi@~0.19.2",
+          "npm:@mcpc-tech/plugin-code-execution@^0.0.3",
           "npm:@mcpc-tech/ripgrep-napi@^0.0.4",
           "npm:@modelcontextprotocol/sdk@^1.8.0",
           "npm:hono@^4.7.5",
@@ -1624,7 +1649,7 @@
       },
       "packages/plugin-code-execution": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.4",
+          "jsr:@mcpc/core@~0.3.5",
           "jsr:@std/assert@1",
           "npm:@mcpc-tech/handle-sandbox@^0.0.7",
           "npm:@modelcontextprotocol/sdk@^1.8.0"

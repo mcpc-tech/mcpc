@@ -34,7 +34,7 @@ export type ExecutionMode =
   | "agentic_workflow"
   | "agentic_sampling"
   | "agentic_workflow_sampling"
-  | "custom";
+  | (string & Record<never, never>);
 
 /**
  * Prompt template configuration

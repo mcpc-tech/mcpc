@@ -23,7 +23,7 @@ export function createCodeExecutionPlugin(
   return {
     name: "code_execution",
     version: "1.0.0",
-    apply: "custom",
+    apply: "code_execution",
 
     registerAgentTool: (context: AgentToolRegistrationContext) => {
       const { server, name, description, allToolNames } = context;
