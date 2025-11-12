@@ -45,7 +45,7 @@
  */
 
 import type { ComposeDefinition } from "@mcpc/core";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
@@ -116,57 +116,63 @@ function getUserConfigPath(): string {
 
 /**
  * Save configuration to user's config file (~/.mcpc/config.json)
+ * Merges new agent if name differs, warns if name conflicts
  */
-async function saveUserConfig(config: MCPCConfig): Promise<void> {
+async function saveUserConfig(
+  config: MCPCConfig,
+  newAgentName: string,
+): Promise<void> {
   const configPath = getUserConfigPath();
   const configDir = dirname(configPath);
 
   try {
-    // Check if config file already exists
-    let exists = false;
+    // Try to load existing config
+    let existingConfig: MCPCConfig | null = null;
     try {
-      await access(configPath);
-      exists = true;
+      const content = await readFile(configPath, "utf-8");
+      existingConfig = JSON.parse(content);
     } catch {
-      // File doesn't exist, which is fine
+      // File doesn't exist - will create new one
     }
 
-    if (exists) {
-      console.error(`
-⚠ Configuration file already exists: ${configPath}
+    // Handle existing config
+    if (existingConfig) {
+      const hasConflict = existingConfig.agents.some(
+        (agent) => agent.name === newAgentName,
+      );
 
-  To avoid overwriting your customized settings:
-    1. Use a different output path with --config-file
-    2. Or manually merge the new servers into your existing config
-    3. Or delete the file first: rm ${configPath}
+      if (hasConflict) {
+        console.error(
+          `\n⚠ Agent "${newAgentName}" already exists in ${configPath}\n` +
+            `  Use --name to choose a different name, or delete the existing agent first.\n`,
+        );
+        return;
+      }
 
-  Skipping save to preserve your existing configuration.
-`);
+      // Merge new agent
+      existingConfig.agents.push(...config.agents);
+      await writeFile(
+        configPath,
+        JSON.stringify(existingConfig, null, 2),
+        "utf-8",
+      );
+      console.error(
+        `\n✓ Added agent "${newAgentName}" (total: ${existingConfig.agents.length})\n` +
+          `  Config: ${configPath}\n` +
+          `  Run: mcpc\n`,
+      );
       return;
     }
 
-    // Create directory if it doesn't exist
+    // Create new config
     await mkdir(configDir, { recursive: true });
-
-    // Write config file with pretty formatting
     await writeFile(configPath, JSON.stringify(config, null, 2), "utf-8");
-
-    console.error(`
-✓ Configuration saved to: ${configPath}
-
-  Next steps:
-    1. (Optional) Edit the config to add headers, env vars, etc.
-       Examples:
-         - Add headers: "headers": {"Authorization": "Bearer \${YOUR_TOKEN}"}
-         - Add env vars: "env": {"API_KEY": "\${API_KEY}"}
-    
-    2. Run the server:
-       mcpc
-       
-       The config will be loaded automatically from ${configPath}
-`);
+    console.error(
+      `\n✓ Configuration saved to: ${configPath}\n` +
+        `  Run: mcpc\n`,
+    );
   } catch (error) {
-    console.error(`Warning: Failed to save config to ${configPath}:`, error);
+    console.error(`Failed to save config to ${configPath}:`, error);
   }
 }
 
@@ -181,12 +187,10 @@ async function createWrapConfig(args: {
   saveConfig?: boolean;
 }): Promise<MCPCConfig> {
   if (!args.mcpServers || args.mcpServers.length === 0) {
-    console.error("Error: --wrap/--add requires at least one MCP server");
     console.error(
-      "Example: mcpc --wrap --mcp-stdio 'npx -y @wonderwhy-er/desktop-commander'",
-    );
-    console.error(
-      "Multiple: mcpc --add --mcp-stdio 'npx -y server1' --mcp-http 'https://api.example.com'",
+      "Error: --wrap/--add requires at least one MCP server\n" +
+        "Example: mcpc --wrap --mcp-stdio 'npx -y @wonderwhy-er/desktop-commander'\n" +
+        "Multiple: mcpc --add --mcp-stdio 'npx -y server1' --mcp-http 'https://api.example.com'",
     );
     process.exit(1);
   }
@@ -208,9 +212,11 @@ async function createWrapConfig(args: {
     serverNames.push(serverName);
     refs.push(`<tool name="${serverName}.__ALL__"/>`);
 
-    console.error(`Added MCP server: ${serverName}
-  Transport: ${spec.transportType}
-  Command: ${spec.command} ${spec.args.join(" ")}`);
+    console.error(
+      `Added MCP server: ${serverName}\n` +
+        `  Transport: ${spec.transportType}\n` +
+        `  Command: ${spec.command} ${spec.args.join(" ")}`,
+    );
   }
 
   // Use custom name if provided, otherwise use merged server names
@@ -242,12 +248,13 @@ async function createWrapConfig(args: {
   };
 
   const modeInfo = args.mode ? `\nMode: ${args.mode}` : "";
-  console.error(`
-Created wrap configuration for ${serverNames.length} MCP server(s)${modeInfo}`);
+  console.error(
+    `\nCreated configuration for ${serverNames.length} MCP server(s)${modeInfo}`,
+  );
 
   // Save configuration to user's config file if requested
   if (args.saveConfig) {
-    await saveUserConfig(config);
+    await saveUserConfig(config, agentName);
   }
 
   return config;
