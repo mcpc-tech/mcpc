@@ -19,7 +19,8 @@
  * 2. MCPC_CONFIG environment variable
  * 3. --config-url or MCPC_CONFIG_URL
  * 4. --config-file or MCPC_CONFIG_FILE
- * 5. ./mcpc.config.json (default)
+ * 5. ~/.mcpc/config.json (user config)
+ * 6. ./mcpc.config.json (local config)
  *
  * @example
  * ```bash
@@ -44,8 +45,9 @@
  */
 
 import type { ComposeDefinition } from "@mcpc/core";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 
 export interface MCPCConfig {
@@ -92,49 +94,131 @@ function extractServerName(command: string, commandArgs: string[]): string {
   return name || "agentic-tool";
 }
 
+interface ServerSpec {
+  command: string;
+  args: string[];
+  transportType: "stdio" | "streamable-http" | "sse";
+}
+
 /**
- * Create proxy configuration from command-line arguments
- * This generates an MCPC config that wraps an existing MCP server
+ * Get the path to the user's config directory (~/.mcpc)
  */
-function createProxyConfig(args: {
-  transportType?: string;
-  proxyCommand?: string[];
+function getUserConfigDir(): string {
+  return join(homedir(), ".mcpc");
+}
+
+/**
+ * Get the path to the user's saved config file (~/.mcpc/config.json)
+ */
+function getUserConfigPath(): string {
+  return join(getUserConfigDir(), "config.json");
+}
+
+/**
+ * Save configuration to user's config file (~/.mcpc/config.json)
+ */
+async function saveUserConfig(config: MCPCConfig): Promise<void> {
+  const configPath = getUserConfigPath();
+  const configDir = dirname(configPath);
+
+  try {
+    // Check if config file already exists
+    let exists = false;
+    try {
+      await access(configPath);
+      exists = true;
+    } catch {
+      // File doesn't exist, which is fine
+    }
+
+    if (exists) {
+      console.error(`
+⚠ Configuration file already exists: ${configPath}
+
+  To avoid overwriting your customized settings:
+    1. Use a different output path with --config-file
+    2. Or manually merge the new servers into your existing config
+    3. Or delete the file first: rm ${configPath}
+
+  Skipping save to preserve your existing configuration.
+`);
+      return;
+    }
+
+    // Create directory if it doesn't exist
+    await mkdir(configDir, { recursive: true });
+
+    // Write config file with pretty formatting
+    await writeFile(configPath, JSON.stringify(config, null, 2), "utf-8");
+
+    console.error(`
+✓ Configuration saved to: ${configPath}
+
+  Next steps:
+    1. (Optional) Edit the config to add headers, env vars, etc.
+       Examples:
+         - Add headers: "headers": {"Authorization": "Bearer \${YOUR_TOKEN}"}
+         - Add env vars: "env": {"API_KEY": "\${API_KEY}"}
+    
+    2. Run the server:
+       mcpc
+       
+       The config will be loaded automatically from ${configPath}
+`);
+  } catch (error) {
+    console.error(`Warning: Failed to save config to ${configPath}:`, error);
+  }
+}
+
+/**
+ * Create wrap configuration from command-line arguments
+ * This generates an MCPC config that wraps one or more existing MCP servers
+ */
+async function createWrapConfig(args: {
+  mcpServers?: ServerSpec[];
   mode?: string;
   name?: string;
-}): MCPCConfig {
-  if (!args.proxyCommand || args.proxyCommand.length === 0) {
-    console.error("Error: --proxy requires a command after --");
+  saveConfig?: boolean;
+}): Promise<MCPCConfig> {
+  if (!args.mcpServers || args.mcpServers.length === 0) {
+    console.error("Error: --wrap/--add requires at least one MCP server");
     console.error(
-      "Example: mcpc --proxy --transport-type stdio -- npx -y @wonderwhy-er/desktop-commander",
+      "Example: mcpc --wrap --mcp-stdio 'npx -y @wonderwhy-er/desktop-commander'",
+    );
+    console.error(
+      "Multiple: mcpc --add --mcp-stdio 'npx -y server1' --mcp-http 'https://api.example.com'",
     );
     process.exit(1);
   }
 
-  if (!args.transportType) {
-    console.error("Error: --proxy requires --transport-type to be specified");
-    console.error("Supported types: stdio, streamable-http, sse");
-    console.error(
-      "Example: mcpc --proxy --transport-type stdio -- npx -y @wonderwhy-er/desktop-commander",
-    );
-    process.exit(1);
+  // Build MCP servers configuration
+  const mcpServers: Record<string, any> = {};
+  const serverNames: string[] = [];
+  const refs: string[] = [];
+
+  for (const spec of args.mcpServers) {
+    const serverName = extractServerName(spec.command, spec.args);
+
+    mcpServers[serverName] = {
+      command: spec.command,
+      args: spec.args,
+      transportType: spec.transportType,
+    };
+
+    serverNames.push(serverName);
+    refs.push(`<tool name="${serverName}.__ALL__"/>`);
+
+    console.error(`Added MCP server: ${serverName}
+  Transport: ${spec.transportType}
+  Command: ${spec.command} ${spec.args.join(" ")}`);
   }
 
-  const validTransports = ["stdio", "streamable-http", "sse"];
-  if (!validTransports.includes(args.transportType)) {
-    console.error(`Error: Invalid transport type '${args.transportType}'`);
-    console.error(`Supported types: ${validTransports.join(", ")}`);
-    process.exit(1);
-  }
-
-  const command = args.proxyCommand[0];
-  const commandArgs = args.proxyCommand.slice(1);
-
-  // Use custom name if provided, otherwise extract from command
-  const serverName = args.name || extractServerName(command, commandArgs);
+  // Use custom name if provided, otherwise use merged server names
+  const agentName = args.name || `${serverNames.join("__")}--orchestrator`;
 
   // Create configuration
   const config: MCPCConfig = {
-    name: `${serverName}-proxy`,
+    name: "mcpc-wrap-config",
     version: "0.1.0",
     capabilities: {
       tools: {},
@@ -142,35 +226,28 @@ function createProxyConfig(args: {
     },
     agents: [
       {
-        name: serverName,
-        description: `Orchestrate ${serverName} MCP server tools`,
+        name: agentName,
+        description: `Orchestrate ${
+          serverNames.length === 1 ? serverNames[0] : serverNames.join(", ")
+        } MCP server tools`,
         deps: {
-          mcpServers: {
-            [serverName]: {
-              command: command,
-              args: commandArgs,
-              transportType: args.transportType as
-                | "stdio"
-                | "streamable-http"
-                | "sse",
-            },
-          },
+          mcpServers: mcpServers,
         },
         options: {
-          mode: (args.mode || "agentic"),
-          refs: [
-            `<tool name="${serverName}.__ALL__"/>`,
-          ],
+          mode: args.mode || "agentic",
+          refs: refs as any,
         },
       },
     ],
   };
 
-  console.error(`Created proxy configuration for ${serverName}`);
-  console.error(`Transport: ${args.transportType}`);
-  console.error(`Command: ${command} ${commandArgs.join(" ")}`);
-  if (args.mode) {
-    console.error(`Mode: ${args.mode}`);
+  const modeInfo = args.mode ? `\nMode: ${args.mode}` : "";
+  console.error(`
+Created wrap configuration for ${serverNames.length} MCP server(s)${modeInfo}`);
+
+  // Save configuration to user's config file if requested
+  if (args.saveConfig) {
+    await saveUserConfig(config);
   }
 
   return config;
@@ -202,12 +279,18 @@ OPTIONS:
                            - agentic_sampling: Autonomous sampling mode for agentic execution
                            - agentic_workflow_sampling: Autonomous sampling mode for workflow execution
                            - code_execution: Code execution mode for most efficient token usage
-    --proxy                 Proxy mode: automatically configure MCPC to wrap an MCP server
-                           Use with --transport-type to specify the transport
-                           Example: --proxy --transport-type stdio -- npx -y @wonderwhy-er/desktop-commander
-    --transport-type <type> Transport type for proxy mode
-                           Supported types: stdio, streamable-http, sse
-    --name <name>           Custom server name for proxy mode (overrides auto-detection)
+    --add                   Add MCP servers to ~/.mcpc/config.json and exit
+                           Then run 'mcpc' to start the server with saved config
+                           Use --mcp-stdio, --mcp-http, or --mcp-sse to specify servers
+    --wrap                  Wrap and run MCP servers immediately without saving config
+                           Use --mcp-stdio, --mcp-http, or --mcp-sse to specify servers
+    --mcp-stdio <cmd>       Add an MCP server with stdio transport
+                           Example: --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
+    --mcp-http <url>        Add an MCP server with streamable-http transport
+                           Example: --mcp-http "https://api.github.com/mcp"
+    --mcp-sse <url>         Add an MCP server with SSE transport
+                           Example: --mcp-sse "https://api.example.com/sse"
+    --name <name>           Custom agent name for wrap mode (overrides auto-detection)
 
 ENVIRONMENT VARIABLES:
     MCPC_CONFIG            Inline JSON configuration (same as --config)
@@ -218,17 +301,23 @@ EXAMPLES:
     # Show help
     mcpc --help
 
-    # Proxy mode - wrap an existing MCP server (stdio)
-    mcpc --proxy --transport-type stdio -- npx -y @wonderwhy-er/desktop-commander
+    # Add MCP servers to config and save to ~/.mcpc/config.json
+    mcpc --add --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
+    # Edit ~/.mcpc/config.json if needed (add headers, etc.)
+    mcpc  # Loads config from ~/.mcpc/config.json automatically
 
-    # Proxy mode with custom server name
-    mcpc --proxy --transport-type stdio --name my-server -- npx shadcn@latest mcp
+    # Wrap and run immediately (one-time use, no config saved)
+    mcpc --wrap --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
 
-    # Proxy mode - wrap an MCP server (streamable-http)
-    mcpc --proxy --transport-type streamable-http -- https://api.example.com/mcp
+    # Multiple servers with different transports
+    mcpc --add \
+      --mcp-stdio "npx -y @wonderwhy-er/desktop-commander" \
+      --mcp-http "https://api.github.com/mcp" \
+      --mcp-sse "https://api.example.com/sse"
 
-    # Proxy mode - wrap an MCP server (sse)
-    mcpc --proxy --transport-type sse -- https://api.example.com/sse
+    # Custom agent name
+    mcpc --add --name my-agent --mcp-stdio "npx shadcn@latest mcp"
+    mcpc --wrap --name my-agent --mcp-stdio "npx shadcn@latest mcp"
 
     # Load from URL
     mcpc --config-url \\
@@ -276,9 +365,9 @@ function parseArgs(): {
   configFile?: string;
   requestHeaders?: Record<string, string>;
   help?: boolean;
-  proxy?: boolean;
-  transportType?: string;
-  proxyCommand?: string[];
+  add?: boolean;
+  wrap?: boolean;
+  mcpServers?: ServerSpec[];
   mode?: string;
   name?: string;
 } {
@@ -289,9 +378,9 @@ function parseArgs(): {
     configFile?: string;
     requestHeaders?: Record<string, string>;
     help?: boolean;
-    proxy?: boolean;
-    transportType?: string;
-    proxyCommand?: string[];
+    add?: boolean;
+    wrap?: boolean;
+    mcpServers?: ServerSpec[];
     mode?: string;
     name?: string;
   } = {};
@@ -326,18 +415,41 @@ function parseArgs(): {
       }
     } else if (arg === "--help" || arg === "-h") {
       result.help = true;
-    } else if (arg === "--proxy") {
-      result.proxy = true;
-    } else if (arg === "--transport-type" && i + 1 < args.length) {
-      result.transportType = args[++i];
+    } else if (arg === "--add") {
+      result.add = true;
+    } else if (arg === "--wrap") {
+      result.wrap = true;
+    } else if (
+      (arg === "--mcp-stdio" || arg === "--mcp-http" || arg === "--mcp-sse") &&
+      i + 1 < args.length
+    ) {
+      // Parse MCP server specification
+      const cmdString = args[++i];
+      const cmdParts = cmdString.split(/\s+/);
+      const command = cmdParts[0];
+      const cmdArgs = cmdParts.slice(1);
+
+      let transportType: "stdio" | "streamable-http" | "sse";
+      if (arg === "--mcp-stdio") {
+        transportType = "stdio";
+      } else if (arg === "--mcp-http") {
+        transportType = "streamable-http";
+      } else {
+        transportType = "sse";
+      }
+
+      if (!result.mcpServers) {
+        result.mcpServers = [];
+      }
+      result.mcpServers.push({
+        command,
+        args: cmdArgs,
+        transportType,
+      });
     } else if (arg === "--mode" && i + 1 < args.length) {
       result.mode = args[++i];
     } else if (arg === "--name" && i + 1 < args.length) {
       result.name = args[++i];
-    } else if (arg === "--") {
-      // Everything after -- is the proxy command
-      result.proxyCommand = args.slice(i + 1);
-      break;
     }
   }
 
@@ -357,9 +469,15 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
     process.exit(0);
   }
 
-  // Handle --proxy mode
-  if (args.proxy) {
-    return createProxyConfig(args);
+  // Handle --add mode - generate config, save, and exit
+  if (args.add) {
+    await createWrapConfig({ ...args, saveConfig: true });
+    process.exit(0);
+  }
+
+  // Handle --wrap mode - generate config and run immediately (no save)
+  if (args.wrap) {
+    return await createWrapConfig({ ...args, saveConfig: false });
   }
 
   // Priority 1: --config (inline JSON string)
@@ -423,7 +541,21 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
     }
   }
 
-  // Priority 5: ./mcpc.config.json in current directory
+  // Priority 5: ~/.mcpc/config.json (user config directory)
+  const userConfigPath = getUserConfigPath();
+  try {
+    const content = await readFile(userConfigPath, "utf-8");
+    const parsed = JSON.parse(content);
+    return applyModeOverride(normalizeConfig(parsed), args.mode);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.error(`Failed to load config from ${userConfigPath}:`, error);
+      throw error;
+    }
+    // File doesn't exist, continue to next option
+  }
+
+  // Priority 6: ./mcpc.config.json in current directory
   const defaultConfigPath = resolve(process.cwd(), "mcpc.config.json");
   try {
     const content = await readFile(defaultConfigPath, "utf-8");
