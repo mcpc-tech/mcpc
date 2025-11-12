@@ -404,11 +404,22 @@ export class ComposableMCPServer extends Server {
     const toolNameToIdMapping = new Map<string, string>();
     const requestedToolNames = new Set<string>();
     const availableToolNames = new Set<string>();
+    const allPlaceholderUsages: string[] = [];
 
     // Collect all requested tool names from XML tags
     tagToResults.tool.forEach((tool: any) => {
       if (tool.attribs.name) {
-        requestedToolNames.add(sanitizePropertyKey(tool.attribs.name));
+        const originalName = tool.attribs.name;
+        const toolName = sanitizePropertyKey(originalName);
+        // Track __ALL__ placeholder usages separately for special warning
+        if (
+          toolName.endsWith(`_${ALL_TOOLS_PLACEHOLDER}`) ||
+          toolName === ALL_TOOLS_PLACEHOLDER
+        ) {
+          allPlaceholderUsages.push(originalName);
+        } else {
+          requestedToolNames.add(toolName);
+        }
       }
     });
 
@@ -484,6 +495,20 @@ export class ComposableMCPServer extends Server {
       }
       availableToolNames.add(toolName);
     });
+
+    // Warn about __ALL__ placeholder usages - suggest using specific tool names
+    if (allPlaceholderUsages.length > 0) {
+      await this.logger.warning(
+        `Found ${allPlaceholderUsages.length} __ALL__ placeholder(s) for agent "${name}":`,
+      );
+      allPlaceholderUsages.forEach((usage) => {
+        this.logger.warning(
+          `   • "${usage}" - consider using specific tool names`,
+        );
+      });
+      const available = Array.from(availableToolNames).sort().join(", ");
+      await this.logger.warning(`   Available tools: ${available}`);
+    }
 
     // Warn about unmatched tool names against final tool set
     const unmatchedTools = Array.from(requestedToolNames).filter(
