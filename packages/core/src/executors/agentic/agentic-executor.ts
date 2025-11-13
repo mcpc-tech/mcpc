@@ -92,8 +92,23 @@ export class AgenticExecutor {
       const definitionsOf = (args.definitionsOf as string[]) || [];
       const hasDefinitions = (args.hasDefinitions as string[]) || [];
 
+      // If no tool selected, just return schema definitions if requested
+      if (!useTool) {
+        if (executeSpan) {
+          executeSpan.setAttributes({
+            toolType: "none",
+            completion: true,
+          });
+          endSpan(executeSpan);
+        }
+
+        const result: CallToolResult = { content: [] };
+        this.appendToolSchemas(result, definitionsOf, hasDefinitions);
+        return result;
+      }
+
       // Update span name to include selected tool
-      if (executeSpan && useTool) {
+      if (executeSpan) {
         try {
           const safeTool = String(useTool).replace(/\s+/g, "_");
           if (typeof (executeSpan as any).updateName === "function") {
@@ -210,15 +225,15 @@ export class AgenticExecutor {
       if (executeSpan) {
         executeSpan.setAttributes({
           toolType: "not_found",
-          useTool: useTool || "unknown",
-          completion: true,
+          useTool: useTool,
         });
         endSpan(executeSpan);
       }
 
-      this.logger.debug({
-        message: "Tool not found, returning completion message",
+      this.logger.warning({
+        message: "Tool not found",
         useTool,
+        availableTools: this.allToolNames,
       });
 
       const result: CallToolResult = {
