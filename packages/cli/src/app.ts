@@ -4,19 +4,23 @@ import { mcpc } from "@mcpc/core";
 import { createLargeResultPlugin } from "@mcpc/core/plugins/large-result";
 import type { ComposableMCPServer, ComposeDefinition } from "@mcpc/core";
 import type { MCPCConfig } from "./config/loader.ts";
+import { codeExecutionPlugin } from "@mcpc-tech/plugin-code-execution";
 
 export const createServer = async (
   config?: MCPCConfig,
 ): Promise<ComposableMCPServer> => {
   // Use provided config or fall back to default example config
   const serverConfig = config || {
-    name: "large-result-plugin-example",
+    name: "mcpc-server",
     version: "0.1.0",
     agents: [
       {
         name: null,
         description: "",
-        plugins: [createLargeResultPlugin({})],
+        plugins: [createLargeResultPlugin({}), codeExecutionPlugin()],
+        options: {
+          mode: "code_execution",
+        },
       },
     ] as ComposeDefinition[],
   };
@@ -39,11 +43,11 @@ export const createServer = async (
   );
 };
 
-export const createApp = (): OpenAPIHono => {
+export const createApp = (config?: MCPCConfig): OpenAPIHono => {
   const app = new OpenAPIHono();
 
-  // Register routes
-  registerAgent(app);
+  // Register routes with config
+  registerAgent(app, config);
 
   return app;
 };

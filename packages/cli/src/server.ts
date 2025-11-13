@@ -32,7 +32,7 @@ import { loadConfig } from "./config/loader.ts";
 import process from "node:process";
 import { createCodeExecutionPlugin } from "@mcpc-tech/plugin-code-execution";
 
-const port = Number(process.env.PORT || "9000");
+const port = Number(process.env.PORT || "3002");
 const hostname = "0.0.0.0";
 
 // Load configuration from environment or file
@@ -43,7 +43,13 @@ config?.agents.forEach((agent) => {
   if (agent.plugins?.length ?? 0 === 0) {
     agent.plugins = [];
   }
-  agent.plugins?.push(createCodeExecutionPlugin());
+  agent.plugins?.push(
+    createCodeExecutionPlugin({
+      sandbox: {
+        timeout: 300_000,
+      },
+    }),
+  );
 });
 
 if (config) {
@@ -54,7 +60,7 @@ if (config) {
 
 const app = new OpenAPIHono();
 
-app.route("core", createApp());
+app.route("mcp", createApp(config || undefined));
 
 Deno.serve(
   {
