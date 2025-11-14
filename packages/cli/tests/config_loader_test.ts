@@ -29,7 +29,7 @@ Deno.test("Config Loader - load from MCPC_CONFIG env var", async () => {
 
 Deno.test("Config Loader - environment variable substitution", async () => {
   // Setup
-  process.env.TEST_API_KEY = "secret123";
+  process.env.TEST_COMMAND = "npx";
   process.env.TEST_URL = "https://test.com";
 
   const testConfig = {
@@ -38,15 +38,13 @@ Deno.test("Config Loader - environment variable substitution", async () => {
     agents: [
       {
         name: "agent",
-        description: "API key: $TEST_API_KEY",
+        description: "Command: $TEST_COMMAND",
         deps: {
           mcpServers: {
             server: {
-              smitheryConfig: {
-                type: "http",
-                deploymentUrl: "$TEST_URL",
-                config: { key: "$TEST_API_KEY" },
-              },
+              command: "$TEST_COMMAND",
+              args: ["-y", "test"],
+              transportType: "stdio",
             },
           },
         },
@@ -60,19 +58,13 @@ Deno.test("Config Loader - environment variable substitution", async () => {
 
   // Verify
   assertExists(config);
-  assertEquals(config.agents[0].description, "API key: secret123");
-  assertEquals(
-    config.agents[0].deps?.mcpServers?.server?.smitheryConfig?.deploymentUrl,
-    "https://test.com",
-  );
-  assertEquals(
-    config.agents[0].deps?.mcpServers?.server?.smitheryConfig?.config?.key,
-    "secret123",
-  );
+  assertEquals(config.agents[0].description, "Command: npx");
+  const serverConfig = config.agents[0].deps?.mcpServers?.server as any;
+  assertEquals(serverConfig?.command, "npx");
 
   // Cleanup
   delete process.env.MCPC_CONFIG;
-  delete process.env.TEST_API_KEY;
+  delete process.env.TEST_COMMAND;
   delete process.env.TEST_URL;
 });
 

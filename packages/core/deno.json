@@ -31,8 +31,6 @@
     "ajv": "npm:ajv@^8.17.1",
     "ajv-formats": "npm:ajv-formats@^3.0.1",
     "cheerio": "npm:cheerio@^1.0.0",
-    "json-schema-to-zod": "npm:json-schema-to-zod@^2.6.1",
-    "jsonrepair": "npm:jsonrepair@^3.13.0",
-    "zod": "npm:zod@^3.24.2"
+    "jsonrepair": "npm:jsonrepair@^3.13.0"
   }
 }

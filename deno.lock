@@ -37,7 +37,6 @@
     "npm:cheerio@1": "1.1.2",
     "npm:hono@^4.7.5": "4.9.10",
     "npm:json-schema-faker@~0.5.9": "0.5.9",
-    "npm:json-schema-to-zod@^2.6.1": "2.6.1",
     "npm:json-schema-traverse@1": "1.0.0",
     "npm:jsonrepair@^3.13.0": "3.13.0",
     "npm:minimist@^1.2.8": "1.2.8",
@@ -1411,9 +1410,7 @@
           "npm:ajv-formats@^3.0.1",
           "npm:ajv@^8.17.1",
           "npm:cheerio@1",
-          "npm:json-schema-to-zod@^2.6.1",
-          "npm:jsonrepair@^3.13.0",
-          "npm:zod@^3.24.2"
+          "npm:jsonrepair@^3.13.0"
         ]
       },
       "packages/mcp-sampling-ai-provider": {

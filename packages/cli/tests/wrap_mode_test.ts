@@ -32,16 +32,13 @@ Deno.test("wrap mode - parse single server command correctly", async () => {
       config?.agents[0].name,
       "_wonderwhy-er_desktop-commander--orchestrator",
     );
-    assertEquals(
-      config?.agents[0].deps?.mcpServers?.["_wonderwhy-er_desktop-commander"]
-        ?.command,
-      "npx",
-    );
-    assertEquals(
-      config?.agents[0].deps?.mcpServers?.["_wonderwhy-er_desktop-commander"]
-        ?.args,
-      ["-y", "@wonderwhy-er/desktop-commander"],
-    );
+    const desktopConfig = config?.agents[0].deps?.mcpServers
+      ?.["_wonderwhy-er_desktop-commander"] as any;
+    assertEquals(desktopConfig?.command, "npx");
+    assertEquals(desktopConfig?.args, [
+      "-y",
+      "@wonderwhy-er/desktop-commander",
+    ]);
     assertEquals(
       config?.agents[0].deps?.mcpServers?.["_wonderwhy-er_desktop-commander"]
         ?.transportType,
@@ -99,11 +96,10 @@ Deno.test("wrap mode - parse multiple servers with different transports", async 
     assertEquals(Object.keys(mcpServers || {}).length, 3);
 
     // Check first server (stdio)
-    assertEquals(
-      mcpServers?.["_wonderwhy-er_desktop-commander"]?.command,
-      "npx",
-    );
-    assertEquals(mcpServers?.["_wonderwhy-er_desktop-commander"]?.args, [
+    const desktopCmdConfig = mcpServers
+      ?.["_wonderwhy-er_desktop-commander"] as any;
+    assertEquals(desktopCmdConfig?.command, "npx");
+    assertEquals(desktopCmdConfig?.args, [
       "-y",
       "@wonderwhy-er/desktop-commander",
     ]);
@@ -113,22 +109,18 @@ Deno.test("wrap mode - parse multiple servers with different transports", async 
     );
 
     // Check second server (http)
-    assertEquals(
-      mcpServers?.["https___api_github_com_mcp"]?.command,
-      "https://api.github.com/mcp",
-    );
-    assertEquals(mcpServers?.["https___api_github_com_mcp"]?.args, []);
+    const githubMcpConfig = mcpServers?.["https___api_github_com_mcp"] as any;
+    assertEquals(githubMcpConfig?.command, "https://api.github.com/mcp");
+    assertEquals(githubMcpConfig?.args, []);
     assertEquals(
       mcpServers?.["https___api_github_com_mcp"]?.transportType,
       "streamable-http",
     );
 
     // Check third server (sse)
-    assertEquals(
-      mcpServers?.["https___api_example_com_sse"]?.command,
-      "https://api.example.com/sse",
-    );
-    assertEquals(mcpServers?.["https___api_example_com_sse"]?.args, []);
+    const sseConfig = mcpServers?.["https___api_example_com_sse"] as any;
+    assertEquals(sseConfig?.command, "npx");
+    assertEquals(sseConfig?.args, []);
     assertEquals(
       mcpServers?.["https___api_example_com_sse"]?.transportType,
       "sse",

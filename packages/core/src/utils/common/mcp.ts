@@ -3,12 +3,8 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import type {
-  McpSettingsSchema,
-  ServerConfigSchema,
-} from "../../service/tools.ts";
-import type z from "zod";
-import { smitheryToolNameCompatibale } from "./registory.ts";
+import type { McpServerConfig, MCPSetting } from "../../service/tools.ts";
+
 import { sanitizePropertyKey } from "./provider.ts";
 import { cwd } from "node:process";
 import process from "node:process";
@@ -25,9 +21,7 @@ const mcpClientConnecting = new Map<string, Promise<Client>>();
 const shortHash = (s: string) =>
   createHash("sha256").update(s).digest("hex").slice(0, 8);
 
-function defSignature(
-  def: z.input<typeof ServerConfigSchema> | z.infer<typeof ServerConfigSchema>,
-) {
+function defSignature(def: McpServerConfig) {
   // KISS: stringify full definition for a stable signature
   // Handle circular references from InMemoryTransport or other objects
   const defCopy = { ...def };
@@ -51,9 +45,7 @@ function defSignature(
  * - VSCode/Cursor: explicit "type" field
  * - Cline/Claude Desktop: implicit detection (command → stdio, url → http/sse)
  */
-function createTransport(
-  def: z.input<typeof ServerConfigSchema> | z.infer<typeof ServerConfigSchema>,
-):
+function createTransport(def: McpServerConfig):
   | StdioClientTransport
   | StreamableHTTPClientTransport
   | SSEClientTransport
@@ -122,7 +114,7 @@ function createTransport(
 
 async function getOrCreateMcpClient(
   defKey: string,
-  def: z.input<typeof ServerConfigSchema> | z.infer<typeof ServerConfigSchema>,
+  def: McpServerConfig,
 ): Promise<Client> {
   const pooled = mcpClientPool.get(defKey);
   if (pooled) {
@@ -196,9 +188,7 @@ process.once?.("SIGINT", () => {
 });
 
 export async function composeMcpDepTools(
-  mcpConfig:
-    | z.input<typeof McpSettingsSchema>
-    | z.infer<typeof McpSettingsSchema>,
+  mcpConfig: MCPSetting,
   filterIn?: (params: {
     action: string;
     tool: any;
@@ -213,7 +203,7 @@ export async function composeMcpDepTools(
   const acquiredKeys: string[] = [];
 
   for (const [name, definition] of Object.entries(mcpConfig.mcpServers)) {
-    const def = definition as unknown as z.infer<typeof ServerConfigSchema>;
+    const def = definition as McpServerConfig;
     if (def.disabled) continue;
 
     const defKey = shortHash(defSignature(def));
@@ -227,8 +217,9 @@ export async function composeMcpDepTools(
       const { tools } = await client.listTools();
 
       tools.forEach((tool) => {
-        const { toolNameWithScope, toolName: internalToolName } =
-          smitheryToolNameCompatibale(tool.name, name);
+        const toolNameWithScope = `${name}.${tool.name}`;
+        const internalToolName = tool.name;
+
         // Sanitize toolId to ensure it only contains valid characters
         const rawToolId = `${serverId}_${internalToolName}`;
         const toolId = sanitizePropertyKey(rawToolId);

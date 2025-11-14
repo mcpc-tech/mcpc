@@ -7,12 +7,11 @@ import {
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { extractJsonSchema, jsonSchema, type Schema } from "./utils/schema.ts";
-import type { McpSettingsSchema } from "./service/tools.ts";
+import type { MCPSetting } from "./service/tools.ts";
 import {
   Server,
   type ServerOptions,
 } from "@modelcontextprotocol/sdk/server/index.js";
-import type z from "zod";
 import { parseTags } from "@mcpc/utils";
 import { composeMcpDepTools } from "./utils/common/mcp.ts";
 import type { ComposeDefinition } from "./set-up-mcp-compose.ts";
@@ -368,7 +367,7 @@ export class ComposableMCPServer extends Server {
   async compose(
     name: string | null,
     description: string,
-    depsConfig: z.infer<typeof McpSettingsSchema> = { mcpServers: {} },
+    depsConfig: MCPSetting = { mcpServers: {} },
     options: ComposeDefinition["options"] = { mode: "agentic" },
   ) {
     const refDesc = options.refs?.join("") ?? "";

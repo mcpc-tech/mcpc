@@ -1,5 +1,4 @@
 import { ComposableMCPServer } from "../mod.ts";
-import { connectToSmitheryServer } from "./utils/common/registory.ts";
 import type { MCPCStep } from "./utils/state.ts";
 import type { MCPSetting } from "./service/tools.ts";
 import type { SamplingConfig } from "./types.ts";
@@ -89,26 +88,7 @@ export interface ComposibleMCPConfig {
 export function parseMcpcConfigs(
   conf?: ComposeDefinition[],
 ): ComposeDefinition[] {
-  const mcpcConfigs = conf ?? [];
-  const newMcpcConfigs = [];
-
-  for (const mcpcConfig of mcpcConfigs) {
-    if (mcpcConfig?.deps?.mcpServers) {
-      for (
-        const [name, config] of Object.entries<any>(
-          mcpcConfig.deps.mcpServers,
-        )
-      ) {
-        if (config.smitheryConfig) {
-          const streamConfig = connectToSmitheryServer(config.smitheryConfig);
-          mcpcConfig.deps.mcpServers[name] = streamConfig;
-        }
-      }
-    }
-    newMcpcConfigs.push(mcpcConfig);
-  }
-
-  return newMcpcConfigs;
+  return conf ?? [];
 }
 
 /**
