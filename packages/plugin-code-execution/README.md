@@ -10,9 +10,8 @@ with MCP tool access via JSON-RPC IPC.
 ## Features
 
 - 🔒 **Secure Sandboxing**: Uses Deno's permission system for isolated code
-  execution
-- 🔌 **JSON-RPC IPC**: Tool calls are transmitted via JSON-RPC between sandbox
-  and host
+  execution with JSON-RPC IPC for tool calls between sandbox and host
+  ([handle-sandbox](https://github.com/mcpc-tech/handle-sandbox))
 - 🚀 **Easy Integration**: Plugin-based integration with MCPC
 - 📦 **Zero Config**: Automatically locates Deno binary from npm package
 - 🛡️ **Resource Limits**: Configurable timeouts and memory limits
