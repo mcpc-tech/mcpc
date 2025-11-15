@@ -28,9 +28,14 @@ can use it to:
 - **Simple composition and fine-tuning**: Compose MCP servers as building
   blocks, select and customize tools, or modify their descriptions and
   parameters
-- **Two agentic tool modes**: Interactive (agentic) or autonomous (sampling)
 - **Logging and tracing**: Built-in MCP logging and OpenTelemetry tracing
   support
+- **Flexible execution modes**: Multiple specialized modes to fit different
+  scenarios - interactive agent (`agentic`), structured workflow
+  (`agentic_workflow`), autonomous sampling (`agentic_sampling`), workflow
+  sampling (`agentic_workflow_sampling`), and secure code execution
+  ([`code_execution`](packages/plugin-code-execution/)) - each with dedicated
+  implementations
 
 ## Quick Start
 
@@ -178,19 +183,36 @@ Three simple steps:
 
 ## Execution Modes
 
-**Agentic Mode** (default) - Interactive tool calls step by step
+MCPC provides multiple flexible execution modes to fit different scenarios:
+
+| Mode                        | Description                                       | Use Case                      |
+| --------------------------- | ------------------------------------------------- | ----------------------------- |
+| `agentic`                   | Interactive step-by-step execution                | Standard agent interactions   |
+| `agentic_workflow`          | Structured workflow with predefined/dynamic steps | Multi-step processes          |
+| `agentic_sampling`          | Autonomous execution with internal LLM loop       | Fully autonomous agents       |
+| `agentic_workflow_sampling` | Autonomous workflow execution                     | Complex autonomous workflows  |
+| `code_execution`            | Secure JavaScript sandbox with tool access        | Code generation and execution |
+
+### Quick Example
 
 ```typescript
+// Interactive agent (default)
+{ options: { mode: "agentic" } }
+
+// Autonomous agent
+{ options: { mode: "agentic_sampling", samplingConfig: { maxIterations: 10 } } }
+
+// Code execution with sandbox
+import { createCodeExecutionPlugin } from "@mcpc/plugin-code-execution/plugin";
 {
-  mode: "agentic";
-} // LLM calls tools interactively and repeatedly with different actions
+  plugins: [createCodeExecutionPlugin()],
+  options: { mode: "code_execution" }
+}
 ```
 
-**Sampling Mode** - Autonomous execution in compatible clients
-
-```typescript
-{ options: { mode: "agentic", sampling: true } }  // Runs autonomously in VS Code
-```
+> 📖 **Detailed Documentation**: See
+> [Execution Modes Guide](docs/execution-modes.md) for comprehensive information
+> on each mode, configuration options, and best practices.
 
 ## Documentation
 
@@ -198,6 +220,8 @@ Three simple steps:
   first steps
 - **[Creating Your First Agent](docs/quickstart/create-your-first-agentic-mcp.md)** -
   Complete tutorial
+- **[Execution Modes](docs/execution-modes.md)** - Comprehensive guide to all
+  execution modes
 - **[CLI Usage Guide](docs/quickstart/cli-usage.md)** - Using the MCPC CLI
 - **[Logging and Tracing](docs/logging-and-tracing.md)** - MCP logging and
   OpenTelemetry tracing

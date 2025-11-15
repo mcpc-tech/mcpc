@@ -22,6 +22,14 @@ You can use it to:
 
 [CLI Usage Guide](./quickstart/cli-usage.md)
 
+# Core Concepts
+
+[Plugin System](./plugins.md)
+
+[Execution Modes](./execution-modes.md)
+
+[Logging and Tracing](./logging-and-tracing.md)
+
 # Examples
 
 [Creating a codex fork](./examples/creating-a-codex-fork.md)
@@ -33,10 +41,6 @@ You can use it to:
 [Achieving Agent Interoperability](./learn-more/achieving-agent-interoperability.md)
 
 [Speed Up MCPC with In-Memory Transport](./learn-more/speed-up-with-in-memory-transport.md)
-
-[Plugin System](./plugins.md)
-
-[Logging and Tracing](./logging-and-tracing.md)
 
 [AI SDK Integration](./quickstart/ai-sdk-integration.md)
 

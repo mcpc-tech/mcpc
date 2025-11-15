@@ -59,7 +59,7 @@ plugins: [
 1. Monitors tool result sizes
 2. When too large: saves full content to temp file
 3. Returns preview + file path
-4. Adds `search-tool-result` tool to query files
+4. Adds `search-tool-result` tool to query saved files
 
 **Example output:**
 
@@ -75,6 +75,12 @@ Preview (4000 chars):
 To read/understand the full content:
 - Use search-tool-result {"pattern": "your-search-term"}
 ```
+
+**Implementation**: The plugin wraps tool execution and automatically saves
+oversized results. It dynamically adds the search plugin for querying saved
+content. See
+[`packages/core/src/plugins/large-result.ts`](../packages/core/src/plugins/large-result.ts)
+for details.
 
 ### Adding Search Functionality
 
@@ -557,6 +563,23 @@ These plugins are automatically included:
 - **tool-name-mapping** - Allows `server.tool` and `server_tool` syntax
 - **config** - Applies tool configuration overrides
 - **logging** - Logs composition information
+
+### Mode Plugins (Auto-loaded)
+
+Execution mode plugins activate automatically based on your `mode` option:
+
+- **mode-agentic** - Interactive step-by-step execution (default)
+- **mode-agentic-workflow** - Structured workflow with steps
+- **mode-agentic-sampling** - Autonomous execution with internal LLM
+- **mode-agentic-workflow-sampling** - Autonomous workflow execution
+- **mode-code-execution** - Secure JavaScript sandbox (requires separate
+  package)
+
+Each mode plugin registers the appropriate tool and connects it to its executor
+implementation in `packages/core/src/executors/`.
+
+> 📖 **Learn More**: See [Execution Modes Guide](./execution-modes.md) for
+> detailed documentation on each mode.
 
 ### User Plugins
 
