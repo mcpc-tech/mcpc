@@ -12,6 +12,7 @@ import {
   type ContentBlock,
   type InitializeRequest,
   ndJsonStream,
+  type NewSessionResponse,
   PROTOCOL_VERSION,
   type ReadTextFileRequest,
   type ReadTextFileResponse,
@@ -129,6 +130,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
   private agentProcess: ChildProcess | null = null;
   private connection: ClientSideConnection | null = null;
   private sessionId: string | null = null;
+  private sessionResponse: NewSessionResponse | null = null;
   private client: ACPAISDKClient | null = null;
 
   // State for managing stream conversion
@@ -338,13 +340,14 @@ export class ACPLanguageModel implements LanguageModelV2 {
         mcpServers: this.config.session?.mcpServers ?? [],
       });
       this.sessionId = this.config.existingSessionId;
+      this.sessionResponse = { sessionId: this.config.existingSessionId };
     } else {
-      const session = await this.connection.newSession({
+      this.sessionResponse = await this.connection.newSession({
         ...this.config.session,
         cwd: this.config.session?.cwd ?? sessionCwd,
         mcpServers: this.config.session?.mcpServers ?? [],
       });
-      this.sessionId = session.sessionId;
+      this.sessionId = this.sessionResponse.sessionId;
     }
   }
 
@@ -364,6 +367,38 @@ export class ACPLanguageModel implements LanguageModelV2 {
   }
 
   /**
+   * Initializes the session and returns session info (models, modes, meta).
+   * Call this before prompting to discover available options.
+   */
+  async initSession(): Promise<NewSessionResponse> {
+    await this.ensureConnected();
+    return this.sessionResponse!;
+  }
+
+  /**
+   * Sets the session mode (e.g., "ask", "plan").
+   */
+  async setMode(modeId: string): Promise<void> {
+    if (!this.connection || !this.sessionId) {
+      throw new Error("Not connected. Call preconnect() first.");
+    }
+    await this.connection.setSessionMode({ sessionId: this.sessionId, modeId });
+  }
+
+  /**
+   * Sets the session model.
+   */
+  async setModel(modelId: string): Promise<void> {
+    if (!this.connection || !this.sessionId) {
+      throw new Error("Not connected. Call preconnect() first.");
+    }
+    await this.connection.setSessionModel({
+      sessionId: this.sessionId,
+      modelId,
+    });
+  }
+
+  /**
    * Forces cleanup regardless of persistSession setting.
    */
   forceCleanup(): void {
@@ -375,6 +410,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
     }
     this.connection = null;
     this.sessionId = null;
+    this.sessionResponse = null;
     this.client = null;
   }
 

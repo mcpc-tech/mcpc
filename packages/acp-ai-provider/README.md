@@ -139,6 +139,37 @@ const provider = createACPProvider({
 });
 ```
 
+### Selecting Models and Modes
+
+Some ACP agents support multiple models or modes. Use `initSession()` to
+discover and select them:
+
+```typescript
+const provider = createACPProvider({
+  command: "claude",
+  args: ["--mcp"],
+  session: { cwd: process.cwd(), mcpServers: [] },
+  persistSession: true,
+});
+
+const model = provider.languageModel();
+
+// Initialize and get available options
+const session = await model.initSession();
+
+// Check available modes (e.g., "ask", "code", "architect")
+console.log(session.modes?.availableModes);
+
+// Check available models
+console.log(session.models?.availableModels);
+
+// Select a mode before prompting
+await model.setMode("code");
+
+// Now use the model
+const result = await generateText({ model, prompt: "..." });
+```
+
 ## FAQ
 
 ### How to stream tool calls

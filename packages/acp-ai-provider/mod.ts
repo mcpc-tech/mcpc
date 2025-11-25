@@ -36,3 +36,12 @@ export {
   providerAgentDynamicToolSchema,
 } from "./src/language-model.ts";
 export type { ProviderAgentDynamicToolInput } from "./src/language-model.ts";
+
+// Re-export useful SDK types for session info
+export type {
+  ModelInfo,
+  NewSessionResponse,
+  SessionMode,
+  SessionModelState,
+  SessionModeState,
+} from "@agentclientprotocol/sdk";
