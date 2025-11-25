@@ -108,6 +108,37 @@ const result = await generateText({
 });
 ```
 
+### Session Persistence
+
+Keep sessions alive for multi-turn conversations:
+
+```typescript
+const provider = createACPProvider({
+  command: "gemini",
+  args: ["--experimental-acp"],
+  session: { cwd: process.cwd(), mcpServers: [] },
+  persistSession: true, // Keep session alive
+});
+
+const model = provider.languageModel();
+await generateText({ model, prompt: "Hi, my name is Alice" });
+await generateText({ model, prompt: "What's my name?" }); // Agent remembers
+
+provider.cleanup(); // Clean up when done
+```
+
+Resume a previous session:
+
+```typescript
+const provider = createACPProvider({
+  command: "gemini",
+  args: ["--experimental-acp"],
+  session: { cwd: process.cwd(), mcpServers: [] },
+  existingSessionId: "previous-session-id",
+  persistSession: true,
+});
+```
+
 ## FAQ
 
 ### How to stream tool calls

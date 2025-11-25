@@ -45,6 +45,22 @@ export class ACPProvider {
   get tools(): Record<string, ReturnType<typeof tool>> | undefined {
     return this.model?.tools;
   }
+
+  /**
+   * Returns the current session ID if one is active.
+   * Useful when `persistSession` is enabled and you need to reference the session later.
+   */
+  getSessionId(): string | null {
+    return this.model?.getSessionId() ?? null;
+  }
+
+  /**
+   * Forces cleanup of the connection and session.
+   * Call this when you're done with the provider instance, especially when using `persistSession`.
+   */
+  cleanup(): void {
+    this.model?.forceCleanup();
+  }
 }
 
 /**
@@ -52,34 +68,15 @@ export class ACPProvider {
  *
  * @example
  * ```typescript
- * import { createACPProvider } from "@mcpc/acp-client-ai-provider";
- * import { generateText } from "ai";
- *
- * // See ACPProviderSettings in types.ts for all required fields
  * const provider = createACPProvider({
- *   // Process configuration
- *   command: "gemini",                    // Required: Command to execute the ACP agent
- *   args: ["--experimental-acp"],         // Optional: Arguments to pass to the command
- *   env: {},                              // Optional: Environment variables for the agent process
- *
- *   // ACP protocol configuration
- *   session: {                            // Required: Session configuration (NewSessionRequest)
- *     cwd: process.cwd(),
- *     mcpServers: [],
- *   },
- *   // initialize: {                       // Optional: Initialize configuration (InitializeRequest)
- *   //   protocolVersion: 1,
- *   //   clientCapabilities: {
- *   //     fs: { readTextFile: false, writeTextFile: false },
- *   //     terminal: false,
- *   //   },
- *   // },
+ *   command: "gemini",
+ *   args: ["--experimental-acp"],
+ *   session: { cwd: process.cwd(), mcpServers: [] },
  * });
  *
- * // Use with AI SDK
  * const result = await generateText({
  *   model: provider.languageModel(),
- *   prompt: "Hello, world!"
+ *   prompt: "Hello!"
  * });
  * ```
  */

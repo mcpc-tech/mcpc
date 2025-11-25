@@ -12,7 +12,6 @@ import {
   type ContentBlock,
   type InitializeRequest,
   ndJsonStream,
-  type NewSessionRequest,
   PROTOCOL_VERSION,
   type ReadTextFileRequest,
   type ReadTextFileResponse,
@@ -210,78 +209,58 @@ export class ACPLanguageModel implements LanguageModelV2 {
   }
 
   /**
-   * Converts AI SDK prompt messages into an array of ACP ContentBlock objects.
+   * Converts AI SDK prompt messages into ACP ContentBlock objects.
+   * When session exists, only extracts the last user message (history is in session).
+   * Prefixes text with role since ACP ContentBlock has no role field.
    */
   private getPromptContent(
     options: LanguageModelV2CallOptions,
   ): ContentBlock[] {
+    // With persistent session, only send the latest user message
+    const messages = this.sessionId
+      ? options.prompt.filter((m) => m.role === "user").slice(-1)
+      : options.prompt;
+
     const contentBlocks: ContentBlock[] = [];
 
-    for (const msg of options.prompt) {
-      let prefix = "";
-      // Note: ACP doesn't have a "system" role, so we prefix it.
-      if (msg.role === "system") {
-        prefix = "System: ";
-      } else if (msg.role === "user") {
-        prefix = "User: ";
-      } else if (msg.role === "assistant") {
-        prefix = "Assistant: ";
-      }
+    for (const msg of messages) {
+      // Skip tool role - ACP handles tool results internally
+      if (msg.role === "tool") continue;
 
-      // Note: ACP doesn't have a "tool" role. Tool results are handled
-      // by the agent itself, not by sending a message.
-      if (
-        msg.role === "system" ||
-        msg.role === "user" ||
-        msg.role === "assistant"
-      ) {
-        if (Array.isArray(msg.content)) {
-          for (const part of msg.content) {
-            switch (part.type) {
-              case "text": {
-                contentBlocks.push({
-                  type: "text" as const,
-                  text: `${prefix}${part.text}`,
-                });
-                prefix = ""; // Only prefix the first part
-                break;
-              }
-              case "file": {
-                const type: ContentBlock["type"] | null = (() => {
-                  if (part.mediaType.startsWith("image/")) {
-                    return "image";
-                  }
-                  if (part.mediaType.startsWith("audio/")) {
-                    return "audio";
-                  }
-                  return null;
-                })();
+      // Prefix to identify role since ACP has no role field
+      const prefix = msg.role === "system"
+        ? "System: "
+        : msg.role === "assistant"
+        ? "Assistant: "
+        : "";
 
-                if (
-                  type === null ||
-                  // Ensure data is string before processing
-                  typeof part.data !== "string"
-                ) {
-                  break;
-                }
-                contentBlocks.push({
-                  type,
-                  mimeType: part.mediaType,
-                  data: extractBase64Data(part.data),
-                });
-
-                break;
-              }
+      if (Array.isArray(msg.content)) {
+        let isFirst = true;
+        for (const part of msg.content) {
+          if (part.type === "text") {
+            const text = isFirst ? `${prefix}${part.text}` : part.text;
+            contentBlocks.push({ type: "text" as const, text });
+            isFirst = false;
+          } else if (part.type === "file" && typeof part.data === "string") {
+            const type = part.mediaType.startsWith("image/")
+              ? "image"
+              : part.mediaType.startsWith("audio/")
+              ? "audio"
+              : null;
+            if (type) {
+              contentBlocks.push({
+                type,
+                mimeType: part.mediaType,
+                data: extractBase64Data(part.data),
+              });
             }
-
-            // Other parts (like images) are ignored in current implementation
           }
-        } else if (typeof msg.content === "string") {
-          contentBlocks.push({
-            type: "text" as const,
-            text: `${prefix}${msg.content}`,
-          });
         }
+      } else if (typeof msg.content === "string") {
+        contentBlocks.push({
+          type: "text" as const,
+          text: `${prefix}${msg.content}`,
+        });
       }
     }
 
@@ -352,25 +331,46 @@ export class ACPLanguageModel implements LanguageModelV2 {
       );
     }
 
-    const sessionConfig: NewSessionRequest = {
-      ...this.config.session,
-      cwd: this.config.session.cwd ?? sessionCwd,
-      mcpServers: this.config.session.mcpServers ?? [],
-    };
-
-    const session = await this.connection.newSession(sessionConfig);
-
-    this.sessionId = session.sessionId;
+    if (this.config.existingSessionId) {
+      await this.connection.loadSession({
+        sessionId: this.config.existingSessionId,
+        cwd: this.config.session?.cwd ?? sessionCwd,
+        mcpServers: this.config.session?.mcpServers ?? [],
+      });
+      this.sessionId = this.config.existingSessionId;
+    } else {
+      const session = await this.connection.newSession({
+        ...this.config.session,
+        cwd: this.config.session?.cwd ?? sessionCwd,
+        mcpServers: this.config.session?.mcpServers ?? [],
+      });
+      this.sessionId = session.sessionId;
+    }
   }
 
   /**
-   * Kills the agent process and clears connection state.
+   * Clears connection state. Skips if persistSession is enabled.
    */
   private cleanup(): void {
+    if (this.config.persistSession) return;
+    this.forceCleanup();
+  }
+
+  /**
+   * Returns the current session ID.
+   */
+  getSessionId(): string | null {
+    return this.sessionId;
+  }
+
+  /**
+   * Forces cleanup regardless of persistSession setting.
+   */
+  forceCleanup(): void {
     if (this.agentProcess) {
       this.agentProcess.kill();
-      this.agentProcess!.stdin?.end();
-      this.agentProcess!.stdout?.destroy();
+      this.agentProcess.stdin?.end();
+      this.agentProcess.stdout?.destroy();
       this.agentProcess = null;
     }
     this.connection = null;

@@ -33,7 +33,8 @@ export interface ACPProviderSettings {
   env?: Record<string, string>;
 
   /**
-   * Session configuration (ACP protocol) - Required
+   * Session configuration (ACP protocol) - Required when creating a new session
+   * Can be partial when using existingSessionId (only cwd and mcpServers are used)
    */
   session: ACPSessionConfig;
 
@@ -48,4 +49,14 @@ export interface ACPProviderSettings {
    * Set to undefined to use the first available method, and you can see a warning of all available methods.
    */
   authMethodId?: string;
+
+  /**
+   * Load an existing session instead of creating a new one.
+   */
+  existingSessionId?: string;
+
+  /**
+   * Keep connection alive after each call for session reuse.
+   */
+  persistSession?: boolean;
 }

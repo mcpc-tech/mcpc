@@ -20,7 +20,8 @@ export class WorkflowExecutor {
     private predefinedSteps?: MCPCStep[],
     private ensureStepActions?: string[],
     private toolNameToIdMapping?: Map<string, string>,
-  ) {}
+  ) {
+  }
 
   // Helper method to validate required actions are present in workflow steps
   private validateRequiredActions(steps: MCPCStep[]): {
