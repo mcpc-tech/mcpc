@@ -5,6 +5,7 @@
 import { ACPLanguageModel } from "./language-model.ts";
 import type { ACPProviderSettings } from "./types.ts";
 import type { tool } from "ai";
+import type { NewSessionResponse } from "@agentclientprotocol/sdk";
 
 /**
  * ACP Provider - implements AI SDK provider pattern
@@ -52,6 +53,37 @@ export class ACPProvider {
    */
   getSessionId(): string | null {
     return this.model?.getSessionId() ?? null;
+  }
+
+  /**
+   * Initializes the session and returns session info (models, modes, meta).
+   * Call this before prompting to discover available options.
+   */
+  initSession(): Promise<NewSessionResponse> {
+    if (!this.model) {
+      this.languageModel();
+    }
+    return this.model!.initSession();
+  }
+
+  /**
+   * Sets the session mode (e.g., "ask", "plan").
+   */
+  setMode(modeId: string): Promise<void> {
+    if (!this.model) {
+      throw new Error("No model initialized. Call languageModel() first.");
+    }
+    return this.model.setMode(modeId);
+  }
+
+  /**
+   * Sets the session model.
+   */
+  setModel(modelId: string): Promise<void> {
+    if (!this.model) {
+      throw new Error("No model initialized. Call languageModel() first.");
+    }
+    return this.model.setModel(modelId);
   }
 
   /**

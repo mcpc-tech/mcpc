@@ -152,10 +152,8 @@ const provider = createACPProvider({
   persistSession: true,
 });
 
-const model = provider.languageModel();
-
 // Initialize and get available options
-const session = await model.initSession();
+const session = await provider.initSession();
 
 // Check available modes (e.g., "ask", "code", "architect")
 console.log(session.modes?.availableModes);
@@ -164,10 +162,13 @@ console.log(session.modes?.availableModes);
 console.log(session.models?.availableModels);
 
 // Select a mode before prompting
-await model.setMode("code");
+await provider.setMode("code");
 
 // Now use the model
-const result = await generateText({ model, prompt: "..." });
+const result = await generateText({
+  model: provider.languageModel(),
+  prompt: "...",
+});
 ```
 
 ## FAQ
