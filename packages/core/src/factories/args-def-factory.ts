@@ -109,6 +109,11 @@ Workflow step definitions - provide ONLY on initial call.
       enum: Object.values(DECISION_OPTIONS),
       description:
         `**Step control: \`${DECISION_OPTIONS.PROCEED}\` = next step, \`${DECISION_OPTIONS.RETRY}\` = retry/repeat current, \`${DECISION_OPTIONS.COMPLETE}\` = finish workflow**`,
+      errorMessage: {
+        enum: `Invalid decision. Must be one of: ${
+          Object.values(DECISION_OPTIONS).join(", ")
+        }.`,
+      },
     }),
 
     action: (): JSONSchema => ({
@@ -116,6 +121,9 @@ Workflow step definitions - provide ONLY on initial call.
       description: "Define the current workflow action to be performed",
       enum: allToolNames,
       required: ["action"],
+      errorMessage: {
+        enum: `Invalid action. Must be one of: ${allToolNames.join(", ")}.`,
+      },
     }),
 
     forTool: function (): JSONSchema {
@@ -162,6 +170,14 @@ Workflow step definitions - provide ONLY on initial call.
           },
         },
         required: ["userRequest", "context"],
+        errorMessage: {
+          required: {
+            userRequest:
+              "Missing required field 'userRequest'. Please provide a clear task description.",
+            context:
+              "Missing required field 'context'. Please provide relevant context (e.g., current working directory).",
+          },
+        },
       };
     },
 
@@ -183,7 +199,8 @@ Workflow step definitions - provide ONLY on initial call.
                 required: [toolName],
                 errorMessage: {
                   required: {
-                    [toolName]: `Tool "${toolName}" is selected but its parameters are missing. Please provide "${toolName}": { ...parameters }.`,
+                    [toolName]:
+                      `Tool "${toolName}" is selected but its parameters are missing. Please provide "${toolName}": { ...parameters }.`,
                   },
                 },
               },
@@ -205,7 +222,9 @@ Workflow step definitions - provide ONLY on initial call.
           enum: allToolNames,
           description: useToolDescription,
           errorMessage: {
-            enum: `Invalid tool name. Available tools: ${allToolNames.join(", ")}.`,
+            enum: `Invalid tool name. Available tools: ${
+              allToolNames.join(", ")
+            }.`,
           },
         },
         hasDefinitions: {
@@ -243,7 +262,10 @@ Workflow step definitions - provide ONLY on initial call.
           required: [USE_TOOL_KEY],
           errorMessage: {
             required: {
-              [USE_TOOL_KEY]: `No tool selected. Please specify "${USE_TOOL_KEY}" to select one of: ${allToolNames.join(", ")}. Or use "definitionsOf" with tool names to get their schemas first.`,
+              [USE_TOOL_KEY]:
+                `No tool selected. Please specify "${USE_TOOL_KEY}" to select one of: ${
+                  allToolNames.join(", ")
+                }. Or use "definitionsOf" with tool names to get their schemas first.`,
             },
           },
         };

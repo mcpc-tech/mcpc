@@ -19,7 +19,7 @@ export function validateSchema(
   const validate = ajv.compile(schema);
   if (!validate(args)) {
     const errors = validate.errors!;
-    
+
     // If there are custom errorMessage errors, use only those
     const customErrors = errors.filter((err) => err.keyword === "errorMessage");
     if (customErrors.length > 0) {
@@ -29,7 +29,7 @@ export function validateSchema(
         error: messages.join("; "),
       };
     }
-    
+
     // Fallback to human-readable error formatting
     const aggregateError = new AggregateAjvError(errors);
     return {

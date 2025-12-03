@@ -63,6 +63,32 @@ export function createCodeExecutionPlugin(
               "Tool names whose schemas were already provided in this conversation. List all tools you have schemas for to avoid duplicate schema requests",
           },
         },
+        // Conditional validation: if code is provided, hasDefinitions must be non-empty
+        if: {
+          properties: { code: { type: "string", minLength: 1 } },
+          required: ["code"],
+        },
+        then: {
+          properties: {
+            hasDefinitions: { type: "array", minItems: 1 },
+          },
+          required: ["hasDefinitions"],
+          errorMessage: {
+            required: {
+              hasDefinitions:
+                "When executing code, you must provide 'hasDefinitions' with tool schemas you have. First request schemas using 'definitionsOf'.",
+            },
+          },
+        },
+        // If no code, must have definitionsOf
+        else: {
+          anyOf: [
+            { required: ["definitionsOf"] },
+            { required: ["code"] },
+          ],
+          errorMessage:
+            "Provide either 'code' to execute or 'definitionsOf' to request tool schemas.",
+        },
       } as const;
 
       // Register tool with enhanced description
@@ -76,8 +102,8 @@ export function createCodeExecutionPlugin(
           const hasDefinitions = (args.hasDefinitions as string[]) || [];
           const contentParts: CallToolResult["content"] = [];
 
-          // Execute code
-          if (code && hasDefinitions.length > 0) {
+          // Execute code (schema validation ensures hasDefinitions is present when code is provided)
+          if (code) {
             if (!executor) throw new Error("Sandbox not initialized");
 
             const result = await executor.executeCode(code, hasDefinitions);
@@ -116,8 +142,17 @@ export function createCodeExecutionPlugin(
             }
           }
 
-          const text = contentParts.map((p) => p.text).join("\n") ||
-            "No output generated, use console.log() to log output";
+          // Generate appropriate response message
+          let text: string;
+          if (contentParts.length > 0) {
+            text = contentParts.map((p) => p.text).join("\n");
+          } else if (definitionsOf.length > 0) {
+            // All requested schemas already in hasDefinitions
+            text =
+              "All requested tool schemas are already available. You can now execute code using 'code' parameter.";
+          } else {
+            text = "no output generated, use console.log() to log output";
+          }
 
           return { content: [{ type: "text", text }] };
         },

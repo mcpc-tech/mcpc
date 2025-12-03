@@ -104,15 +104,16 @@ export class AgenticExecutor {
 
         const result: CallToolResult = { content: [] };
         this.appendToolSchemas(result, definitionsOf, hasDefinitions);
-        
+
         // If no schemas were added (all requested tools already in hasDefinitions), give feedback
         if (result.content.length === 0 && definitionsOf.length > 0) {
           result.content.push({
             type: "text",
-            text: `All requested tool schemas are already in hasDefinitions. You can now call a tool using "${this.USE_TOOL_KEY}".`,
+            text:
+              `All requested tool schemas are already in hasDefinitions. You can now call a tool using "${this.USE_TOOL_KEY}".`,
           });
         }
-        
+
         return result;
       }
 
@@ -244,7 +245,9 @@ export class AgenticExecutor {
         content: [
           {
             type: "text",
-            text: `Tool "${useTool}" not found. Available tools: ${this.allToolNames.join(", ")}.`,
+            text: `Tool "${useTool}" not found. Available tools: ${
+              this.allToolNames.join(", ")
+            }.`,
           },
         ],
         isError: true,
