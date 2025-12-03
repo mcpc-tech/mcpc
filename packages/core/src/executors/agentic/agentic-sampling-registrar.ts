@@ -1,6 +1,6 @@
 import { jsonSchema } from "../../utils/schema.ts";
 import type { SamplingConfig } from "../../types.ts";
-import { createGoogleCompatibleJSONSchema } from "../../utils/common/provider.ts";
+import { createModelCompatibleJSONSchema } from "../../utils/common/provider.ts";
 import type { ComposableMCPServer } from "../../compose.ts";
 import { CompiledPrompts } from "../../prompts/index.ts";
 import { SamplingExecutor } from "../sampling/agentic-sampling-executor.ts";
@@ -62,7 +62,7 @@ export function registerAgenticSamplingTool(
     name,
     description,
     jsonSchema<Record<string, unknown>>(
-      createGoogleCompatibleJSONSchema(schema as Record<string, unknown>),
+      createModelCompatibleJSONSchema(schema as Record<string, unknown>),
     ),
     async (args: Record<string, unknown>) => {
       return await samplingExecutor.executeSampling(

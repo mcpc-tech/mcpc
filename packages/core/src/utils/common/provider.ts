@@ -36,36 +36,48 @@ export const createGoogleJSONSchema = (
 };
 
 /**
- * Creates a Google-compatible JSON schema by removing unsupported features
+ * Creates a model-compatible JSON schema by removing validation-only features
  *
- * Google provider restrictions:
+ * Always removes:
+ * - errorMessage: AJV-specific custom error messages, not part of JSON Schema spec
+ *
+ * Google provider restrictions (when GEMINI_PREFERRED_FORMAT is enabled):
  * - Does not support additionalProperties in schema definitions (at any level)
  * - Does not support oneOf, allOf, or anyOf at the top level in input_schema
  * @see https://ai.google.dev/api/caching#Schema
  */
-export const createGoogleCompatibleJSONSchema = (
+export const createModelCompatibleJSONSchema = (
   schema: Record<string, unknown>,
 ): Record<string, unknown> => {
-  if (!GEMINI_PREFERRED_FORMAT) {
-    return schema;
+  // Keys to always remove (not part of JSON Schema spec, used by validators only)
+  const validatorOnlyKeys = ["errorMessage"];
+
+  // Keys to remove only for Gemini
+  const geminiRestrictedKeys = GEMINI_PREFERRED_FORMAT
+    ? ["additionalProperties"]
+    : [];
+
+  const keysToRemove = new Set([...validatorOnlyKeys, ...geminiRestrictedKeys]);
+
+  // Remove top-level composition keywords for Gemini
+  let cleanSchema = schema;
+  if (GEMINI_PREFERRED_FORMAT) {
+    const { oneOf: _oneOf, allOf: _allOf, anyOf: _anyOf, ...rest } = schema;
+    cleanSchema = rest;
   }
 
-  // Remove top-level composition keywords
-  const { oneOf: _oneOf, allOf: _allOf, anyOf: _anyOf, ...cleanSchema } =
-    schema;
-
-  // Recursively remove additionalProperties at all levels
-  const removeAdditionalProperties = (obj: any): any => {
+  // Recursively clean schema
+  const cleanRecursively = (obj: unknown): unknown => {
     if (Array.isArray(obj)) {
-      return obj.map(removeAdditionalProperties);
+      return obj.map(cleanRecursively);
     }
 
     if (obj && typeof obj === "object") {
       const result: Record<string, unknown> = {};
 
       for (const [key, value] of Object.entries(obj)) {
-        if (key !== "additionalProperties") {
-          result[key] = removeAdditionalProperties(value);
+        if (!keysToRemove.has(key)) {
+          result[key] = cleanRecursively(value);
         }
       }
 
@@ -75,5 +87,5 @@ export const createGoogleCompatibleJSONSchema = (
     return obj;
   };
 
-  return removeAdditionalProperties(cleanSchema);
+  return cleanRecursively(cleanSchema) as Record<string, unknown>;
 };

@@ -1,6 +1,6 @@
 import { jsonSchema, type Schema } from "../../utils/schema.ts";
 import type { RegisterToolParams } from "../../types.ts";
-import { createGoogleCompatibleJSONSchema } from "../../utils/common/provider.ts";
+import { createModelCompatibleJSONSchema } from "../../utils/common/provider.ts";
 import type { ComposableMCPServer } from "../../compose.ts";
 import { CompiledPrompts } from "../../prompts/index.ts";
 import { AgenticExecutor } from "./agentic-executor.ts";
@@ -51,7 +51,7 @@ export function registerAgenticTool(
     name,
     description,
     jsonSchema<Record<string, unknown>>(
-      createGoogleCompatibleJSONSchema(schema as Record<string, unknown>),
+      createModelCompatibleJSONSchema(schema as Record<string, unknown>),
     ),
     async (args: Record<string, unknown>) => {
       return await agenticExecutor.execute(

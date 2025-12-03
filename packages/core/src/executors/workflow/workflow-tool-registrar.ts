@@ -1,7 +1,7 @@
 import { jsonSchema } from "../../utils/schema.ts";
 import type { RegisterWorkflowToolParams } from "../../types.ts";
 import { WorkflowState } from "../../utils/state.ts";
-import { createGoogleCompatibleJSONSchema } from "../../utils/common/provider.ts";
+import { createModelCompatibleJSONSchema } from "../../utils/common/provider.ts";
 import { WorkflowExecutor } from "./workflow-executor.ts";
 import type { ComposableMCPServer } from "../../compose.ts";
 import { CompiledPrompts } from "../../prompts/index.ts";
@@ -65,7 +65,7 @@ export function registerAgenticWorkflowTool(
     name,
     toolDescription,
     jsonSchema<Record<string, unknown>>(
-      createGoogleCompatibleJSONSchema(argsDef),
+      createModelCompatibleJSONSchema(argsDef),
     ),
     async (args: Record<string, unknown>) => {
       try {

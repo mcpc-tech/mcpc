@@ -171,41 +171,6 @@ Workflow step definitions - provide ONLY on initial call.
       USE_TOOL_KEY: string = "useTool",
     ): JSONSchema {
       const allOf = [
-        // When hasDefinitions is empty, definitionsOf must be provided
-        {
-          if: {
-            properties: {
-              hasDefinitions: {
-                type: "array",
-                maxItems: 0,
-              },
-            },
-            required: ["hasDefinitions"],
-          },
-          then: {
-            required: ["definitionsOf"],
-          },
-        },
-        // When useTool is present, hasDefinitions must contain that tool
-        ...toolNameToDetailList.map(
-          ([toolName, _toolDetail]: [string, unknown]) => {
-            return {
-              if: {
-                properties: { [USE_TOOL_KEY]: { const: toolName } },
-                required: [USE_TOOL_KEY],
-              },
-              then: {
-                properties: {
-                  hasDefinitions: {
-                    type: "array",
-                    contains: { const: toolName },
-                  },
-                },
-                required: ["hasDefinitions"],
-              },
-            };
-          },
-        ),
         // When a specific tool is selected, its parameters must be provided
         ...toolNameToDetailList.map(
           ([toolName, _toolDetail]: [string, unknown]) => {
@@ -216,6 +181,11 @@ Workflow step definitions - provide ONLY on initial call.
               },
               then: {
                 required: [toolName],
+                errorMessage: {
+                  required: {
+                    [toolName]: `Tool "${toolName}" is selected but its parameters are missing. Please provide "${toolName}": { ...parameters }.`,
+                  },
+                },
               },
             };
           },
@@ -234,6 +204,9 @@ Workflow step definitions - provide ONLY on initial call.
           type: "string",
           enum: allToolNames,
           description: useToolDescription,
+          errorMessage: {
+            enum: `Invalid tool name. Available tools: ${allToolNames.join(", ")}.`,
+          },
         },
         hasDefinitions: {
           type: "array",
@@ -262,6 +235,28 @@ Workflow step definitions - provide ONLY on initial call.
       // Only add allOf if there are items to avoid schema validation error
       if (allOf.length > 0) {
         schema.allOf = allOf;
+      }
+
+      // Add conditional validation: if definitionsOf is empty/missing, useTool is required
+      if (allToolNames.length > 0) {
+        const thenClause = {
+          required: [USE_TOOL_KEY],
+          errorMessage: {
+            required: {
+              [USE_TOOL_KEY]: `No tool selected. Please specify "${USE_TOOL_KEY}" to select one of: ${allToolNames.join(", ")}. Or use "definitionsOf" with tool names to get their schemas first.`,
+            },
+          },
+        };
+        Object.assign(schema, {
+          if: {
+            // definitionsOf is not provided OR is empty array
+            anyOf: [
+              { not: { required: ["definitionsOf"] } },
+              { properties: { definitionsOf: { type: "array", maxItems: 0 } } },
+            ],
+          },
+          then: thenClause,
+        });
       }
 
       return schema;
