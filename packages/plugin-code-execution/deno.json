@@ -13,7 +13,7 @@
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.0",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
-    "@mcpc/core": "jsr:@mcpc/core@^0.3.5",
+    "@mcpc/core": "jsr:@mcpc/core@^0.3.9",
     "@mcpc-tech/handle-sandbox": "npm:@mcpc-tech/handle-sandbox@^0.0.8"
   },
   "publish": {

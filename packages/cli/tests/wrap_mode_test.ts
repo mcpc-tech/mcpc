@@ -119,7 +119,7 @@ Deno.test("wrap mode - parse multiple servers with different transports", async 
 
     // Check third server (sse)
     const sseConfig = mcpServers?.["https___api_example_com_sse"] as any;
-    assertEquals(sseConfig?.command, "npx");
+    assertEquals(sseConfig?.command, "https://api.example.com/sse");
     assertEquals(sseConfig?.args, []);
     assertEquals(
       mcpServers?.["https___api_example_com_sse"]?.transportType,

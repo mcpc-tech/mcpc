@@ -13,7 +13,7 @@
   },
   "imports": {
     "@agentclientprotocol/sdk": "npm:@agentclientprotocol/sdk@^0.4.8",
-    "@mcpc/core": "jsr:@mcpc/core@^0.3.4",
+    "@mcpc/core": "jsr:@mcpc/core@^0.3.9",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
     "@ai-sdk/provider": "npm:@ai-sdk/provider@^2.0.0",
     "@ai-sdk/provider-utils": "npm:@ai-sdk/provider-utils@^2.2.8",

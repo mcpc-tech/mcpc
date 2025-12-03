@@ -116,16 +116,72 @@ Deno.test("Config Loader - object format", async () => {
 });
 
 Deno.test("Config Loader - no config returns null", async () => {
-  // Ensure no config sources are set
-  delete process.env.MCPC_CONFIG;
-  delete process.env.MCPC_CONFIG_URL;
-  delete process.env.MCPC_CONFIG_FILE;
+  // Save original argv and cwd
+  const originalArgv = process.argv;
+  const originalCwd = Deno.cwd();
 
-  // Test
-  const config = await loadConfig();
+  // Create a temp directory with no config files
+  const tempDir = await Deno.makeTempDir();
 
-  // Verify - should return null when no config found
-  assertEquals(config, null);
+  try {
+    // Change to temp directory (no mcpc.config.json exists)
+    Deno.chdir(tempDir);
+
+    // Set clean argv without any flags
+    Object.defineProperty(process, "argv", {
+      value: ["deno", "run"],
+      configurable: true,
+      writable: true,
+    });
+
+    // Ensure no config sources are set
+    delete process.env.MCPC_CONFIG;
+    delete process.env.MCPC_CONFIG_URL;
+    delete process.env.MCPC_CONFIG_FILE;
+
+    // Temporarily rename user config if it exists
+    const userConfigPath = `${Deno.env.get("HOME")}/.mcpc/config.json`;
+    const userConfigBackup = `${userConfigPath}.backup`;
+    let hadUserConfig = false;
+    try {
+      await Deno.rename(userConfigPath, userConfigBackup);
+      hadUserConfig = true;
+    } catch {
+      // User config doesn't exist, that's fine
+    }
+
+    try {
+      // Test
+      const config = await loadConfig();
+
+      // Verify - should return null when no config found
+      assertEquals(config, null);
+    } finally {
+      // Restore user config if we backed it up
+      if (hadUserConfig) {
+        try {
+          await Deno.rename(userConfigBackup, userConfigPath);
+        } catch {
+          // Ignore errors during restore
+        }
+      }
+    }
+  } finally {
+    // Restore original cwd and argv
+    Deno.chdir(originalCwd);
+    Object.defineProperty(process, "argv", {
+      value: originalArgv,
+      configurable: true,
+      writable: true,
+    });
+
+    // Cleanup temp directory
+    try {
+      await Deno.remove(tempDir, { recursive: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
 });
 
 Deno.test("Config Loader - nested environment variable substitution", async () => {

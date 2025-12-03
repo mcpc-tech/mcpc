@@ -17,7 +17,7 @@ export const createServer = async (
       {
         name: null,
         description: "",
-        plugins: [createLargeResultPlugin({}), codeExecutionPlugin()],
+        plugins: [createLargeResultPlugin({}), codeExecutionPlugin],
         options: {
           mode: "code_execution",
         },

@@ -122,7 +122,7 @@ export function createCodeExecutionPlugin(
 
             for (const toolName of needsDefinitions) {
               const toolDetail = context.toolNameToDetailList.find(
-                ([name]) => name === toolName,
+                ([name]: [string, unknown]) => name === toolName,
               );
 
               if (toolDetail) {
