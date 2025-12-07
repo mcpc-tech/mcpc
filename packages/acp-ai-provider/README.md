@@ -108,6 +108,57 @@ const result = await generateText({
 });
 ```
 
+### Dynamic Host-Side Tools (Experimental)
+
+You can also define AI SDK-style tools that execute on the host side:
+
+```typescript
+const provider = createACPProvider({
+  command: "claude-code-acp",
+  session: { cwd: process.cwd(), mcpServers: [] },
+  tools: {
+    greet: {
+      description: "Greet a person by name",
+      parameters: {
+        type: "object",
+        properties: { name: { type: "string" } },
+        required: ["name"],
+      },
+      execute: async (args) => `Hello, ${(args as any).name}!`,
+    },
+  },
+});
+
+const result = await streamText({
+  model: provider.languageModel(),
+  prompt: "Please greet Alice",
+});
+```
+
+#### How It Works (TCP Socket Callback)
+
+Since ACP agents spawn their own MCP server subprocesses, we use a TCP socket
+for the runtime to call back to the host for tool execution:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Host Process                                           │
+│    - Starts TCP server (random port)                    │
+│    - Passes TCP port via env vars to ACP                │
+│                         ▲    │                          │
+│                         │    │ TCP (getTools → definitions)
+│                         │    │ TCP (callHandler → execute)
+│                         │    │                          │
+└─────────────────────────┼────┼──────────────────────────┘
+                          │    │
+┌─────────────────────────┼────┼──────────────────────────┐
+│  ACP Agent spawns tool-proxy-runtime                    │
+│    - Reads port from ACP_TOOL_PROXY_PORT env            │
+│    - Connects and requests tools via `getTools`         │
+│    - On MCP tools/call → TCP callHandler → result       │
+└─────────────────────────────────────────────────────────┘
+```
+
 ### Session Persistence
 
 Keep sessions alive for multi-turn conversations:
@@ -202,10 +253,10 @@ export const providerAgentDynamicToolSchema = z.object({
 
 ## Limitations
 
-- **No AI SDK tools support** — Tools must be defined through MCP servers in
-  `session.mcpServers`, not via the AI SDK's `tools` parameter.
 - **No token counting** — ACP doesn't provide token usage information (it always
   returns 0).
+- **Dynamic tools are experimental** — The `tools` parameter uses TCP callback
+  which adds some complexity.
 
 ## Related
 

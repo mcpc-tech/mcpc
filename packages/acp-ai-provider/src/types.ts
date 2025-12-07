@@ -59,4 +59,22 @@ export interface ACPProviderSettings {
    * Keep connection alive after each call for session reuse.
    */
   persistSession?: boolean;
+
+  /**
+   * AI SDK-style tools to expose to the ACP agent.
+   * These tools will be executed on the host side via a dynamic MCP proxy.
+   */
+  tools?: Record<
+    string,
+    {
+      description?: string;
+      parameters?: {
+        type: "object";
+        properties?: Record<string, unknown>;
+        required?: string[];
+        [key: string]: unknown;
+      };
+      execute?: (args: unknown) => Promise<unknown>;
+    }
+  >;
 }

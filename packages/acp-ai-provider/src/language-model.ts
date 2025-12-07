@@ -32,6 +32,7 @@ import { jsonSchema, tool } from "ai";
 import z from "zod";
 import { formatToolError } from "./format-tool-error.ts";
 import { extractBase64Data } from "./utils.ts";
+import { ToolProxyHost } from "./tool-proxy/mod.ts";
 
 /**
  * The name of the provider tool used to represent ACP agent tool calls.
@@ -139,6 +140,9 @@ export class ACPLanguageModel implements LanguageModelV2 {
   private currentTextId: string | null = null;
   private currentThinkingId: string | null = null;
   private toolCallsMap = new Map<string, { index: number; name: string }>();
+
+  // Tool proxy for host-side tool execution
+  private toolProxyHost: ToolProxyHost | null = null;
 
   constructor(modelId: string, config: ACPProviderSettings) {
     this.modelId = modelId;
@@ -333,11 +337,22 @@ export class ACPLanguageModel implements LanguageModelV2 {
       );
     }
 
+    // Prepare MCP servers list, potentially including tool proxy
+    const mcpServers = [...(this.config.session?.mcpServers ?? [])];
+
+    // If tools are provided, start tool proxy server and add to mcpServers
+    if (this.config.tools && Object.keys(this.config.tools).length > 0) {
+      this.toolProxyHost = new ToolProxyHost("acp-ai-sdk-tools");
+      this.toolProxyHost.registerTools(this.config.tools);
+      const proxyConfig = await this.toolProxyHost.start();
+      mcpServers.push(proxyConfig as any);
+    }
+
     if (this.config.existingSessionId) {
       await this.connection.loadSession({
         sessionId: this.config.existingSessionId,
         cwd: this.config.session?.cwd ?? sessionCwd,
-        mcpServers: this.config.session?.mcpServers ?? [],
+        mcpServers,
       });
       this.sessionId = this.config.existingSessionId;
       this.sessionResponse = { sessionId: this.config.existingSessionId };
@@ -345,7 +360,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
       this.sessionResponse = await this.connection.newSession({
         ...this.config.session,
         cwd: this.config.session?.cwd ?? sessionCwd,
-        mcpServers: this.config.session?.mcpServers ?? [],
+        mcpServers,
       });
       this.sessionId = this.sessionResponse.sessionId;
     }
@@ -402,6 +417,12 @@ export class ACPLanguageModel implements LanguageModelV2 {
    * Forces cleanup regardless of persistSession setting.
    */
   forceCleanup(): void {
+    // Stop tool proxy if running
+    if (this.toolProxyHost) {
+      this.toolProxyHost.stop();
+      this.toolProxyHost = null;
+    }
+
     if (this.agentProcess) {
       this.agentProcess.kill();
       this.agentProcess.stdin?.end();
