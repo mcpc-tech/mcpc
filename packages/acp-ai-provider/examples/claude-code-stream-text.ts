@@ -37,19 +37,23 @@ async function main() {
 
   console.log({ prompt });
 
-  const model = provider.languageModel();
-  const { toolCalls } = streamText({
-    model,
-    prompt,
-    onChunk: (arg: any) => {
-      const { chunk } = arg;
-      logChunkToConsole(chunk);
-    },
-  });
+  try {
+    const model = provider.languageModel();
+    const { toolCalls } = streamText({
+      model,
+      prompt,
+      onChunk: (arg: any) => {
+        const { chunk } = arg;
+        logChunkToConsole(chunk);
+      },
+    });
 
-  console.log(
-    `Tool Calls: ${(await toolCalls).map((t: any) => t.toolName).join(", ")}`,
-  );
+    console.log(
+      `Tool Calls: ${(await toolCalls).map((t: any) => t.toolName).join(", ")}`,
+    );
+  } finally {
+    provider.cleanup();
+  }
 }
 
 main().catch((error) => {

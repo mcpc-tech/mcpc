@@ -3,7 +3,7 @@
  */
 
 import { ACPLanguageModel } from "./language-model.ts";
-import type { tool } from "ai";
+import type { Tool, tool } from "ai";
 import type { ACPProviderSettings } from "./types.ts";
 import type { NewSessionResponse } from "@agentclientprotocol/sdk";
 
@@ -65,11 +65,26 @@ export class ACPProvider {
    * Initializes the session and returns session info (models, modes, meta).
    * Call this before prompting to discover available options.
    */
-  initSession(): Promise<NewSessionResponse> {
+  initSession(
+    acpTools?:
+      | (Array<Tool<any, any> & { name: string }>)
+      | Record<string, Tool<any, any>>,
+  ): Promise<NewSessionResponse> {
     if (!this.model) {
       this.languageModel();
     }
-    return this.model!.initSession();
+    return this.model!.initSession(acpTools);
+  }
+
+  /**
+   * Initializes the connection to the agent process without starting a session.
+   * Useful if you need to reduce the time to the first token.
+   */
+  connect(): Promise<void> {
+    if (!this.model) {
+      this.languageModel();
+    }
+    return this.model!.connectClient();
   }
 
   /**

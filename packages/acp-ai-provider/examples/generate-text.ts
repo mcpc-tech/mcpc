@@ -35,15 +35,19 @@ async function main() {
   // Generate text using Gemini via ACP
   console.log({ prompt });
 
-  const result = await generateText({
-    model: provider.languageModel(),
-    prompt,
-  });
+  try {
+    const result = await generateText({
+      model: provider.languageModel(),
+      prompt,
+    });
 
-  console.log("\nFinish reason:", result.finishReason);
-  console.log("Usage:", result.usage);
+    console.log("\nFinish reason:", result.finishReason);
+    console.log("Usage:", result.usage);
 
-  console.log("\n✅ Example completed!");
+    console.log("\n✅ Example completed!");
+  } finally {
+    provider.cleanup();
+  }
 }
 
 main().catch((error) => {
