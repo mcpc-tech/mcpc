@@ -28,11 +28,12 @@ import { type ChildProcess, spawn } from "node:child_process";
 import process from "node:process";
 import { Readable, Writable } from "node:stream";
 import type { ACPProviderSettings } from "./types.ts";
-import { jsonSchema, tool } from "ai";
+import type { Tool } from "ai";
 import z from "zod";
 import { formatToolError } from "./format-tool-error.ts";
 import { extractBase64Data } from "./utils.ts";
 import { ToolProxyHost } from "./tool-proxy/mod.ts";
+import { getExecuteByName, hasRegisteredExecute } from "./acp-tool.ts";
 
 /**
  * The name of the provider tool used to represent ACP agent tool calls.
@@ -275,29 +276,43 @@ export class ACPLanguageModel implements LanguageModelV2 {
 
   /**
    * Ensures the ACP agent process is running and a session is established.
+   * @param acpTools - Tools from streamText options to proxy
    */
-  private async ensureConnected(): Promise<void> {
+  private async ensureConnected(
+    acpTools?: Array<Tool<any, any> & { name: string }>,
+  ): Promise<void> {
     if (this.connection && this.sessionId) return;
 
-    const sessionCwd = this.config.session?.cwd || process.cwd();
+    if (!this.agentProcess) {
+      const sessionCwd = this.config.session?.cwd ||
+        (typeof process.cwd === "function" ? process.cwd() : "/");
 
-    this.agentProcess = spawn(this.config.command, this.config.args ?? [], {
-      stdio: ["pipe", "pipe", "inherit"],
-      env: { ...process.env, ...this.config.env },
-      cwd: sessionCwd,
-    });
+      this.agentProcess = spawn(this.config.command, this.config.args ?? [], {
+        stdio: ["pipe", "pipe", "inherit"],
+        env: { ...process.env, ...this.config.env },
+        cwd: sessionCwd,
+      });
 
-    const input = Writable.toWeb(this.agentProcess.stdin!);
-    const output = Readable.toWeb(
-      this.agentProcess.stdout!,
-    ) as ReadableStream<Uint8Array>;
+      if (!this.agentProcess.stdout || !this.agentProcess.stdin) {
+        throw new Error("Failed to spawn agent process with stdio");
+      }
 
-    this.client = new ACPAISDKClient();
+      const input = Writable.toWeb(this.agentProcess.stdin);
+      const output = Readable.toWeb(
+        this.agentProcess.stdout,
+      ) as ReadableStream<Uint8Array>;
 
-    this.connection = new ClientSideConnection(
-      () => this.client!,
-      ndJsonStream(input, output),
-    );
+      this.client = new ACPAISDKClient();
+
+      this.connection = new ClientSideConnection(
+        () => this.client!,
+        ndJsonStream(input, output),
+      );
+    }
+
+    if (!this.connection) {
+      throw new Error("Connection not initialized");
+    }
 
     const initConfig: InitializeRequest = {
       ...(this.config.initialize ?? {}),
@@ -340,18 +355,21 @@ export class ACPLanguageModel implements LanguageModelV2 {
     // Prepare MCP servers list, potentially including tool proxy
     const mcpServers = [...(this.config.session?.mcpServers ?? [])];
 
-    // If tools are provided, start tool proxy server and add to mcpServers
-    if (this.config.tools && Object.keys(this.config.tools).length > 0) {
+    // If ACP tools are provided (from streamText options), start tool proxy
+    if (acpTools && acpTools.length > 0) {
       this.toolProxyHost = new ToolProxyHost("acp-ai-sdk-tools");
-      this.toolProxyHost.registerTools(this.config.tools);
+      for (const t of acpTools) {
+        // Register the Tool with its name
+        this.toolProxyHost.registerTool(t.name, t);
+      }
       const proxyConfig = await this.toolProxyHost.start();
-      mcpServers.push(proxyConfig as any);
+      mcpServers.push(proxyConfig);
     }
 
     if (this.config.existingSessionId) {
       await this.connection.loadSession({
         sessionId: this.config.existingSessionId,
-        cwd: this.config.session?.cwd ?? sessionCwd,
+        cwd: this.config.session?.cwd ?? process.cwd(),
         mcpServers,
       });
       this.sessionId = this.config.existingSessionId;
@@ -359,7 +377,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
     } else {
       this.sessionResponse = await this.connection.newSession({
         ...this.config.session,
-        cwd: this.config.session?.cwd ?? sessionCwd,
+        cwd: this.config.session?.cwd ?? process.cwd(),
         mcpServers,
       });
       this.sessionId = this.sessionResponse.sessionId;
@@ -722,7 +740,43 @@ export class ACPLanguageModel implements LanguageModelV2 {
     stream: ReadableStream<LanguageModelV2StreamPart>;
     warnings: LanguageModelV2CallWarning[];
   }> {
-    await this.ensureConnected();
+    // IMPORTANT: Extract and register ACP tools BEFORE ensureConnected
+    // This ensures Tool Proxy can discover them when it starts
+    const acpTools: Array<Tool<any, any> & { name: string }> = [];
+
+    // Check options.tools for ACP tools with registered execute
+    if (options.tools) {
+      for (const t of options.tools) {
+        if (t.type === "function") {
+          // AI SDK internally converts parameters to inputSchema
+          const toolWithSchema = t as Record<string, unknown>;
+          const toolInputSchema = toolWithSchema.inputSchema as
+            | Record<
+              string,
+              unknown
+            >
+            | undefined;
+
+          // Check if this tool has a registered execute (by name)
+          if (hasRegisteredExecute(t.name) && toolInputSchema) {
+            const execute = getExecuteByName(t.name);
+            if (execute) {
+              // Add name to Tool for internal tracking
+              acpTools.push(
+                {
+                  ...t,
+                  name: t.name,
+                  execute,
+                } as unknown as Tool<any, any> & { name: string },
+              );
+            }
+          }
+        }
+      }
+    }
+
+    // Now connect with the registered tools
+    await this.ensureConnected(acpTools.length > 0 ? acpTools : undefined);
     const promptContent = this.getPromptContent(options);
 
     const connection = this.connection!;
@@ -783,21 +837,5 @@ export class ACPLanguageModel implements LanguageModelV2 {
     });
 
     return { stream, warnings: [] as LanguageModelV2CallWarning[] };
-  }
-
-  /**
-   * Defines the provider agent dynamic tool used to bridge ACP's agent-side tool calls
-   * with the AI SDK's tool execution flow.
-   */
-  get tools(): Record<string, ReturnType<typeof tool>> {
-    return {
-      [ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME]: tool({
-        name: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
-        type: "provider-defined",
-        inputSchema: jsonSchema({}),
-        id: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
-        args: jsonSchema({}),
-      }),
-    };
   }
 }

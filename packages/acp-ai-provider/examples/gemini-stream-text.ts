@@ -14,7 +14,7 @@
  * npx tsx examples/stream-text.ts
  */
 
-import { createACPProvider } from "../mod.ts";
+import { acpTools, createACPProvider } from "../mod.ts";
 import { streamText } from "ai";
 import process from "node:process";
 import { logChunkToConsole } from "../src/utils.ts";
@@ -40,6 +40,7 @@ async function main() {
   const { toolCalls } = streamText({
     model: provider.languageModel(),
     prompt,
+    tools: acpTools({}),
     onChunk: (arg: any) => {
       const { chunk } = arg;
       logChunkToConsole(chunk);

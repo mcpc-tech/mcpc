@@ -45,3 +45,10 @@ export type {
   SessionModelState,
   SessionModeState,
 } from "@agentclientprotocol/sdk";
+
+// ACP Tool - for defining tools that work with streamText
+export {
+  acpTools,
+  getExecuteByName,
+  hasRegisteredExecute,
+} from "./src/acp-tool.ts";

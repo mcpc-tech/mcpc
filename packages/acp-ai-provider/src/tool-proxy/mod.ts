@@ -6,5 +6,5 @@
  */
 
 export { ToolProxyHost } from "./tool-proxy-host.ts";
-export type { AISDKTool, MCPServerConfig } from "./tool-proxy-host.ts";
+export type { MCPServerConfig } from "./tool-proxy-host.ts";
 export type { CallHandlerParams, ToolDefinition, ToolResult } from "./types.ts";

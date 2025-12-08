@@ -1,5 +1,7 @@
 import { createACPProvider } from "../src/provider.ts";
-import { streamText } from "ai";
+import { acpTools } from "../src/acp-tool.ts";
+import { streamText, tool } from "ai";
+import { z } from "zod";
 import process from "node:process";
 
 // Create provider for an ACP agent (using claude-code-acp as example)
@@ -10,65 +12,19 @@ const provider = createACPProvider({
     cwd: process.cwd(),
     mcpServers: [],
   },
-  // Define tools that will be executed on the host side
-  tools: {
-    greet: {
-      description: "Greet a person by name",
-      parameters: {
-        type: "object",
-        properties: {
-          name: {
-            type: "string",
-            description: "The name of the person to greet",
-          },
-        },
-        required: ["name"],
-      },
-      // deno-lint-ignore require-await
-      execute: async (args) => {
-        const { name } = args as { name: string };
-        // console.log(`[Host] Executing greet tool with args:`, args);
-        return `Hello, ${name}! Welcome to the ACP tool proxy demo.`;
-      },
-    },
-    calculate: {
-      description: "Perform a simple math calculation",
-      parameters: {
-        type: "object",
-        properties: {
-          operation: {
-            type: "string",
-            enum: ["add", "subtract", "multiply", "divide"],
-            description: "The math operation to perform",
-          },
-          a: { type: "number", description: "First number" },
-          b: { type: "number", description: "Second number" },
-        },
-        required: ["operation", "a", "b"],
-      },
-      // deno-lint-ignore require-await
-      execute: async (args) => {
-        const { operation, a, b } = args as {
-          operation: string;
-          a: number;
-          b: number;
-        };
-        // console.log(`[Host] Executing calculate tool: ${a} ${operation} ${b}`);
-        switch (operation) {
-          case "add":
-            return a + b;
-          case "subtract":
-            return a - b;
-          case "multiply":
-            return a * b;
-          case "divide":
-            return a / b;
-          default:
-            throw new Error(`Unknown operation: ${operation}`);
-        }
-      },
-    },
-  },
+});
+
+// Define schemas
+const greetSchema = z.object({
+  name: z.string().describe("The name of the person to greet"),
+});
+
+const calculateSchema = z.object({
+  operation: z
+    .enum(["add", "subtract", "multiply", "divide"])
+    .describe("The math operation to perform"),
+  a: z.number().describe("First number"),
+  b: z.number().describe("Second number"),
 });
 
 async function main() {
@@ -82,7 +38,34 @@ async function main() {
     const { textStream, steps } = streamText({
       model: provider.languageModel(),
       prompt,
-      // Tools are automatically exposed via the provider
+      // acpTools() automatically includes provider dynamic tool
+      tools: acpTools({
+        greet: tool({
+          description: "Greet a person by name",
+          inputSchema: greetSchema,
+          execute: ({ name }: z.infer<typeof greetSchema>) => {
+            return `Hello, ${name}! Welcome to the ACP tool proxy demo.`;
+          },
+        }),
+        calculate: tool({
+          description: "Perform a simple math calculation",
+          inputSchema: calculateSchema,
+          execute: (
+            { operation, a, b }: z.infer<typeof calculateSchema>,
+          ) => {
+            switch (operation) {
+              case "add":
+                return a + b;
+              case "subtract":
+                return a - b;
+              case "multiply":
+                return a * b;
+              case "divide":
+                return a / b;
+            }
+          },
+        }),
+      }),
     });
 
     for await (const chunk of textStream) {
@@ -98,10 +81,6 @@ async function main() {
         .filter(Boolean),
     );
 
-    // Get the full text
-    // textStream has already been consumed by the for-await loop above
-    // so we can't consume it again. But we can just use the accumulated usage or just print what we have.
-    // In this example, we already printed chunks to stdout.
     console.log("Final text: (Check stdout above)");
   } catch (error) {
     console.error("\n❌ Error:", error);

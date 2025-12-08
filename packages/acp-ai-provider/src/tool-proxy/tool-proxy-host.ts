@@ -6,6 +6,7 @@
  */
 
 import { createServer, type Server, type Socket } from "node:net";
+import type { Tool } from "ai";
 import {
   createErrorResponse,
   createResponse,
@@ -21,20 +22,6 @@ import {
   type ToolDefinition,
   type ToolResult,
 } from "./types.ts";
-
-/**
- * AI SDK-style tool definition
- */
-export interface AISDKTool {
-  description?: string;
-  parameters?: {
-    type: "object";
-    properties?: Record<string, unknown>;
-    required?: string[];
-    [key: string]: unknown;
-  };
-  execute?: (args: unknown) => Promise<unknown>;
-}
 
 /**
  * ACP EnvVariable format
@@ -63,7 +50,7 @@ import { RUNTIME_CODE } from "./tool-proxy-runtime.ts";
 export class ToolProxyHost {
   private server: Server | null = null;
   private connections: Socket[] = [];
-  private tools = new Map<string, AISDKTool>();
+  private tools = new Map<string, Tool<any, any>>();
   private serverName: string;
   private port: number = 0;
 
@@ -74,14 +61,14 @@ export class ToolProxyHost {
   /**
    * Register an AI SDK tool to be exposed through the proxy
    */
-  registerTool(name: string, tool: AISDKTool): void {
+  registerTool(name: string, tool: Tool<any, any>): void {
     this.tools.set(name, tool);
   }
 
   /**
    * Register multiple tools at once
    */
-  registerTools(tools: Record<string, AISDKTool>): void {
+  registerTools(tools: Record<string, Tool<any, any>>): void {
     for (const [name, tool] of Object.entries(tools)) {
       this.registerTool(name, tool);
     }
@@ -96,7 +83,9 @@ export class ToolProxyHost {
       definitions.push({
         name,
         description: tool.description || `Tool: ${name}`,
-        inputSchema: tool.parameters || { type: "object", properties: {} },
+        // inputSchema from Tool can be Zod or JSON schema, cast to JSON schema format
+        inputSchema: (tool.inputSchema as Record<string, unknown>) ||
+          { type: "object", properties: {} },
       });
     }
     return definitions;
@@ -228,9 +217,12 @@ export class ToolProxyHost {
           return;
         }
 
-        // Execute the tool on host side
+        // Execute the tool on host side (Tool.execute expects args and options)
         // console.log(`[ToolProxy] Executing tool: ${params.name}`, params.args);
-        const result = await tool.execute(params.args);
+        const result = await tool.execute?.(params.args, {
+          toolCallId: params.name,
+          messages: [],
+        });
 
         // Format as MCP tool result
         const toolResult: ToolResult = {

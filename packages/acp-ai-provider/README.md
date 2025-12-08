@@ -110,28 +110,32 @@ const result = await generateText({
 
 ### Dynamic Host-Side Tools (Experimental)
 
-You can also define AI SDK-style tools that execute on the host side:
+You can also define AI SDK-style tools that execute on the host side using
+`acpTools()`:
 
 ```typescript
+import { acpTools, createACPProvider } from "@mcpc/acp-ai-provider";
+import { streamText, tool } from "ai";
+import { z } from "zod";
+
 const provider = createACPProvider({
   command: "claude-code-acp",
   session: { cwd: process.cwd(), mcpServers: [] },
-  tools: {
-    greet: {
-      description: "Greet a person by name",
-      parameters: {
-        type: "object",
-        properties: { name: { type: "string" } },
-        required: ["name"],
-      },
-      execute: async (args) => `Hello, ${(args as any).name}!`,
-    },
-  },
 });
 
 const result = await streamText({
   model: provider.languageModel(),
   prompt: "Please greet Alice",
+  // acpTools() registers host-side tools for the agent to call
+  tools: acpTools({
+    greet: tool({
+      description: "Greet a person by name",
+      inputSchema: z.object({
+        name: z.string().describe("The name of the person to greet"),
+      }),
+      execute: async ({ name }) => `Hello, ${name}!`,
+    }),
+  }),
 });
 ```
 

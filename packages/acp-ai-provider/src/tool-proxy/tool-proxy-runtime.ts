@@ -15,7 +15,7 @@
  */
 
 export const RUNTIME_CODE = `
-// MCP Protocol Version (2024-11-05 is the current stable spec)
+/* MCP Protocol Version 2024-11-05 */
 const isDeno=typeof Deno!=="undefined",MCP_VER="2024-11-05";
 let tools=[],host=null,pending=new Map,buf="",hbuf="",rid=0;
 const env=k=>isDeno?Deno.env.get(k):process.env[k];
