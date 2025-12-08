@@ -26,10 +26,12 @@ export class ACPProvider {
    *
    * @returns A LanguageModelV2 instance
    */
-  languageModel(): ACPLanguageModel {
+  languageModel(modelId?: string): ACPLanguageModel {
     if (!this.model) {
-      const modelId = "acp-agent";
       this.model = new ACPLanguageModel(modelId, this.config);
+    }
+    if (modelId) {
+      this.model.modelId = modelId;
     }
     return this.model;
   }

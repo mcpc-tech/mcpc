@@ -129,7 +129,7 @@ export class ACPAISDKClient implements Client {
 export class ACPLanguageModel implements LanguageModelV2 {
   readonly specificationVersion = "v2" as const;
   readonly provider = "acp";
-  readonly modelId: string;
+  modelId: string;
   readonly supportedUrls: Record<string, RegExp[]> = {};
 
   private config: ACPProviderSettings;
@@ -138,6 +138,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
   private sessionId: string | null = null;
   private sessionResponse: NewSessionResponse | null = null;
   private client: ACPAISDKClient | null = null;
+  private currentModelId: string | null = null;
 
   // State for managing stream conversion
   private textBlockIndex = 0;
@@ -149,8 +150,8 @@ export class ACPLanguageModel implements LanguageModelV2 {
   // Tool proxy for host-side tool execution
   private toolProxyHost: ToolProxyHost | null = null;
 
-  constructor(modelId: string, config: ACPProviderSettings) {
-    this.modelId = modelId;
+  constructor(modelId: string | undefined, config: ACPProviderSettings) {
+    this.modelId = modelId!;
     this.config = config;
   }
 
@@ -285,106 +286,119 @@ export class ACPLanguageModel implements LanguageModelV2 {
   private async ensureConnected(
     acpTools?: Array<Tool<any, any> & { name: string }>,
   ): Promise<void> {
-    if (this.connection && this.sessionId) return;
+    if (!this.connection || !this.sessionId) {
+      if (!this.agentProcess) {
+        const sessionCwd = this.config.session?.cwd ||
+          (typeof process.cwd === "function" ? process.cwd() : "/");
 
-    if (!this.agentProcess) {
-      const sessionCwd = this.config.session?.cwd ||
-        (typeof process.cwd === "function" ? process.cwd() : "/");
+        this.agentProcess = spawn(this.config.command, this.config.args ?? [], {
+          stdio: ["pipe", "pipe", "inherit"],
+          env: { ...process.env, ...this.config.env },
+          cwd: sessionCwd,
+        });
 
-      this.agentProcess = spawn(this.config.command, this.config.args ?? [], {
-        stdio: ["pipe", "pipe", "inherit"],
-        env: { ...process.env, ...this.config.env },
-        cwd: sessionCwd,
-      });
+        if (!this.agentProcess.stdout || !this.agentProcess.stdin) {
+          throw new Error("Failed to spawn agent process with stdio");
+        }
 
-      if (!this.agentProcess.stdout || !this.agentProcess.stdin) {
-        throw new Error("Failed to spawn agent process with stdio");
-      }
+        const input = Writable.toWeb(this.agentProcess.stdin);
+        const output = Readable.toWeb(
+          this.agentProcess.stdout,
+        ) as ReadableStream<Uint8Array>;
 
-      const input = Writable.toWeb(this.agentProcess.stdin);
-      const output = Readable.toWeb(
-        this.agentProcess.stdout,
-      ) as ReadableStream<Uint8Array>;
+        this.client = new ACPAISDKClient();
 
-      this.client = new ACPAISDKClient();
-
-      this.connection = new ClientSideConnection(
-        () => this.client!,
-        ndJsonStream(input, output),
-      );
-    }
-
-    if (!this.connection) {
-      throw new Error("Connection not initialized");
-    }
-
-    const initConfig: InitializeRequest = {
-      ...(this.config.initialize ?? {}),
-      protocolVersion: this.config.initialize?.protocolVersion ??
-        PROTOCOL_VERSION,
-      clientCapabilities: this.config.initialize?.clientCapabilities ?? {
-        fs: {
-          readTextFile: false,
-          writeTextFile: false,
-        },
-        terminal: false,
-      },
-    };
-
-    const initResult = await this.connection.initialize(initConfig);
-    const validAuthMethods = initResult.authMethods?.find(
-      (a) => a.id === this.config.authMethodId,
-    )?.id;
-
-    if (initResult.authMethods?.length ?? 0 > 0) {
-      if (!this.config.authMethodId || !validAuthMethods) {
-        console.log(
-          "⚠️ Warning: No authMethodId specified in config, skipping authentication step. If this is not desired, please set one of the authMethodId in the ACPProviderSettings.",
-          JSON.stringify(initResult.authMethods, null, 2),
+        this.connection = new ClientSideConnection(
+          () => this.client!,
+          ndJsonStream(input, output),
         );
       }
 
-      // Some agents never implement authentication, so we skip this unless user specifies it.
-      if (this.config.authMethodId && validAuthMethods) {
-        await this.connection.authenticate({
-          methodId: this.config.authMethodId ?? initResult.authMethods?.[0].id!,
+      if (!this.connection) {
+        throw new Error("Connection not initialized");
+      }
+
+      const initConfig: InitializeRequest = {
+        ...(this.config.initialize ?? {}),
+        protocolVersion: this.config.initialize?.protocolVersion ??
+          PROTOCOL_VERSION,
+        clientCapabilities: this.config.initialize?.clientCapabilities ?? {
+          fs: {
+            readTextFile: false,
+            writeTextFile: false,
+          },
+          terminal: false,
+        },
+      };
+
+      const initResult = await this.connection.initialize(initConfig);
+      const validAuthMethods = initResult.authMethods?.find(
+        (a) => a.id === this.config.authMethodId,
+      )?.id;
+
+      if (initResult.authMethods?.length ?? 0 > 0) {
+        if (!this.config.authMethodId || !validAuthMethods) {
+          console.log(
+            "⚠️ Warning: No authMethodId specified in config, skipping authentication step. If this is not desired, please set one of the authMethodId in the ACPProviderSettings.",
+            JSON.stringify(initResult.authMethods, null, 2),
+          );
+        }
+
+        // Some agents never implement authentication, so we skip this unless user specifies it.
+        if (this.config.authMethodId && validAuthMethods) {
+          await this.connection.authenticate({
+            methodId: this.config.authMethodId ??
+              initResult.authMethods?.[0].id!,
+          });
+        }
+      } else {
+        console.log(
+          `⚠️ No authentication methods required by the ACP agent, skipping authentication step.`,
+        );
+      }
+
+      // Prepare MCP servers list, potentially including tool proxy
+      const mcpServers = [...(this.config.session?.mcpServers ?? [])];
+
+      // If ACP tools are provided (from streamText options), start tool proxy
+      if (acpTools && acpTools.length > 0) {
+        this.toolProxyHost = new ToolProxyHost("acp-ai-sdk-tools");
+        for (const t of acpTools) {
+          // Register the Tool with its name
+          this.toolProxyHost.registerTool(t.name, t);
+        }
+        const proxyConfig = await this.toolProxyHost.start();
+        mcpServers.push(proxyConfig);
+      }
+
+      if (this.config.existingSessionId) {
+        await this.connection.loadSession({
+          sessionId: this.config.existingSessionId,
+          cwd: this.config.session?.cwd ?? process.cwd(),
+          mcpServers,
         });
+        this.sessionId = this.config.existingSessionId;
+        this.sessionResponse = { sessionId: this.config.existingSessionId };
+      } else {
+        this.sessionResponse = await this.connection.newSession({
+          ...this.config.session,
+          cwd: this.config.session?.cwd ?? process.cwd(),
+          mcpServers,
+        });
+        this.sessionId = this.sessionResponse.sessionId;
       }
-    } else {
-      console.log(
-        `⚠️ No authentication methods required by the ACP agent, skipping authentication step.`,
-      );
     }
 
-    // Prepare MCP servers list, potentially including tool proxy
-    const mcpServers = [...(this.config.session?.mcpServers ?? [])];
+    const { models } = this.sessionResponse ?? {};
 
-    // If ACP tools are provided (from streamText options), start tool proxy
-    if (acpTools && acpTools.length > 0) {
-      this.toolProxyHost = new ToolProxyHost("acp-ai-sdk-tools");
-      for (const t of acpTools) {
-        // Register the Tool with its name
-        this.toolProxyHost.registerTool(t.name, t);
-      }
-      const proxyConfig = await this.toolProxyHost.start();
-      mcpServers.push(proxyConfig);
+    if (models?.currentModelId) {
+      this.currentModelId = models.currentModelId;
     }
 
-    if (this.config.existingSessionId) {
-      await this.connection.loadSession({
-        sessionId: this.config.existingSessionId,
-        cwd: this.config.session?.cwd ?? process.cwd(),
-        mcpServers,
-      });
-      this.sessionId = this.config.existingSessionId;
-      this.sessionResponse = { sessionId: this.config.existingSessionId };
-    } else {
-      this.sessionResponse = await this.connection.newSession({
-        ...this.config.session,
-        cwd: this.config.session?.cwd ?? process.cwd(),
-        mcpServers,
-      });
-      this.sessionId = this.sessionResponse.sessionId;
+    // Update model if needed
+    if (this.modelId && this.modelId !== this.currentModelId) {
+      await this.setModel(this.modelId);
+      this.currentModelId = this.modelId;
     }
   }
 
@@ -419,6 +433,22 @@ export class ACPLanguageModel implements LanguageModelV2 {
     if (!this.connection || !this.sessionId) {
       throw new Error("Not connected. Call preconnect() first.");
     }
+
+    const availableModes = this.sessionResponse?.modes?.availableModes;
+    if (availableModes) {
+      const foundMode = availableModes.find((m) => m.id === modeId);
+      if (!foundMode) {
+        const availableList = availableModes.map((m) => m.id).join(", ");
+        const currentInfo = this.sessionResponse?.modes?.currentModeId
+          ? ` (Current: "${this.sessionResponse.modes.currentModeId}")`
+          : "";
+
+        throw new Error(
+          `Mode "${modeId}" is not available${currentInfo}. Available modes: ${availableList}`,
+        );
+      }
+    }
+
     await this.connection.setSessionMode({ sessionId: this.sessionId, modeId });
   }
 
@@ -429,10 +459,28 @@ export class ACPLanguageModel implements LanguageModelV2 {
     if (!this.connection || !this.sessionId) {
       throw new Error("Not connected. Call preconnect() first.");
     }
+
+    const { models } = this.sessionResponse ?? {};
+    if (models?.availableModels) {
+      if (!models.availableModels.some((m) => m.modelId === modelId)) {
+        const availableList = models.availableModels.map((m) => m.modelId).join(
+          ", ",
+        );
+        const currentInfo = this.currentModelId
+          ? ` (Current: "${this.currentModelId}")`
+          : "";
+
+        throw new Error(
+          `Model "${modelId}" is not available${currentInfo}. Available models: ${availableList}`,
+        );
+      }
+    }
+
     await this.connection.setSessionModel({
       sessionId: this.sessionId,
       modelId,
     });
+    this.currentModelId = modelId;
   }
 
   /**

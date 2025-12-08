@@ -36,7 +36,7 @@ async function main() {
 
   try {
     const { textStream, steps } = streamText({
-      model: provider.languageModel(),
+      model: provider.languageModel(process.env.ACP_MODEL),
       prompt,
       // acpTools() automatically includes provider dynamic tool
       tools: acpTools({

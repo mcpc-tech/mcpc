@@ -221,7 +221,8 @@ await provider.setMode("code");
 
 // Now use the model
 const result = await generateText({
-  model: provider.languageModel(),
+  // You can optionally specify the model ID here
+  model: provider.languageModel("claude-3-5-sonnet-20241022"),
   prompt: "...",
 });
 ```
