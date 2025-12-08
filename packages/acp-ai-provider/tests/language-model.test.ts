@@ -22,7 +22,11 @@ function createProviderSettings(
 }
 
 Deno.test("ACPLanguageModel - implements LanguageModelV2 interface", () => {
-  const model = new ACPLanguageModel("test-agent", createProviderSettings());
+  const model = new ACPLanguageModel(
+    "test-agent",
+    undefined,
+    createProviderSettings(),
+  );
 
   // Check required LanguageModelV2 properties
   assertEquals(model.modelId, "test-agent");
@@ -39,7 +43,7 @@ Deno.test("ACPLanguageModel - config is stored from constructor", () => {
     env: { API_KEY: "secret123" },
   });
 
-  const model = new ACPLanguageModel("agent", config);
+  const model = new ACPLanguageModel("agent", undefined, config);
 
   // Model should have the config stored (accessed via language-model behavior)
   assertExists(model);
@@ -49,7 +53,7 @@ Deno.test("ACPLanguageModel - config is stored from constructor", () => {
 Deno.test("ACPLanguageModel - handles optional initialize config", () => {
   // Without initialize config
   const config1 = createProviderSettings();
-  const model1 = new ACPLanguageModel("agent1", config1);
+  const model1 = new ACPLanguageModel("agent1", undefined, config1);
   assertExists(model1);
 
   // With initialize config
@@ -62,7 +66,7 @@ Deno.test("ACPLanguageModel - handles optional initialize config", () => {
       },
     },
   });
-  const model2 = new ACPLanguageModel("agent2", config2);
+  const model2 = new ACPLanguageModel("agent2", undefined, config2);
   assertExists(model2);
 });
 
@@ -71,7 +75,7 @@ Deno.test("ACPLanguageModel - preserves command and args in config", () => {
   const args = ["--mode", "production", "--verbose"];
   const config = createProviderSettings({ command, args });
 
-  const model = new ACPLanguageModel("test", config);
+  const model = new ACPLanguageModel("test", undefined, config);
 
   // Verify model creation didn't lose the config
   assertExists(model);
@@ -86,7 +90,7 @@ Deno.test("ACPLanguageModel - handles environment variables in config", () => {
   };
 
   const config = createProviderSettings({ env });
-  const model = new ACPLanguageModel("agent-with-env", config);
+  const model = new ACPLanguageModel("agent-with-env", undefined, config);
 
   assertExists(model);
   assertEquals(model.modelId, "agent-with-env");
@@ -103,6 +107,7 @@ Deno.test("ACPLanguageModel - supports different agent commands", () => {
   for (const { cmd, args } of commands) {
     const model = new ACPLanguageModel(
       "agent",
+      undefined,
       createProviderSettings({ command: cmd, args }),
     );
     assertExists(model);
@@ -119,13 +124,17 @@ Deno.test("ACPLanguageModel - session config is required", () => {
     },
   });
 
-  const model = new ACPLanguageModel("agent", config);
+  const model = new ACPLanguageModel("agent", undefined, config);
   assertExists(model);
 });
 
 Deno.test("ACPLanguageModel - model properties are consistent", () => {
   const modelId = "my-model-123";
-  const model = new ACPLanguageModel(modelId, createProviderSettings());
+  const model = new ACPLanguageModel(
+    modelId,
+    undefined,
+    createProviderSettings(),
+  );
 
   // Properties should be consistent across multiple accesses
   assertEquals(model.modelId, modelId);

@@ -197,12 +197,13 @@ const provider = createACPProvider({
 ### Selecting Models and Modes
 
 Some ACP agents support multiple models or modes. Use `initSession()` to
-discover and select them:
+discover and select them (or simply provide an arbitrary value to get an error
+message listing available options):
 
 ```typescript
 const provider = createACPProvider({
-  command: "claude",
-  args: ["--mcp"],
+  command: "claude-code-acp",
+  args: [],
   session: { cwd: process.cwd(), mcpServers: [] },
   persistSession: true,
 });
@@ -210,19 +211,16 @@ const provider = createACPProvider({
 // Initialize and get available options
 const session = await provider.initSession();
 
-// Check available modes (e.g., "ask", "code", "architect")
+// Check available modes (e.g., "default", "acceptEdits", "plan")
 console.log(session.modes?.availableModes);
 
-// Check available models
+// Check available models (e.g. "default", "opus", "haiku")
 console.log(session.models?.availableModels);
-
-// Select a mode before prompting
-await provider.setMode("code");
 
 // Now use the model
 const result = await generateText({
   // You can optionally specify the model ID here
-  model: provider.languageModel("claude-3-5-sonnet-20241022"),
+  model: provider.languageModel("opus", "plan"),
   prompt: "...",
 });
 ```

@@ -26,12 +26,15 @@ export class ACPProvider {
    *
    * @returns A LanguageModelV2 instance
    */
-  languageModel(modelId?: string): ACPLanguageModel {
+  languageModel(modelId?: string, modeId?: string): ACPLanguageModel {
     if (!this.model) {
-      this.model = new ACPLanguageModel(modelId, this.config);
+      this.model = new ACPLanguageModel(modelId, modeId, this.config);
     }
     if (modelId) {
       this.model.modelId = modelId;
+    }
+    if (modeId) {
+      this.model.modeId = modeId;
     }
     return this.model;
   }

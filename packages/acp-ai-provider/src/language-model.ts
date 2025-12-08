@@ -130,6 +130,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
   readonly specificationVersion = "v2" as const;
   readonly provider = "acp";
   modelId: string;
+  modeId?: string;
   readonly supportedUrls: Record<string, RegExp[]> = {};
 
   private config: ACPProviderSettings;
@@ -139,6 +140,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
   private sessionResponse: NewSessionResponse | null = null;
   private client: ACPAISDKClient | null = null;
   private currentModelId: string | null = null;
+  private currentModeId: string | null = null;
 
   // State for managing stream conversion
   private textBlockIndex = 0;
@@ -150,8 +152,13 @@ export class ACPLanguageModel implements LanguageModelV2 {
   // Tool proxy for host-side tool execution
   private toolProxyHost: ToolProxyHost | null = null;
 
-  constructor(modelId: string | undefined, config: ACPProviderSettings) {
+  constructor(
+    modelId: string | undefined,
+    modeId: string | undefined,
+    config: ACPProviderSettings,
+  ) {
     this.modelId = modelId!;
+    this.modeId = modeId;
     this.config = config;
   }
 
@@ -389,16 +396,25 @@ export class ACPLanguageModel implements LanguageModelV2 {
       }
     }
 
-    const { models } = this.sessionResponse ?? {};
+    const { models, modes } = this.sessionResponse ?? {};
 
     if (models?.currentModelId) {
       this.currentModelId = models.currentModelId;
+    }
+    if (modes?.currentModeId) {
+      this.currentModeId = modes.currentModeId; // Assuming currentModeId exists on modes
     }
 
     // Update model if needed
     if (this.modelId && this.modelId !== this.currentModelId) {
       await this.setModel(this.modelId);
       this.currentModelId = this.modelId;
+    }
+
+    // Update mode if needed
+    if (this.modeId && this.modeId !== this.currentModeId) {
+      await this.setMode(this.modeId);
+      this.currentModeId = this.modeId;
     }
   }
 
@@ -450,6 +466,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
     }
 
     await this.connection.setSessionMode({ sessionId: this.sessionId, modeId });
+    this.currentModeId = modeId;
   }
 
   /**
