@@ -110,12 +110,18 @@ export class ACPAISDKClient implements Client {
   }
 
   writeTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
-    console.log("Write file request (not implemented):", params.path);
+    console.log(
+      "[acp-ai-provider] Write file request (not implemented):",
+      params.path,
+    );
     throw new Error("File operations not implemented in language model client");
   }
 
   readTextFile(params: ReadTextFileRequest): Promise<ReadTextFileResponse> {
-    console.log("Read file request (not implemented):", params.path);
+    console.log(
+      "[acp-ai-provider] Read file request (not implemented):",
+      params.path,
+    );
     throw new Error("File operations not implemented in language model client");
   }
 }
@@ -298,7 +304,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
       this.sessionId && acpTools && acpTools.length > 0 && !this.toolProxyHost
     ) {
       console.warn(
-        "Checking tools: Restarting session to enable client-side tools that were not present in initial session.",
+        "[acp-ai-provider] Checking tools: Restarting session to enable client-side tools that were not present in initial session.",
       );
       this.forceCleanup();
     }
@@ -329,12 +335,6 @@ export class ACPLanguageModel implements LanguageModelV2 {
           () => this.client!,
           ndJsonStream(input, output),
         );
-
-        if (this.config.initialDelayMs) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, this.config.initialDelayMs)
-          );
-        }
       }
 
       if (!this.connection) {
@@ -362,7 +362,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
       if (initResult.authMethods?.length ?? 0 > 0) {
         if (!this.config.authMethodId || !validAuthMethods) {
           console.log(
-            "⚠️ Warning: No authMethodId specified in config, skipping authentication step. If this is not desired, please set one of the authMethodId in the ACPProviderSettings.",
+            "[acp-ai-provider] Warning: No authMethodId specified in config, skipping authentication step. If this is not desired, please set one of the authMethodId in the ACPProviderSettings.",
             JSON.stringify(initResult.authMethods, null, 2),
           );
         }
@@ -376,7 +376,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         }
       } else {
         console.log(
-          `⚠️ No authentication methods required by the ACP agent, skipping authentication step.`,
+          `[acp-ai-provider] No authentication methods required by the ACP agent, skipping authentication step.`,
         );
       }
 
@@ -431,6 +431,15 @@ export class ACPLanguageModel implements LanguageModelV2 {
     if (this.modeId && this.modeId !== this.currentModeId) {
       await this.setMode(this.modeId);
       this.currentModeId = this.modeId;
+    }
+
+    if (this.config.sessionDelayMs) {
+      console.log(
+        `[acp-ai-provider] Waiting for ${this.config.sessionDelayMs}ms before initializing the connection...`,
+      );
+      await new Promise((resolve) =>
+        setTimeout(resolve, this.config.sessionDelayMs)
+      );
     }
   }
 

@@ -8,7 +8,7 @@ export function logChunkToConsole(chunk: any): void {
   switch (chunk.type) {
     case "raw":
       // eslint-disable-next-line no-console
-      console.log(`\n[Raw Plan Update]: ${chunk.rawValue}`);
+      console.log(`\n[acp-ai-provider] [Raw Plan Update]: ${chunk.rawValue}`);
       break;
     case "text-delta":
       // Write directly to stdout for streaming text
@@ -19,20 +19,20 @@ export function logChunkToConsole(chunk: any): void {
     case "tool-call":
       // eslint-disable-next-line no-console
       console.log(
-        `\n[Tool Call Initiated]`,
+        `\n[acp-ai-provider] [Tool Call Initiated]`,
         JSON.stringify(chunk.input, null, 2),
       );
       break;
     case "tool-result":
       // eslint-disable-next-line no-console
       console.log(
-        `\n[Tool Call Result Received]`,
+        `\n[acp-ai-provider] [Tool Call Result Received]`,
         JSON.stringify(chunk.output, null, 2),
       );
       break;
     case "tool-error":
       console.log(
-        `\n[Tool Call Error]`,
+        `\n[acp-ai-provider] [Tool Call Error]`,
         JSON.stringify(chunk.error, null, 2),
       );
       break;
@@ -43,6 +43,9 @@ export function logChunkToConsole(chunk: any): void {
     default:
       // Unknown chunk type: log it for debugging
       // eslint-disable-next-line no-console
-      console.log("\n[Unknown chunk]:", JSON.stringify(chunk, null, 2));
+      console.log(
+        "\n[acp-ai-provider] [Unknown chunk]:",
+        JSON.stringify(chunk, null, 2),
+      );
   }
 }

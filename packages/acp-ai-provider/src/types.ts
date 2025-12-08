@@ -64,5 +64,5 @@ export interface ACPProviderSettings {
    * Delay in milliseconds to wait before initializing the connection.
    * Useful for agents that load MCP servers asynchronously.
    */
-  initialDelayMs?: number;
+  sessionDelayMs?: number;
 }
