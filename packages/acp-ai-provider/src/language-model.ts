@@ -293,6 +293,16 @@ export class ACPLanguageModel implements LanguageModelV2 {
   private async ensureConnected(
     acpTools?: Array<Tool<any, any> & { name: string }>,
   ): Promise<void> {
+    // Check if we need to restart the session to enable tools
+    if (
+      this.sessionId && acpTools && acpTools.length > 0 && !this.toolProxyHost
+    ) {
+      console.warn(
+        "Checking tools: Restarting session to enable client-side tools that were not present in initial session.",
+      );
+      this.forceCleanup();
+    }
+
     if (!this.connection || !this.sessionId) {
       if (!this.agentProcess) {
         const sessionCwd = this.config.session?.cwd ||
@@ -319,6 +329,12 @@ export class ACPLanguageModel implements LanguageModelV2 {
           () => this.client!,
           ndJsonStream(input, output),
         );
+
+        if (this.config.initialDelayMs) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.config.initialDelayMs)
+          );
+        }
       }
 
       if (!this.connection) {
