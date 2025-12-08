@@ -28,12 +28,16 @@ import { type ChildProcess, spawn } from "node:child_process";
 import process from "node:process";
 import { Readable, Writable } from "node:stream";
 import type { ACPProviderSettings } from "./types.ts";
-import type { Tool } from "ai";
+import type { Tool, tool } from "ai";
 import z from "zod";
 import { formatToolError } from "./format-tool-error.ts";
 import { extractBase64Data } from "./utils.ts";
 import { ToolProxyHost } from "./tool-proxy/mod.ts";
-import { getExecuteByName, hasRegisteredExecute } from "./acp-tool.ts";
+import {
+  getACPDynamicTool,
+  getExecuteByName,
+  hasRegisteredExecute,
+} from "./acp-tool.ts";
 
 /**
  * The name of the provider tool used to represent ACP agent tool calls.
@@ -245,7 +249,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         let isFirst = true;
         for (const part of msg.content) {
           if (part.type === "text") {
-            const text = isFirst ? `${prefix}${part.text}` : part.text;
+            const text = isFirst ? `${prefix}${part.text} ` : part.text;
             contentBlocks.push({ type: "text" as const, text });
             isFirst = false;
           } else if (part.type === "file" && typeof part.data === "string") {
@@ -266,7 +270,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
       } else if (typeof msg.content === "string") {
         contentBlocks.push({
           type: "text" as const,
-          text: `${prefix}${msg.content}`,
+          text: `${prefix}${msg.content} `,
         });
       }
     }
@@ -471,7 +475,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         break;
       case "agent_thought_chunk":
         if (!this.currentThinkingId) {
-          this.currentThinkingId = `reasoning-${this.thinkBlockIndex++}`;
+          this.currentThinkingId = `reasoning - ${this.thinkBlockIndex++} `;
           controller.enqueue({
             type: "reasoning-start",
             id: this.currentThinkingId,
@@ -496,7 +500,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         if (update.content.type === "text") {
           const textChunk = update.content.text;
           if (!this.currentTextId) {
-            this.currentTextId = `text-${this.textBlockIndex++}`;
+            this.currentTextId = `text - ${this.textBlockIndex++} `;
             controller.enqueue({
               type: "text-start",
               id: this.currentTextId,
@@ -837,5 +841,9 @@ export class ACPLanguageModel implements LanguageModelV2 {
     });
 
     return { stream, warnings: [] as LanguageModelV2CallWarning[] };
+  }
+
+  get tools(): Record<string, ReturnType<typeof tool>> {
+    return getACPDynamicTool();
   }
 }

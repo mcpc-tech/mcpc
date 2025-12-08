@@ -49,6 +49,15 @@ export function acpTools<T extends Record<string, Tool<any, any>>>(
   // Return tools merged with the ACP provider dynamic tool
   return {
     ...tools,
+    ...getACPDynamicTool(),
+  } as unknown as T & Record<string, ReturnType<typeof tool>>;
+}
+
+/**
+ * Get the ACP provider dynamic tool definition
+ */
+export function getACPDynamicTool(): Record<string, ReturnType<typeof tool>> {
+  return {
     [ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME]: tool({
       type: "provider-defined",
       id: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME as `${string}.${string}`,
@@ -56,7 +65,7 @@ export function acpTools<T extends Record<string, Tool<any, any>>>(
       args: {},
       inputSchema: jsonSchema({}),
     }),
-  } as unknown as T & Record<string, ReturnType<typeof tool>>;
+  };
 }
 
 /**
