@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/builder",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -23,6 +23,9 @@
     "start": "deno run --allow-all src/bin.ts"
   },
   "compilerOptions": {
-    "lib": ["deno.window", "deno.ns"]
+    "lib": [
+      "deno.window",
+      "deno.ns"
+    ]
   }
 }
