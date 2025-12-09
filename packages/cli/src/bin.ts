@@ -40,29 +40,33 @@ import { createServer } from "./app.ts";
 import { loadConfig } from "./config/loader.ts";
 import { createCodeExecutionPlugin } from "@mcpc-tech/plugin-code-execution";
 
-// Load configuration from environment or file
-const config = await loadConfig();
+(async () => {
+  // Load configuration from environment or file
+  const config = await loadConfig();
 
-// Add plugins
-config?.agents.forEach((agent) => {
-  if (agent.plugins?.length ?? 0 === 0) {
-    agent.plugins = [];
+  // Add plugins
+  config?.agents.forEach((agent) => {
+    if (agent.plugins?.length ?? 0 === 0) {
+      agent.plugins = [];
+    }
+    agent.plugins?.push(
+      createCodeExecutionPlugin({
+        sandbox: {
+          timeout: 300_000,
+        },
+      }),
+    );
+  });
+
+  if (config) {
+    console.error(`Loaded configuration with ${config.agents.length} agent(s)`);
+  } else {
+    console.error(
+      "No configuration found, using default example configuration",
+    );
   }
-  agent.plugins?.push(
-    createCodeExecutionPlugin({
-      sandbox: {
-        timeout: 300_000,
-      },
-    }),
-  );
-});
 
-if (config) {
-  console.error(`Loaded configuration with ${config.agents.length} agent(s)`);
-} else {
-  console.error("No configuration found, using default example configuration");
-}
-
-const server = await createServer(config || undefined);
-const transport = new StdioServerTransport();
-await server.connect(transport);
+  const server = await createServer(config || undefined);
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+})();

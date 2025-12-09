@@ -47,19 +47,21 @@ I help you discover and compose MCP servers from the mcpc.tech registry to build
 5. Get ready-to-use installation commands for your editor
 `;
 
-const server = await mcpc(
-  [
-    { name: "mcpc-builder-agent", version: "1.0.0" },
-    { capabilities: { tools: {}, sampling: {} } },
-  ],
-  [
-    {
-      name: "mcpc-builder-agent",
-      options: { mode: "agentic" },
-      description,
-      deps,
-    },
-  ],
-);
+(async () => {
+  const server = await mcpc(
+    [
+      { name: "mcpc-builder-agent", version: "1.0.0" },
+      { capabilities: { tools: {}, sampling: {} } },
+    ],
+    [
+      {
+        name: "mcpc-builder-agent",
+        options: { mode: "agentic" },
+        description,
+        deps,
+      },
+    ],
+  );
 
-await server.connect(new StdioServerTransport());
+  await server.connect(new StdioServerTransport());
+})();
