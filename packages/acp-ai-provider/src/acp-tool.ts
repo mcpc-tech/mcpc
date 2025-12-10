@@ -1,4 +1,10 @@
-import type { Tool } from "ai";
+import { jsonSchema, type Tool, tool } from "ai";
+
+/**
+ * The name of the provider tool used to represent ACP agent tool calls.
+ */
+export const ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME =
+  "acp.acp_provider_agent_dynamic_tool";
 
 /**
  * Global registry to store execute functions by tool name
@@ -7,7 +13,7 @@ const executeRegistry = new Map<string, (args: unknown) => Promise<unknown>>();
 
 /**
  * Wrap AI SDK tools with ACP execute preservation.
- * Registers tool execute functions for use by the ACP provider.
+ * Automatically includes the ACP provider dynamic tool for streaming tool calls.
  *
  * @example
  * ```typescript
@@ -29,7 +35,7 @@ const executeRegistry = new Map<string, (args: unknown) => Promise<unknown>>();
  */
 export function acpTools<T extends Record<string, Tool<any, any>>>(
   tools: T,
-): T {
+): T & Record<string, ReturnType<typeof tool>> {
   // Register all execute functions
   for (const [name, toolDef] of Object.entries(tools)) {
     if (toolDef.execute) {
@@ -40,8 +46,26 @@ export function acpTools<T extends Record<string, Tool<any, any>>>(
     }
   }
 
-  // Return tools as-is (no longer merging dynamic tool)
-  return tools;
+  // Return tools merged with the ACP provider dynamic tool
+  return {
+    ...tools,
+    ...getACPDynamicTool(),
+  } as unknown as T & Record<string, ReturnType<typeof tool>>;
+}
+
+/**
+ * Get the ACP provider dynamic tool definition
+ */
+export function getACPDynamicTool(): Record<string, ReturnType<typeof tool>> {
+  return {
+    [ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME]: tool({
+      type: "provider-defined",
+      id: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME as `${string}.${string}`,
+      name: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
+      args: {},
+      inputSchema: jsonSchema({}),
+    }),
+  };
 }
 
 /**
@@ -65,29 +89,4 @@ export function hasRegisteredExecute(name: string): boolean {
  */
 export function getRegisteredToolNames(): string[] {
   return Array.from(executeRegistry.keys());
-}
-
-/**
- * Resolves an ACP tool name (which may be in MCP proxy format like `mcp__server__greet`)
- * to the original registered tool name by matching against registered tools.
- * Returns the original name if no match is found.
- */
-export function resolveToolName(acpToolName: string): string {
-  const registeredNames = getRegisteredToolNames();
-
-  // First, check for exact match
-  if (registeredNames.includes(acpToolName)) {
-    return acpToolName;
-  }
-
-  // Check if the ACP tool name ends with any registered name (after separator)
-  // This handles formats like `mcp__server__toolname` -> `toolname`
-  for (const registeredName of registeredNames) {
-    if (acpToolName.endsWith(`__${registeredName}`)) {
-      return registeredName;
-    }
-  }
-
-  // No match found, return original name
-  return acpToolName;
 }

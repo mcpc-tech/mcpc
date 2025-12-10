@@ -3,7 +3,7 @@
  */
 
 import { ACPLanguageModel } from "./language-model.ts";
-import type { Tool } from "ai";
+import type { Tool, tool } from "ai";
 import type { ACPProviderSettings } from "./types.ts";
 import type { NewSessionResponse } from "@agentclientprotocol/sdk";
 
@@ -44,6 +44,13 @@ export class ACPProvider {
    */
   call(): ACPLanguageModel {
     return this.languageModel();
+  }
+
+  /**
+   * Provider tools - includes the agent dynamic tool
+   */
+  get tools(): Record<string, ReturnType<typeof tool>> | undefined {
+    return this.model?.tools;
   }
 
   /**

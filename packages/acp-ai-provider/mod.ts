@@ -30,7 +30,12 @@ export type {} from "./src/provider.ts";
 export type { ACPProviderSettings } from "./src/types.ts";
 
 // Language model
-export { ACPLanguageModel } from "./src/language-model.ts";
+export {
+  ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
+  ACPLanguageModel,
+  providerAgentDynamicToolSchema,
+} from "./src/language-model.ts";
+export type { ProviderAgentDynamicToolInput } from "./src/language-model.ts";
 
 // Re-export useful SDK types for session info
 export type {
