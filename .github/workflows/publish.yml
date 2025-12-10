@@ -1,3 +1,4 @@
+# See https://docs.npmjs.com/trusted-publishers
 name: Publish to JSR and npm
 
 on:
