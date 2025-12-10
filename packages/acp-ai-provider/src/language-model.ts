@@ -153,7 +153,15 @@ export class ACPLanguageModel implements LanguageModelV2 {
   private thinkBlockIndex = 0;
   private currentTextId: string | null = null;
   private currentThinkingId: string | null = null;
-  private toolCallsMap = new Map<string, { index: number; name: string }>();
+  private toolCallsMap = new Map<
+    string,
+    {
+      index: number;
+      name: string;
+      inputStarted?: boolean;
+      inputAvailable?: boolean;
+    }
+  >();
 
   // Tool proxy for host-side tool execution
   private toolProxyHost: ToolProxyHost | null = null;
@@ -181,6 +189,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
 
   /**
    * Parses a 'tool_call' notification update into a structured object.
+   * Note: We only use rawInput for tool input (content is for UI display).
    */
   private parseToolCall(update: SessionNotification["update"]): {
     toolCallId: string;
@@ -193,17 +202,15 @@ export class ACPLanguageModel implements LanguageModelV2 {
 
     const toolCallId = update.toolCallId;
     const toolName = update.title || update.toolCallId;
-    let toolInput: unknown = {};
-    if (update.content && update.content.length > 0) {
-      toolInput = update.content;
-    } else if (update.rawInput) {
-      toolInput = update.rawInput;
-    }
+    // rawInput contains the actual tool parameters
+    // content is for UI display (terminals, diffs, text) and should not be used as input
+    const toolInput = update.rawInput ?? {};
     return { toolCallId, toolName, toolInput };
   }
 
   /**
    * Parses a 'tool_call_update' notification update into a structured object.
+   * Note: We only use rawOutput for tool result (content is for UI display).
    */
   private parseToolResult(update: SessionNotification["update"]): {
     toolCallId: string;
@@ -217,17 +224,14 @@ export class ACPLanguageModel implements LanguageModelV2 {
     }
     const toolCallId = update.toolCallId;
     const toolName = update.title || update.toolCallId;
-    let toolResult: unknown = null;
-    if (update.content && update.content.length > 0) {
-      toolResult = update.content;
-    } else if (update.rawOutput) {
-      toolResult = update.rawOutput;
-    }
+    // rawOutput contains the actual tool result
+    // content is for UI display (terminals, diffs, text) and should not be used as result
+    const toolResult = update.rawOutput ?? null;
     const isError = update.status === "failed";
     return {
       toolCallId,
       toolName,
-      toolResult: toolResult as ToolCallContent[],
+      toolResult: toolResult as unknown as ToolCallContent[],
       isError,
       status: update.status!,
     };
@@ -705,23 +709,58 @@ export class ACPLanguageModel implements LanguageModelV2 {
 
         const { toolCallId, toolName, toolInput } = this.parseToolCall(update);
 
-        // We tell the AI SDK to call our "dynamic tool", passing the
-        // *actual* tool info inside the input.
-        controller.enqueue({
-          type: "tool-call",
-          toolCallId,
-          toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
-          input: JSON.stringify({
-            toolCallId,
-            toolName,
-            args: toolInput,
-          }),
-        });
+        const existingToolCall = this.toolCallsMap.get(toolCallId);
 
-        this.toolCallsMap.set(toolCallId, {
-          index: this.toolCallsMap.size,
-          name: toolName,
-        });
+        // Check if rawInput has actual data (not empty object)
+        const hasInput = toolInput &&
+          typeof toolInput === "object" &&
+          Object.keys(toolInput as object).length > 0;
+
+        if (!existingToolCall) {
+          // First time seeing this toolCallId
+          this.toolCallsMap.set(toolCallId, {
+            index: this.toolCallsMap.size,
+            name: toolName,
+            inputStarted: true,
+            inputAvailable: !!hasInput,
+          });
+
+          // Emit tool-input-start when we first see the tool call
+          controller.enqueue({
+            type: "tool-input-start",
+            id: toolCallId,
+            toolName,
+          });
+
+          // If rawInput is already populated, emit tool-call immediately
+          if (hasInput) {
+            controller.enqueue({
+              type: "tool-call",
+              toolCallId,
+              toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
+              input: JSON.stringify({
+                toolCallId,
+                toolName,
+                args: toolInput,
+              }),
+            });
+          }
+        } else if (!existingToolCall.inputAvailable && hasInput) {
+          // We previously got tool-input-start, now we have the actual input
+          existingToolCall.inputAvailable = true;
+
+          controller.enqueue({
+            type: "tool-call",
+            toolCallId,
+            toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
+            input: JSON.stringify({
+              toolCallId,
+              toolName,
+              args: toolInput,
+            }),
+          });
+        }
+        // If inputAvailable is already true, ignore duplicate notifications
         break;
       }
 
@@ -729,20 +768,52 @@ export class ACPLanguageModel implements LanguageModelV2 {
         const { toolCallId, toolName, toolResult, isError, status } = this
           .parseToolResult(update);
 
-        if (!["completed", "failed"].includes(status)) {
-          // Ignore intermediate updates, ai sdk currently doesn't support streaming tool results,
-          // see -> https://github.com/vercel/ai/issues/9306
+        let toolInfo = this.toolCallsMap.get(toolCallId);
+
+        // On in_progress: emit tool-call if we haven't already
+        // This handles cases where rawInput is legitimately empty ({})
+        // or where the tool_call notifications were missed
+        if (status === "in_progress") {
+          if (!toolInfo) {
+            // First time seeing this toolCallId
+            toolInfo = {
+              index: this.toolCallsMap.size,
+              name: toolName,
+              inputStarted: true,
+              inputAvailable: true,
+            };
+            this.toolCallsMap.set(toolCallId, toolInfo);
+            controller.enqueue({
+              type: "tool-input-start",
+              id: toolCallId,
+              toolName,
+            });
+          }
+
+          if (!toolInfo.inputAvailable) {
+            // Tool is executing, so input is now available (even if empty)
+            toolInfo.inputAvailable = true;
+            controller.enqueue({
+              type: "tool-call",
+              toolCallId,
+              toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
+              input: JSON.stringify({ toolCallId, toolName, args: {} }),
+            });
+          }
           break;
         }
 
-        let toolInfo = this.toolCallsMap.get(toolCallId);
+        if (!["completed", "failed"].includes(status)) {
+          // Ignore other intermediate statuses (e.g., pending)
+          break;
+        }
 
         if (!toolInfo) {
-          // This can happen if the 'tool_call' notification was missed or
-          // came after the update. We enqueue a 'tool-call' part now.
+          // This can happen if all tool_call/in_progress notifications were missed
           toolInfo = {
             index: this.toolCallsMap.size,
             name: toolName,
+            inputAvailable: true,
           };
           this.toolCallsMap.set(toolCallId, toolInfo);
           controller.enqueue({
@@ -750,6 +821,15 @@ export class ACPLanguageModel implements LanguageModelV2 {
             toolCallId,
             toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
             input: JSON.stringify({ toolCallId, toolName }), // Note: input args are missing
+          });
+        } else if (!toolInfo.inputAvailable) {
+          // We got tool-input-start but tool-call was never emitted
+          toolInfo.inputAvailable = true;
+          controller.enqueue({
+            type: "tool-call",
+            toolCallId,
+            toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
+            input: JSON.stringify({ toolCallId, toolName, args: {} }),
           });
         }
 

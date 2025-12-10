@@ -36,6 +36,9 @@ async function main() {
 
   try {
     const { textStream, steps } = streamText({
+      onChunk: ({ chunk }) => {
+        console.log(JSON.stringify(chunk));
+      },
       model: provider.languageModel(
         process.env.ACP_MODEL,
         process.env.ACP_MODE,
