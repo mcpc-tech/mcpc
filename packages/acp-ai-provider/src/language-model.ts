@@ -9,7 +9,6 @@ import type {
 import {
   type Client,
   ClientSideConnection,
-  type ContentBlock,
   type InitializeRequest,
   ndJsonStream,
   type NewSessionResponse,
@@ -31,13 +30,9 @@ import type { ACPProviderSettings } from "./types.ts";
 import type { Tool, tool } from "ai";
 import z from "zod";
 import { formatToolError } from "./format-tool-error.ts";
-import { extractBase64Data } from "./utils.ts";
 import { ToolProxyHost } from "./tool-proxy/mod.ts";
-import {
-  getACPDynamicTool,
-  getExecuteByName,
-  hasRegisteredExecute,
-} from "./acp-tool.ts";
+import { getACPDynamicTool } from "./acp-tool.ts";
+import { convertAiSdkMessagesToAcp, extractACPTools } from "./convert-utils.ts";
 
 /**
  * The name of the provider tool used to represent ACP agent tool calls.
@@ -147,6 +142,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
   private client: ACPAISDKClient | null = null;
   private currentModelId: string | null = null;
   private currentModeId: string | null = null;
+  private isFreshSession = true;
 
   // State for managing stream conversion
   private textBlockIndex = 0;
@@ -242,59 +238,6 @@ export class ACPLanguageModel implements LanguageModelV2 {
    * When session exists, only extracts the last user message (history is in session).
    * Prefixes text with role since ACP ContentBlock has no role field.
    */
-  private getPromptContent(
-    options: LanguageModelV2CallOptions,
-  ): ContentBlock[] {
-    // With persistent session, only send the latest user message
-    const messages = this.sessionId
-      ? options.prompt.filter((m) => m.role === "user").slice(-1)
-      : options.prompt;
-
-    const contentBlocks: ContentBlock[] = [];
-
-    for (const msg of messages) {
-      // Skip tool role - ACP handles tool results internally
-      if (msg.role === "tool") continue;
-
-      // Prefix to identify role since ACP has no role field
-      const prefix = msg.role === "system"
-        ? "System: "
-        : msg.role === "assistant"
-        ? "Assistant: "
-        : "";
-
-      if (Array.isArray(msg.content)) {
-        let isFirst = true;
-        for (const part of msg.content) {
-          if (part.type === "text") {
-            const text = isFirst ? `${prefix}${part.text} ` : part.text;
-            contentBlocks.push({ type: "text" as const, text });
-            isFirst = false;
-          } else if (part.type === "file" && typeof part.data === "string") {
-            const type = part.mediaType.startsWith("image/")
-              ? "image"
-              : part.mediaType.startsWith("audio/")
-              ? "audio"
-              : null;
-            if (type) {
-              contentBlocks.push({
-                type,
-                mimeType: part.mediaType,
-                data: extractBase64Data(part.data),
-              });
-            }
-          }
-        }
-      } else if (typeof msg.content === "string") {
-        contentBlocks.push({
-          type: "text" as const,
-          text: `${prefix}${msg.content} `,
-        });
-      }
-    }
-
-    return contentBlocks;
-  }
 
   /**
    * Ensures the ACP agent process is running and a session is established.
@@ -426,6 +369,8 @@ export class ACPLanguageModel implements LanguageModelV2 {
         mcpServers,
       });
       this.sessionId = this.sessionResponse.sessionId;
+      // Treat as fresh since we are establishing a new session.
+      this.isFreshSession = true;
 
       await this.applySessionDelay();
       return;
@@ -449,6 +394,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
       });
       this.sessionId = this.config.existingSessionId;
       this.sessionResponse = { sessionId: this.config.existingSessionId };
+      this.isFreshSession = false;
     } else {
       this.sessionResponse = await this.connection.newSession({
         ...this.config.session,
@@ -456,6 +402,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         mcpServers,
       });
       this.sessionId = this.sessionResponse.sessionId;
+      this.isFreshSession = true;
     }
 
     // Init models/modes after session creation
@@ -866,8 +813,16 @@ export class ACPLanguageModel implements LanguageModelV2 {
   }> {
     try {
       await this.ensureConnected();
-
-      const promptContent = this.getPromptContent(options);
+      /*
+        If we just created the session (isFreshSession=true), we send full prompt.
+        If we reused it, we send filtered prompt.
+        After sending, we are no longer "fresh" for subsequent calls on this instance.
+      */
+      const promptContent = convertAiSdkMessagesToAcp(
+        options,
+        this.isFreshSession,
+      );
+      this.isFreshSession = false;
 
       let accumulatedText = "";
       const toolCalls: Array<{
@@ -998,42 +953,21 @@ export class ACPLanguageModel implements LanguageModelV2 {
   }> {
     // IMPORTANT: Extract and register ACP tools BEFORE ensureConnected
     // This ensures Tool Proxy can discover them when it starts
-    const acpTools: Array<Tool<any, any> & { name: string }> = [];
-
-    // Check options.tools for ACP tools with registered execute
-    if (options.tools) {
-      for (const t of options.tools) {
-        if (t.type === "function") {
-          // AI SDK internally converts parameters to inputSchema
-          const toolWithSchema = t as Record<string, unknown>;
-          const toolInputSchema = toolWithSchema.inputSchema as
-            | Record<
-              string,
-              unknown
-            >
-            | undefined;
-
-          // Check if this tool has a registered execute (by name)
-          if (hasRegisteredExecute(t.name) && toolInputSchema) {
-            const execute = getExecuteByName(t.name);
-            if (execute) {
-              // Add name to Tool for internal tracking
-              acpTools.push(
-                {
-                  ...t,
-                  name: t.name,
-                  execute,
-                } as unknown as Tool<any, any> & { name: string },
-              );
-            }
-          }
-        }
-      }
-    }
+    const acpTools = extractACPTools(options.tools);
 
     // Now connect with the registered tools
     await this.ensureConnected(acpTools.length > 0 ? acpTools : undefined);
-    const promptContent = this.getPromptContent(options);
+
+    /*
+      If we just created the session (isFreshSession=true), we send full prompt.
+      If we reused it, we send filtered prompt.
+      After sending, we are no longer "fresh" for subsequent calls on this instance.
+    */
+    const promptContent = convertAiSdkMessagesToAcp(
+      options,
+      this.isFreshSession,
+    );
+    this.isFreshSession = false;
 
     const connection = this.connection!;
     const sessionId = this.sessionId!;
