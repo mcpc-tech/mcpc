@@ -40,13 +40,22 @@ async function main() {
         process.env.ACP_MODEL,
         process.env.ACP_MODE,
       ),
+      onChunk: (chunk) => {
+        if (chunk.chunk.type === "tool-call") {
+          console.log(`[tool-call] ${JSON.stringify(chunk.chunk, null, 2)}`);
+        }
+        if (chunk.chunk.type === "tool-result") {
+          console.log(`[tool-result] ${JSON.stringify(chunk.chunk, null, 2)}`);
+        }
+      },
       prompt,
       // acpTools() automatically includes provider dynamic tool
       tools: acpTools({
         greet: tool({
-          description: "Greet a person by name",
+          description: "Greet a person by name, name is Alice",
           inputSchema: greetSchema,
           execute: ({ name }: z.infer<typeof greetSchema>) => {
+            console.log(`Greeting ${name}`);
             return `Hello, ${name}! Welcome to the ACP tool proxy demo.`;
           },
         }),

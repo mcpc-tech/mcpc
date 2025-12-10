@@ -28,38 +28,16 @@ import { type ChildProcess, spawn } from "node:child_process";
 import process from "node:process";
 import { Readable, Writable } from "node:stream";
 import type { ACPProviderSettings } from "./types.ts";
-import type { Tool, tool } from "ai";
-import z from "zod";
+import type { Tool } from "ai";
+
 import { formatToolError } from "./format-tool-error.ts";
 import { extractBase64Data } from "./utils.ts";
 import { ToolProxyHost } from "./tool-proxy/mod.ts";
 import {
-  getACPDynamicTool,
   getExecuteByName,
   hasRegisteredExecute,
+  resolveToolName,
 } from "./acp-tool.ts";
-
-/**
- * The name of the provider tool used to represent ACP agent tool calls.
- */
-export const ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME =
-  "acp.acp_provider_agent_dynamic_tool";
-
-export type ProviderAgentDynamicToolInput = {
-  toolCallId: string;
-  toolName: string;
-  args: Record<string, unknown>;
-};
-
-export const providerAgentDynamicToolSchema: z.ZodType<
-  ProviderAgentDynamicToolInput
-> = z.object({
-  toolCallId: z.string().describe("The unique ID of the tool call."),
-  toolName: z.string().describe("The name of the tool being called."),
-  args: z
-    .record(z.unknown())
-    .describe("The input arguments for the tool call."),
-});
 
 /**
  * Implements the ACP client-side logic for handling file operations and permissions.
@@ -192,7 +170,8 @@ export class ACPLanguageModel implements LanguageModelV2 {
     }
 
     const toolCallId = update.toolCallId;
-    const toolName = update.title || update.toolCallId;
+    const rawToolName = update.title || update.toolCallId;
+    const toolName = resolveToolName(rawToolName);
     let toolInput: unknown = {};
     if (update.content && update.content.length > 0) {
       toolInput = update.content;
@@ -216,7 +195,8 @@ export class ACPLanguageModel implements LanguageModelV2 {
       throw new Error("Invalid update type for parseToolResult");
     }
     const toolCallId = update.toolCallId;
-    const toolName = update.title || update.toolCallId;
+    const rawToolName = update.title || update.toolCallId;
+    const toolName = resolveToolName(rawToolName);
     let toolResult: unknown = null;
     if (update.content && update.content.length > 0) {
       toolResult = update.content;
@@ -705,17 +685,12 @@ export class ACPLanguageModel implements LanguageModelV2 {
 
         const { toolCallId, toolName, toolInput } = this.parseToolCall(update);
 
-        // We tell the AI SDK to call our "dynamic tool", passing the
-        // *actual* tool info inside the input.
+        // Emit tool call with actual tool name
         controller.enqueue({
           type: "tool-call",
           toolCallId,
-          toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
-          input: JSON.stringify({
-            toolCallId,
-            toolName,
-            args: toolInput,
-          }),
+          toolName,
+          input: JSON.stringify(toolInput),
         });
 
         this.toolCallsMap.set(toolCallId, {
@@ -745,11 +720,12 @@ export class ACPLanguageModel implements LanguageModelV2 {
             name: toolName,
           };
           this.toolCallsMap.set(toolCallId, toolInfo);
+          // TODO: handle tool call update
           controller.enqueue({
             type: "tool-call",
             toolCallId,
-            toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
-            input: JSON.stringify({ toolCallId, toolName }), // Note: input args are missing
+            toolName,
+            input: JSON.stringify({}), // Note: input args are missing
           });
         }
 
@@ -757,7 +733,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         controller.enqueue({
           type: "tool-result",
           toolCallId,
-          toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
+          toolName,
           result: toolResult,
           providerExecuted: true,
           // https://github.com/vercel/ai/blob/282f062922cb59167dd3a11e3af67cfa0b75f317/packages/ai/src/generate-text/run-tools-transformation.ts#L316
@@ -810,13 +786,12 @@ export class ACPLanguageModel implements LanguageModelV2 {
               break;
 
             case "tool-call": {
-              // handleStreamNotification maps the real tool to ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME
-              // and puts the real info in the 'input' JSON string.
+              // Tool call now uses actual tool name directly
               const inputData = JSON.parse(part.input as string);
               toolCalls.push({
                 id: part.toolCallId,
-                name: inputData.toolName, // The *real* tool name
-                input: inputData.args,
+                name: part.toolName,
+                input: inputData,
               });
               break;
             }
@@ -1013,9 +988,5 @@ export class ACPLanguageModel implements LanguageModelV2 {
     });
 
     return { stream, warnings: [] as LanguageModelV2CallWarning[] };
-  }
-
-  get tools(): Record<string, ReturnType<typeof tool>> {
-    return getACPDynamicTool();
   }
 }
