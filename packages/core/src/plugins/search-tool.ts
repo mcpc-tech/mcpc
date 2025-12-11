@@ -27,6 +27,8 @@ export interface SearchOptions {
   caseSensitive?: boolean;
   /** Search timeout in milliseconds (default: 30000) */
   timeoutMs?: number;
+  /** Custom description for the search tool (overrides default) */
+  toolDescription?: string;
 }
 
 /**
@@ -47,11 +49,15 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
     version: "1.0.0",
 
     configureServer: (server) => {
+      const defaultDescription =
+        `Search for text patterns in files and directories. Use this to find specific content, code, or information within files. Provide a simple literal string or a regular expression. If your pattern is a regex, ensure it's valid; otherwise use quotes or escape special characters to treat it as a literal string.
+Only search within the allowed directory: ${allowedSearchDir}`;
+      const toolDescription = options.toolDescription || defaultDescription;
+
       // Register the search tool once during plugin initialization
       server.tool(
         "search-tool-result",
-        `Search for text patterns in files and directories. Use this to find specific content, code, or information within files. Provide a simple literal string or a regular expression. If your pattern is a regex, ensure it's valid; otherwise use quotes or escape special characters to treat it as a literal string.
-Only search within the allowed directory: ${allowedSearchDir}`,
+        toolDescription,
         jsonSchema<{ pattern: string; path?: string; maxResults?: number }>({
           type: "object",
           properties: {

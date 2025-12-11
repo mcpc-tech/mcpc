@@ -7,6 +7,7 @@ import { createLogger, type MCPLogger } from "../../utils/logger.ts";
 import { validateSchema } from "../../utils/schema-validator.ts";
 import type { Span } from "@opentelemetry/api";
 import { endSpan, initializeTracing, startSpan } from "../../utils/tracing.ts";
+import { createModelCompatibleJSONSchema } from "../../utils/common/provider.ts";
 
 export interface ConversationMessage {
   role: "user" | "assistant";
@@ -542,7 +543,9 @@ VALID: {"key":"value"}`,
       prompt != null && prompt.length > 0 ? prompt : undefined,
       prompt != null && prompt.length > 0 ? "" : undefined, // add a newline if prompt is not null
       schemaPrefix,
-      schema != null ? JSON.stringify(schema, null, 2) : undefined,
+      schema != null
+        ? JSON.stringify(createModelCompatibleJSONSchema(schema), null, 2)
+        : undefined,
       schemaSuffix,
     ]
       .filter((line) => line != null)

@@ -30,9 +30,17 @@ export function createLargeResultPlugin(
   // Use Map to track configured servers by reference
   const configuredServers = new Map<object, boolean>();
 
+  const defaultSearchDescription =
+    `Search within large tool result files that were saved due to size limits. ` +
+    `Use when: a tool result was saved to file because it exceeded the context limit. ` +
+    `Do NOT use this tool before calling the actual tool first. ` +
+    `Provide specific keywords or patterns related to the content you're looking for.`;
+
   const searchConfig: SearchOptions = {
     maxResults: options.search?.maxResults || 15,
     maxOutputSize: options.search?.maxOutputSize || 4000,
+    toolDescription: options.search?.toolDescription ||
+      defaultSearchDescription,
     global: true,
   };
 
