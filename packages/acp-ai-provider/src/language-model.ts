@@ -713,10 +713,6 @@ export class ACPLanguageModel implements LanguageModelV2 {
       }
 
       case "tool_call_update": {
-        console.log(
-          `###[acp-ai-provider] tool_call_update received:`,
-          JSON.stringify(update, null, 2),
-        );
         const { toolCallId, toolName, toolResult, isError, status } = this
           .parseToolResult(update);
 
