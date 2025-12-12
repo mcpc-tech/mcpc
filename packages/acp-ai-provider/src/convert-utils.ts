@@ -36,6 +36,12 @@ export function convertAiSdkMessagesToAcp(
           const text = isFirst ? `${prefix}${part.text} ` : part.text;
           contentBlocks.push({ type: "text" as const, text });
           isFirst = false;
+        } else if (part.type === "tool-call") {
+          // Convert tool-call to text representation for ACP
+          const toolCallText = `[Tool Call: ${part.toolName}(${JSON.stringify(part.input)})]`;
+          const text = isFirst ? `${prefix}${toolCallText} ` : toolCallText;
+          contentBlocks.push({ type: "text" as const, text });
+          isFirst = false;
         } else if (part.type === "tool-result") {
           const resultText = JSON.stringify((part as any).result);
           const text = isFirst ? `${prefix}${resultText} ` : resultText;
