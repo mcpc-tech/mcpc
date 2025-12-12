@@ -45,7 +45,9 @@ export function convertAiSdkMessagesToAcp(
           contentBlocks.push({ type: "text" as const, text });
           isFirst = false;
         } else if (part.type === "tool-result") {
-          const resultText = JSON.stringify((part as any).result);
+          // Handle both 'result' and 'output' properties (AI SDK uses different formats)
+          const resultData = (part as any).result ?? (part as any).output;
+          const resultText = JSON.stringify(resultData) ?? "null";
           const text = isFirst ? `${prefix}${resultText} ` : resultText;
           contentBlocks.push({ type: "text" as const, text });
           isFirst = false;
