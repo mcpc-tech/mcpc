@@ -12,7 +12,6 @@ const provider = createACPProvider({
     cwd: process.cwd(),
     mcpServers: [],
   },
-  persistSession: true,
 });
 
 // Define tool schemas

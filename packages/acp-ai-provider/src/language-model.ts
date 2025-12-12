@@ -222,7 +222,8 @@ export class ACPLanguageModel implements LanguageModelV2 {
     const toolName = update.title || update.toolCallId;
     // rawOutput contains the actual tool result
     // content is for UI display (terminals, diffs, text) and should not be used as result
-    const toolResult = update.rawOutput ?? null;
+    // caveat: rawOutput may be undefined for some agents
+    const toolResult = update.rawOutput ?? update.content ?? null;
     const isError = update.status === "failed";
     return {
       toolCallId,
@@ -712,6 +713,10 @@ export class ACPLanguageModel implements LanguageModelV2 {
       }
 
       case "tool_call_update": {
+        console.log(
+          `###[acp-ai-provider] tool_call_update received:`,
+          JSON.stringify(update, null, 2),
+        );
         const { toolCallId, toolName, toolResult, isError, status } = this
           .parseToolResult(update);
 
