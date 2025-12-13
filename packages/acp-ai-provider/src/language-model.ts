@@ -348,24 +348,36 @@ export class ACPLanguageModel implements LanguageModelV2 {
     const mcpServers = [...(this.config.session?.mcpServers ?? [])];
     let toolsAdded = false;
 
+    console.log(
+      `[acp-ai-provider] startSession check: hasProxy=${!!this
+        .toolProxyHost}, hasSession=${!!this.sessionId}`,
+    );
+
     // Set up tool proxy if tools are present and proxy doesn't exist
     if (acpTools && acpTools.length > 0 && !this.toolProxyHost) {
       console.log(
         "[acp-ai-provider] Setting up tool proxy for client-side tools...",
+        acpTools.map((t) => t.name),
       );
       this.toolProxyHost = new ToolProxyHost("acp-ai-sdk-tools");
       for (const t of acpTools) {
         this.toolProxyHost.registerTool(t.name, t);
       }
+      toolsAdded = true;
+    }
+
+    // Always include proxy config if host is initialized
+    // This starts the server if needed and ensures we don't drop the proxy when updating session
+    if (this.toolProxyHost) {
       const proxyConfig = await this.toolProxyHost.start();
       mcpServers.push(proxyConfig);
-      toolsAdded = true;
     }
 
     // Check if we need to update existing session (e.g. to enable tools)
     if (this.sessionId && toolsAdded) {
       console.log(
         "[acp-ai-provider] Updating session to include new tools...",
+        JSON.stringify(mcpServers, null, 2),
       );
 
       this.sessionResponse = await this.connection.newSession({
@@ -383,8 +395,16 @@ export class ACPLanguageModel implements LanguageModelV2 {
 
     // If session already exists and we didn't just update it, do nothing
     if (this.sessionId) {
+      console.log(
+        "[acp-ai-provider] Session exists and no tools added, skipping setup",
+      );
       return;
     }
+
+    console.log(
+      "[acp-ai-provider] Starting fresh session with servers:",
+      JSON.stringify(mcpServers, null, 2),
+    );
 
     // Start a fresh session
     if (this.config.existingSessionId) {

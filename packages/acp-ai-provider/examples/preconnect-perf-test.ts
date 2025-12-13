@@ -67,7 +67,12 @@ async function runScenario(
         process.env.ACP_MODEL,
         process.env.ACP_MODE,
       ),
-      prompt: "What is 123 + 456?",
+      onChunk: ({ chunk }) => {
+        if (chunk.type === "tool-call") {
+          console.log(chunk);
+        }
+      },
+      prompt: "Use the calculate tool to calculate 123 + 456.",
       tools: testTools,
     });
 

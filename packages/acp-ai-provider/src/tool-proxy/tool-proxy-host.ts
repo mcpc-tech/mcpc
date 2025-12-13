@@ -95,14 +95,18 @@ export class ToolProxyHost {
    * Start TCP server and return MCP server config for ACP
    */
   async start(): Promise<MCPServerConfig> {
-    if (this.server) {
-      throw new Error("Tool proxy already started");
+    if (!this.server) {
+      // Create TCP server for runtime callbacks if not started
+      await this.startServer();
     }
 
-    // Create TCP server for runtime callbacks
-    await this.startServer();
+    return this.getServerConfig();
+  }
 
-    // Return MCP server config that ACP can use
+  /**
+   * Get MCP server configuration
+   */
+  private getServerConfig(): MCPServerConfig {
     // Uses node -e with inline runtime code
     // NO TOOLS passed in env - runtime will fetch them via TCP
     return {
@@ -147,7 +151,7 @@ export class ToolProxyHost {
    * Handle incoming connection from runtime
    */
   private handleConnection(socket: Socket): void {
-    // console.log("[ToolProxy] Runtime connected");
+    console.log("[ToolProxy] Runtime connected");
     this.connections.push(socket);
 
     let buffer = "";
@@ -172,7 +176,7 @@ export class ToolProxyHost {
     });
 
     socket.on("close", () => {
-      // console.log("[ToolProxy] Runtime disconnected");
+      console.log("[ToolProxy] Runtime disconnected");
       this.connections = this.connections.filter((c) => c !== socket);
     });
 
@@ -218,7 +222,7 @@ export class ToolProxyHost {
         }
 
         // Execute the tool on host side (Tool.execute expects args and options)
-        // console.log(`[ToolProxy] Executing tool: ${params.name}`, params.args);
+        console.log(`[ToolProxy] Executing tool: ${params.name}`, params.args);
         const result = await tool.execute?.(params.args, {
           toolCallId: params.name,
           messages: [],
@@ -239,9 +243,15 @@ export class ToolProxyHost {
         this.sendResponse(socket, createResponse(request.id, toolResult));
       } else if (request.method === "getTools") {
         // New handler for fetching tools via TCP
+        console.log("[ToolProxy] Received getTools request");
+        const definitions = this.getToolDefinitions();
+        console.log(
+          "[ToolProxy] Returning tools:",
+          definitions.map((t) => t.name),
+        );
         this.sendResponse(
           socket,
-          createResponse(request.id, this.getToolDefinitions()),
+          createResponse(request.id, definitions),
         );
       } else {
         this.sendResponse(
