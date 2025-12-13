@@ -3,7 +3,7 @@
  */
 
 import { ACPLanguageModel } from "./language-model.ts";
-import type { Tool, tool } from "ai";
+import type { tool } from "ai";
 import type { ACPProviderSettings } from "./types.ts";
 import type { NewSessionResponse } from "@agentclientprotocol/sdk";
 
@@ -66,14 +66,12 @@ export class ACPProvider {
    * Call this before prompting to discover available options.
    */
   initSession(
-    acpTools?:
-      | (Array<Tool<any, any> & { name: string }>)
-      | Record<string, Tool<any, any>>,
+    tools?: Parameters<ACPLanguageModel["initSession"]>[0],
   ): Promise<NewSessionResponse> {
     if (!this.model) {
       this.languageModel();
     }
-    return this.model!.initSession(acpTools);
+    return this.model!.initSession(tools);
   }
 
   /**

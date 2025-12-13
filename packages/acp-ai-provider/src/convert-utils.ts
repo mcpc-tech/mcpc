@@ -77,14 +77,19 @@ export function convertAiSdkMessagesToAcp(
   return contentBlocks;
 }
 
+/** Input type for tools - matches streamText's tools parameter */
+export type ToolsInput =
+  | LanguageModelV2CallOptions["tools"]
+  | Record<string, Tool<any, any>>;
+
 /**
  * Extracts ACP tools from the provided options that have a registered execution handler.
  * These tools will be proxied to the agent.
  *
- * @param tools - The tools array from the language model options
+ * @param tools - Tools in either array or Record format (matches streamText's tools param)
  */
 export function extractACPTools(
-  tools?: LanguageModelV2CallOptions["tools"],
+  tools?: ToolsInput,
 ): Array<Tool<any, any> & { name: string }> {
   const acpTools: Array<Tool<any, any> & { name: string }> = [];
 
@@ -92,7 +97,16 @@ export function extractACPTools(
     return acpTools;
   }
 
-  for (const t of tools) {
+  // Convert Record<string, Tool> to array format if needed
+  const toolsArray = Array.isArray(tools)
+    ? tools
+    : Object.entries(tools).map(([name, tool]) => ({
+      type: "function" as const,
+      name,
+      ...tool,
+    }));
+
+  for (const t of toolsArray) {
     if (t.type === "function") {
       // AI SDK internally converts parameters to inputSchema
       // LanguageModelV2CallTool has `name` property

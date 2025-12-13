@@ -32,7 +32,11 @@ import z from "zod";
 import { formatToolError } from "./format-tool-error.ts";
 import { ToolProxyHost } from "./tool-proxy/mod.ts";
 import { getACPDynamicTool } from "./acp-tool.ts";
-import { convertAiSdkMessagesToAcp, extractACPTools } from "./convert-utils.ts";
+import {
+  convertAiSdkMessagesToAcp,
+  extractACPTools,
+  type ToolsInput,
+} from "./convert-utils.ts";
 
 /**
  * The name of the provider tool used to represent ACP agent tool calls.
@@ -479,25 +483,12 @@ export class ACPLanguageModel implements LanguageModelV2 {
    * @param acpTools - Optional list of tools to register during session initialization.
    */
   async initSession(
-    acpTools?:
-      | (Array<Tool<any, any> & { name: string }>)
-      | Record<string, Tool<any, any>>,
+    tools?: ToolsInput,
   ): Promise<NewSessionResponse> {
-    let toolsArray: Array<Tool<any, any> & { name: string }> = [];
+    // This ensures tools have registered execute handlers attached
+    const acpTools = extractACPTools(tools);
 
-    if (acpTools) {
-      if (Array.isArray(acpTools)) {
-        toolsArray = acpTools;
-      } else {
-        // Convert Record to Array
-        toolsArray = Object.entries(acpTools).map(([name, tool]) => ({
-          ...tool,
-          name,
-        })) as Array<Tool<any, any> & { name: string }>;
-      }
-    }
-
-    await this.ensureConnected(toolsArray);
+    await this.ensureConnected(acpTools.length > 0 ? acpTools : undefined);
     return this.sessionResponse!;
   }
 
