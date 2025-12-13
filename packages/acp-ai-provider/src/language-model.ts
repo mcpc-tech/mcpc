@@ -108,19 +108,11 @@ export class ACPAISDKClient implements Client {
     };
   }
 
-  writeTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
-    console.log(
-      "[acp-ai-provider] Write file request (not implemented):",
-      params.path,
-    );
+  writeTextFile(_params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
     throw new Error("File operations not implemented in language model client");
   }
 
-  readTextFile(params: ReadTextFileRequest): Promise<ReadTextFileResponse> {
-    console.log(
-      "[acp-ai-provider] Read file request (not implemented):",
-      params.path,
-    );
+  readTextFile(_params: ReadTextFileRequest): Promise<ReadTextFileResponse> {
     throw new Error("File operations not implemented in language model client");
   }
 }
@@ -321,10 +313,6 @@ export class ACPLanguageModel implements LanguageModelV2 {
             initResult.authMethods?.[0].id!,
         });
       }
-    } else {
-      console.log(
-        `[acp-ai-provider] No authentication methods required by the ACP agent, skipping authentication step.`,
-      );
     }
   }
 
@@ -338,20 +326,10 @@ export class ACPLanguageModel implements LanguageModelV2 {
     if (!this.connection) {
       throw new Error("Not connected");
     }
-    console.log(
-      `[acp-ai-provider] startSession called with ${
-        acpTools?.length ?? 0
-      } tools`,
-    );
 
     // Prepare MCP servers list foundation
     const mcpServers = [...(this.config.session?.mcpServers ?? [])];
     let toolsAdded = false;
-
-    console.log(
-      `[acp-ai-provider] startSession check: hasProxy=${!!this
-        .toolProxyHost}, hasSession=${!!this.sessionId}`,
-    );
 
     // Set up tool proxy if tools are present and proxy doesn't exist
     if (acpTools && acpTools.length > 0 && !this.toolProxyHost) {
@@ -375,11 +353,6 @@ export class ACPLanguageModel implements LanguageModelV2 {
 
     // Check if we need to update existing session (e.g. to enable tools)
     if (this.sessionId && toolsAdded) {
-      console.log(
-        "[acp-ai-provider] Updating session to include new tools...",
-        JSON.stringify(mcpServers, null, 2),
-      );
-
       this.sessionResponse = await this.connection.newSession({
         ...this.config.session,
         cwd: this.config.session?.cwd ?? process.cwd(),
@@ -395,16 +368,8 @@ export class ACPLanguageModel implements LanguageModelV2 {
 
     // If session already exists and we didn't just update it, do nothing
     if (this.sessionId) {
-      console.log(
-        "[acp-ai-provider] Session exists and no tools added, skipping setup",
-      );
       return;
     }
-
-    console.log(
-      "[acp-ai-provider] Starting fresh session with servers:",
-      JSON.stringify(mcpServers, null, 2),
-    );
 
     // Start a fresh session
     if (this.config.existingSessionId) {
@@ -458,7 +423,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
   private async applySessionDelay() {
     if (this.config.sessionDelayMs) {
       console.log(
-        `[acp-ai-provider] Waiting for ${this.config.sessionDelayMs}ms after session setup...`,
+        `[acp-ai-provider] Waiting ${this.config.sessionDelayMs}ms after session setup...`,
       );
       await new Promise((resolve) =>
         setTimeout(resolve, this.config.sessionDelayMs)
@@ -506,7 +471,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
     tools?: ToolsInput,
   ): Promise<NewSessionResponse> {
     // This ensures tools have registered execute handlers attached
-    const acpTools = extractACPTools(tools);
+    const acpTools = extractACPTools(tools, false);
 
     await this.ensureConnected(acpTools.length > 0 ? acpTools : undefined);
     return this.sessionResponse!;

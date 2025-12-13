@@ -1,7 +1,6 @@
 import { createACPProvider } from "../src/provider.ts";
 import { acpTools } from "../src/acp-tool.ts";
-import { streamText, tool } from "ai";
-import { z } from "zod";
+import { jsonSchema, streamText, tool } from "ai";
 import process from "node:process";
 
 // Helper to run a test scenario
@@ -25,16 +24,30 @@ async function runScenario(
   let ttft = "N/A";
 
   const testTools = acpTools({
+    // calculate: tool({
+    //   description: "Add two numbers",
+    //   inputSchema: z.object({
+    //     a: z.number(),
+    //     b: z.number(),
+    //   }),
+    //   execute: ({ a, b }: { a: number; b: number }) => {
+    //     return (a + b).toString();
+    //   },
+    // }),
     calculate: tool({
       description: "Add two numbers",
-      inputSchema: z.object({
-        a: z.number(),
-        b: z.number(),
+      inputSchema: jsonSchema({
+        type: "object",
+        properties: {
+          a: { type: "number" },
+          b: { type: "number" },
+        },
+        required: ["a", "b"],
       }),
       execute: ({ a, b }: { a: number; b: number }) => {
         return (a + b).toString();
       },
-    }) as any,
+    }),
   });
 
   try {
@@ -103,20 +116,20 @@ async function main() {
 
   // Warmup run (ignored)
   console.log("Warmup run...");
-  await runScenario("Warmup", false);
+  // await runScenario("Warmup", false);
   console.log("Warmup complete.\n");
 
-  // Run without pre-connect (Baseline)
-  results.push({
-    scenario: "Without Pre-connect (Baseline)",
-    ...(await runScenario("Without Pre-connect (Baseline)", false)),
-  });
+  // // Run without pre-connect (Baseline)
+  // results.push({
+  //   scenario: "Without Pre-connect (Baseline)",
+  //   ...(await runScenario("Without Pre-connect (Baseline)", false)),
+  // });
 
-  // Run with pre-connect (Optimized user latency)
-  results.push({
-    scenario: "With Pre-connect (Optimized)",
-    ...(await runScenario("With Pre-connect (Optimized)", true)),
-  });
+  // // Run with pre-connect (Optimized user latency)
+  // results.push({
+  //   scenario: "With Pre-connect (Optimized)",
+  //   ...(await runScenario("With Pre-connect (Optimized)", true)),
+  // });
 
   // Run with pre-session (Pre-warm session)
   results.push({

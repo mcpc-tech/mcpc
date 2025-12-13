@@ -1,7 +1,7 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type { LanguageModelV2CallOptions } from "@ai-sdk/provider";
 import { extractBase64Data } from "./utils.ts";
-import type { Tool } from "ai";
+import { asSchema, type Tool } from "ai";
 import { getExecuteByName, hasRegisteredExecute } from "./acp-tool.ts";
 
 /**
@@ -87,9 +87,12 @@ export type ToolsInput =
  * These tools will be proxied to the agent.
  *
  * @param tools - Tools in either array or Record format (matches streamText's tools param)
+ * @param prepared - Whether the schema has been converted to a prepared format.
+ * If tools go through streamText's transformation, they are prepared.
  */
 export function extractACPTools(
   tools?: ToolsInput,
+  prepared = true,
 ): Array<Tool<any, any> & { name: string }> {
   const acpTools: Array<Tool<any, any> & { name: string }> = [];
 
@@ -124,8 +127,11 @@ export function extractACPTools(
             {
               ...t,
               name: t.name,
+              inputSchema: prepared
+                ? toolInputSchema
+                : asSchema(toolInputSchema as any).jsonSchema,
               execute,
-            } as unknown as Tool<any, any> & { name: string },
+            } as Tool<any, any> & { name: string },
           );
         }
       }

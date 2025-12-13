@@ -38,7 +38,7 @@ const tools = acpTools({
   get_time: tool({
     description: "Get the current time",
     inputSchema: getTimeSchema,
-    execute: ({ timezone }: z.infer<typeof getTimeSchema>) => {
+    execute: ({ timezone }) => {
       const now = new Date();
       if (timezone) {
         return now.toLocaleString("en-US", { timeZone: timezone });
@@ -49,7 +49,7 @@ const tools = acpTools({
   remember: tool({
     description: "Remember a value for later recall",
     inputSchema: rememberSchema,
-    execute: ({ key, value }: z.infer<typeof rememberSchema>) => {
+    execute: ({ key, value }) => {
       memory[key] = value;
       return `Remembered: ${key} = ${value}`;
     },
