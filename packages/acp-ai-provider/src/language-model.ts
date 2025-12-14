@@ -672,7 +672,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         } else if (!existingToolCall.inputAvailable && hasInput) {
           // We previously got tool-input-start, now we have the actual input
           existingToolCall.inputAvailable = true;
-          
+
           // Update the stored name if we now have a better one (title vs toolCallId)
           if (update.title && existingToolCall.name !== update.title) {
             existingToolCall.name = update.title;
@@ -722,17 +722,21 @@ export class ACPLanguageModel implements LanguageModelV2 {
           if (!toolInfo.inputAvailable) {
             // Tool is executing, so input is now available (even if empty)
             toolInfo.inputAvailable = true;
-            
+
             // Update the stored name if we now have a better one (title vs toolCallId)
             if (update.title && toolInfo.name !== update.title) {
               toolInfo.name = update.title;
             }
-            
+
             controller.enqueue({
               type: "tool-call",
               toolCallId,
               toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
-              input: JSON.stringify({ toolCallId, toolName: toolInfo.name, args: {} }),
+              input: JSON.stringify({
+                toolCallId,
+                toolName: toolInfo.name,
+                args: {},
+              }),
             });
           }
           break;
