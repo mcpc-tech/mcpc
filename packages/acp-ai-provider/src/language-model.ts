@@ -674,7 +674,10 @@ export class ACPLanguageModel implements LanguageModelV2 {
           existingToolCall.inputAvailable = true;
 
           // Update the stored name if we now have a better one (title vs toolCallId)
-          if (update.title && existingToolCall.name !== update.title) {
+          if (
+            update.title && existingToolCall.name !== update.title &&
+            update.title !== toolCallId
+          ) {
             existingToolCall.name = update.title;
           }
 
@@ -724,7 +727,10 @@ export class ACPLanguageModel implements LanguageModelV2 {
             toolInfo.inputAvailable = true;
 
             // Update the stored name if we now have a better one (title vs toolCallId)
-            if (update.title && toolInfo.name !== update.title) {
+            if (
+              update.title && toolInfo.name !== update.title &&
+              update.title !== toolCallId
+            ) {
               toolInfo.name = update.title;
             }
 
@@ -764,11 +770,24 @@ export class ACPLanguageModel implements LanguageModelV2 {
         } else if (!toolInfo.inputAvailable) {
           // We got tool-input-start but tool-call was never emitted
           toolInfo.inputAvailable = true;
+
+          // Update the stored name if we now have a better one (title vs toolCallId)
+          if (
+            update.title && toolInfo.name !== update.title &&
+            update.title !== toolCallId
+          ) {
+            toolInfo.name = update.title;
+          }
+
           controller.enqueue({
             type: "tool-call",
             toolCallId,
             toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
-            input: JSON.stringify({ toolCallId, toolName, args: {} }),
+            input: JSON.stringify({
+              toolCallId,
+              toolName: toolInfo.name,
+              args: {},
+            }),
           });
         }
 
