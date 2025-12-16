@@ -12,7 +12,7 @@ This package bridges ACP agents to the AI SDK. It spawns ACP agents (Claude
 Code, Gemini, Codex CLI, and more) as child processes and exposes them through
 the AI SDK's `LanguageModelV2` protocol.
 
-[Try a full stack web ACP example here](https://github.com/mcpc-tech/ai-elements-remix-template)
+[Try a full stack web ACP example here](https://github.com/mcpc-tech/dev-inspector-mcp)
 
 ## Installation
 
