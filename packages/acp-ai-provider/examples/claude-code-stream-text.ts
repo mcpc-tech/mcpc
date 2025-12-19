@@ -42,6 +42,7 @@ async function main() {
     const { toolCalls } = streamText({
       model,
       prompt,
+      tools: provider.tools,
       onChunk: (arg: any) => {
         const { chunk } = arg;
         logChunkToConsole(chunk);

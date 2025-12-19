@@ -49,6 +49,7 @@ const provider = createACPProvider({
 const result = await generateText({
   model: provider.languageModel(),
   prompt: "Hello, what can you help me with?",
+  tools: provider.tools,
 });
 
 console.log(result.text);
@@ -73,6 +74,7 @@ const provider = createACPProvider({
 const { textStream } = streamText({
   model: provider.languageModel(),
   prompt: "Write a simple Hello World program",
+  tools: provider.tools,
 });
 
 for await (const chunk of textStream) {
@@ -105,6 +107,7 @@ const provider = createACPProvider({
 const result = await generateText({
   model: provider.languageModel(),
   prompt: "List files in /tmp",
+  tools: provider.tools,
 });
 ```
 
@@ -239,7 +242,7 @@ So, to stream tool calls, pass the provider tools to the AI SDK:
 const result = await generateText({
   model: provider.languageModel(),
   prompt: "List files in /tmp",
-  tools: provider.tools(),
+  tools: provider.tools,
 });
 ```
 
@@ -253,6 +256,8 @@ export const providerAgentDynamicToolSchema = z.object({
   args: z.record(z.any()).describe("The input arguments for the tool call."),
 });
 ```
+
+You can import this constant using `ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME`.
 
 ## Limitations
 
