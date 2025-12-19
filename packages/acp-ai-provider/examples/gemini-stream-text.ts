@@ -5,13 +5,13 @@
  * using ACP mode through the AI SDK.
  *
  * Prerequisites:
- * - Install Gemini CLI (if not already installed)
+ * - Install Gemini CLI (if not already installed), and login gemini
  * - Run: gemini --experimental-acp
  *
  * Run with:
- * deno run --allow-all examples/stream-text.ts
+ * deno run --allow-all examples/gemini-stream-text.ts
  * or
- * npx tsx examples/stream-text.ts
+ * npx tsx examples/gemini-stream-text.ts
  */
 
 import { acpTools, createACPProvider } from "../mod.ts";
@@ -30,7 +30,6 @@ async function main() {
       cwd: process.cwd(),
       mcpServers: [],
     },
-    authMethodId: "gemini-api-key",
   });
 
   const prompt = process.env.PROMPT ??
@@ -38,31 +37,27 @@ async function main() {
 
   console.log({ prompt });
 
-  try {
-    const { toolCalls } = streamText({
-      model: provider.languageModel(),
-      prompt,
-      tools: acpTools({
-        hello: tool({
-          description: `Say hello`,
-          inputSchema: z.object({}),
-          execute: () => {
-            return `Hello`;
-          },
-        }),
+  const { toolCalls } = streamText({
+    model: provider.languageModel(),
+    prompt,
+    tools: acpTools({
+      hello: tool({
+        description: `Say hello`,
+        inputSchema: z.object({}),
+        execute: () => {
+          return `Hello`;
+        },
       }),
-      onChunk: (arg: any) => {
-        const { chunk } = arg;
-        logChunkToConsole(chunk);
-      },
-    });
+    }),
+    onChunk: (arg: any) => {
+      const { chunk } = arg;
+      logChunkToConsole(chunk);
+    },
+  });
 
-    console.log(
-      `Tool Calls: ${(await toolCalls).map((t) => t.toolName).join(", ")}`,
-    );
-  } finally {
-    provider.cleanup();
-  }
+  console.log(
+    `Tool Calls: ${(await toolCalls).map((t) => t.toolName).join(", ")}`,
+  );
 }
 
 main().catch((error) => {

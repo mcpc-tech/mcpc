@@ -4,14 +4,12 @@
  * This example demonstrates how to stream text responses from Gemini
  * using ACP mode through the AI SDK.
  *
- * Prerequisites:
- * - Install Gemini CLI (if not already installed)
- * - Run: gemini --experimental-acp
+ * Prerequisites: codex-acp
  *
  * Run with:
- * deno run --allow-all examples/stream-text.ts
+ * deno run --allow-all examples/codex-stream-text.ts
  * or
- * npx tsx examples/stream-text.ts
+ * npx tsx examples/codex-stream-text.ts
  */
 
 import { acpTools, createACPProvider } from "../mod.ts";
@@ -26,7 +24,6 @@ async function main() {
     env: {
       ...(process.env as Record<string, string>),
     },
-    authMethodId: "custom-model-provider",
     session: {
       cwd: process.cwd(),
       mcpServers: [],
@@ -38,24 +35,20 @@ async function main() {
 
   console.log({ prompt });
 
-  try {
-    const model = provider.languageModel();
-    const { toolCalls } = streamText({
-      model,
-      prompt,
-      tools: acpTools({}),
-      onChunk: (arg: any) => {
-        const { chunk } = arg;
-        logChunkToConsole(chunk);
-      },
-    });
+  const model = provider.languageModel();
+  const { toolCalls } = streamText({
+    model,
+    prompt,
+    tools: acpTools({}),
+    onChunk: (arg: any) => {
+      const { chunk } = arg;
+      logChunkToConsole(chunk);
+    },
+  });
 
-    console.log(
-      `Tool Calls: ${(await toolCalls).map((t: any) => t.toolName).join(", ")}`,
-    );
-  } finally {
-    provider.cleanup();
-  }
+  console.log(
+    `Tool Calls: ${(await toolCalls).map((t: any) => t.toolName).join(", ")}`,
+  );
 }
 
 main().catch((error) => {
