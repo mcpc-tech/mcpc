@@ -19,7 +19,7 @@
   "imports": {
     "@mcpc/utils": "jsr:@mcpc/utils@^0.2.5",
     "@mcpc-tech/ripgrep-napi": "npm:@mcpc-tech/ripgrep-napi@^0.0.4",
-    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.25.1",
     "@opentelemetry/api": "npm:@opentelemetry/api@^1.9.0",
     "@opentelemetry/sdk-trace-base": "npm:@opentelemetry/sdk-trace-base@^1.29.0",
     "@opentelemetry/sdk-trace-node": "npm:@opentelemetry/sdk-trace-node@^1.29.0",

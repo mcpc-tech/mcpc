@@ -10,6 +10,7 @@
  * via in-memory transport, perfect for testing and integration scenarios.
  */
 
+import { z } from "zod";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { type ComposeDefinition, mcpc } from "../mod.ts";
@@ -25,7 +26,7 @@ function createTestMcpServer() {
   mcpServer.tool(
     "greet",
     "Greet a user by name",
-    { name: "string" },
+    { name: z.string() },
     ({ name }) => ({
       content: [{
         type: "text" as const,

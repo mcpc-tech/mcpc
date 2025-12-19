@@ -176,12 +176,18 @@ export class SamplingExecutor extends BaseSamplingExecutor {
       contextInfo = `\n\nContext:\n${JSON.stringify(context, null, 2)}`;
     }
 
-    // Use compiled sampling prompt
-    const basePrompt = CompiledPrompts.samplingExecution({
-      toolName: this.name,
-      description: this.description,
-      toolList: toolList,
-    });
+    // Use compiled sampling prompt (mode-aware based on client capabilities)
+    const basePrompt = this.supportsSamplingTools()
+      ? CompiledPrompts.samplingExecutionTools({
+        toolName: this.name,
+        description: this.description,
+        toolList: toolList,
+      })
+      : CompiledPrompts.samplingExecution({
+        toolName: this.name,
+        description: this.description,
+        toolList: toolList,
+      });
 
     const taskPrompt = `
 
@@ -190,7 +196,7 @@ You will now use agentic sampling to complete the following task: "${userRequest
 
 When you need to use a tool, specify the tool name in 'action' and provide tool-specific parameters as additional properties.`;
 
-    return this.injectJsonInstruction({
+    return this.formatPromptForMode({
       prompt: basePrompt + taskPrompt,
       schema: agenticSchema,
     });

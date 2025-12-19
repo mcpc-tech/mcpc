@@ -26,11 +26,14 @@
     "@mcpc/plugin-code-execution": "./packages/plugin-code-execution/mod.ts",
     "@es-toolkit/es-toolkit": "jsr:@es-toolkit/es-toolkit@^1.37.2",
     "json-schema-faker": "npm:json-schema-faker@^0.5.9",
-    "json-schema-traverse": "npm:json-schema-traverse@^1.0.0"
+    "json-schema-traverse": "npm:json-schema-traverse@^1.0.0",
+    "zod": "npm:zod@^3.23.8"
   },
   "lint": {
     "rules": {
-      "exclude": ["no-explicit-any"]
+      "exclude": [
+        "no-explicit-any"
+      ]
     }
   }
 }

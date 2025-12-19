@@ -45,9 +45,8 @@ export function registerAgenticSamplingTool(
     samplingConfig,
   );
 
-  // Use sampling-specific prompt
-  description = CompiledPrompts.samplingExecution({
-    toolName: name,
+  // Build tool description using the dedicated template
+  const toolDescription = CompiledPrompts.samplingToolDescription({
     description,
     toolList: allToolNames.map((name) => `- ${name}`).join("\n"),
   });
@@ -60,7 +59,7 @@ export function registerAgenticSamplingTool(
 
   server.tool(
     name,
-    description,
+    toolDescription,
     jsonSchema<Record<string, unknown>>(
       createModelCompatibleJSONSchema(schema as Record<string, unknown>),
     ),

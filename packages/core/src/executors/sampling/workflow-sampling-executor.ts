@@ -121,12 +121,18 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
     // Get the current workflow schema from WorkflowExecutor
     const workflowSchema = this.createArgsDef.forCurrentState(state);
 
-    // Use the SystemPrompts.WORKFLOW_EXECUTION as base instead of custom prompt
-    const basePrompt = CompiledPrompts.samplingWorkflowExecution({
-      toolName: this.name,
-      description: this.description,
-      workflowSchema: `${JSON.stringify(workflowSchema, null, 2)}`,
-    });
+    // Use mode-aware prompt based on client capabilities
+    const basePrompt = this.supportsSamplingTools()
+      ? CompiledPrompts.samplingWorkflowExecutionTools({
+        toolName: this.name,
+        description: this.description,
+        workflowSchema: `${JSON.stringify(workflowSchema, null, 2)}`,
+      })
+      : CompiledPrompts.samplingWorkflowExecution({
+        toolName: this.name,
+        description: this.description,
+        workflowSchema: `${JSON.stringify(workflowSchema, null, 2)}`,
+      });
 
     // Create workflow-specific sampling prompt using existing patterns
     let contextInfo = "";
@@ -141,7 +147,7 @@ export class WorkflowSamplingExecutor extends BaseSamplingExecutor {
       `\n\nCurrent Task: <user_request>${args.userRequest}</user_request>${contextInfo}`;
 
     // Use JSON instruction injection pattern
-    return this.injectJsonInstruction({
+    return this.formatPromptForMode({
       prompt: basePrompt + workflowPrompt,
       schema: workflowSchema,
     });

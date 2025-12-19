@@ -44,7 +44,7 @@ I always ask for confirmation before making destructive changes and provide clea
       mcpServers: {
         "@wonderwhy-er/desktop-commander": {
           command: "npx",
-          args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+          args: ["-y", "@wonderwhy-er/desktop-commander"],
           transportType: "stdio",
         },
       },
@@ -63,7 +63,6 @@ export const server = await mcpc(
         tools: {
           listChanged: true,
         },
-        sampling: {},
       },
     },
   ],

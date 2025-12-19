@@ -77,6 +77,28 @@ Execute tool + get new definitions:
 </rules>`,
 
   /**
+   * Tool-based execution system prompt for autonomous sampling mode with native tools
+   *
+   * Note: Used when client supports sampling.tools capability
+   */
+  SAMPLING_EXECUTION_TOOLS:
+    `Agent \`{toolName}\` that completes tasks by calling tools.
+
+<manual>
+{description}
+</manual>
+
+<rules>
+1. Execute one action per iteration
+2. Adapt based on results from previous actions
+3. Continue until task is complete
+</rules>
+
+<tools>
+{toolList}
+</tools>`,
+
+  /**
    * JSON-only execution system prompt for autonomous sampling mode
    *
    * Note: Sampling mode runs an internal LLM loop that autonomously calls tools until complete.
@@ -89,37 +111,84 @@ Execute tool + get new definitions:
 </manual>
 
 <rules>
-1. Return valid JSON only (no markdown, no explanations)
-2. Execute one action per iteration
-3. When \`action\` is "X", include parameter "X" with tool inputs
+1. **YOUR ENTIRE RESPONSE MUST BE A SINGLE JSON OBJECT** - no text before or after
+2. Execute one tool per iteration  
+3. Specify which tool to use with \`useTool\`
 4. Adapt based on results from previous actions
 5. Continue until task is complete
 </rules>
 
 <format>
+CORRECT:
+\`\`\`json
+{"useTool": "tool_name", "decision": "proceed", "tool_name": {...}}
+\`\`\`
+
+WRONG - No explanations:
+\`\`\`
+I will list the directory
+{"useTool": "list_directory", ...}
+\`\`\`
+
 During execution:
 \`\`\`json
 {
-  "action": "tool_name",
-  "decision": "proceed|retry",
-  "tool_name": { /* parameters */ }
+  "useTool": "tool_name",
+  "decision": "proceed",
+  "tool_name": { /* tool parameters */ }
 }
 \`\`\`
 
-When complete (omit action):
+When complete:
 \`\`\`json
 { "decision": "complete" }
 \`\`\`
 
 Decisions:
 - \`proceed\` = action succeeded, continue
-- \`retry\` = action failed, try again
+- \`retry\` = action failed, try again  
 - \`complete\` = task finished
 </format>
 
 <tools>
 {toolList}
 </tools>`,
+
+  /**
+   * Tool description for sampling tools (shown in MCP tools list)
+   * Explains how to use userRequest and context parameters
+   */
+  SAMPLING_TOOL_DESCRIPTION:
+    `Subagent tool \`{toolName}\`  that executes complex tasks.
+
+<manual>
+{description}
+</manual>
+
+<rules>
+Call this tool with:
+- **userRequest**: The task you want completed (e.g., "organize my desktop files", "create a project structure")
+- **context**: Relevant information needed for the task (e.g., working directory, file paths, preferences)
+</rules>`,
+
+  /**
+   * Tool-based workflow execution system prompt for sampling mode with native tools
+   *
+   * Note: Used when client supports sampling.tools capability
+   */
+  SAMPLING_WORKFLOW_EXECUTION_TOOLS:
+    `Workflow agent \`{toolName}\` that executes multi-step workflows.
+
+<manual>
+{description}
+</manual>
+
+<rules>
+1. First iteration: Plan workflow and initialize
+2. Subsequent iterations: Execute current step
+3. Adapt based on step results
+4. Continue until all steps complete
+</rules>`,
 
   /**
    * Sampling workflow execution system prompt combining sampling with workflow capabilities
@@ -335,7 +404,12 @@ export const CompiledPrompts = {
   autonomousExecution: p(SystemPrompts.AUTONOMOUS_EXECUTION),
   workflowExecution: p(SystemPrompts.WORKFLOW_EXECUTION),
   samplingExecution: p(SystemPrompts.SAMPLING_EXECUTION),
+  samplingExecutionTools: p(SystemPrompts.SAMPLING_EXECUTION_TOOLS),
+  samplingToolDescription: p(SystemPrompts.SAMPLING_TOOL_DESCRIPTION),
   samplingWorkflowExecution: p(SystemPrompts.SAMPLING_WORKFLOW_EXECUTION),
+  samplingWorkflowExecutionTools: p(
+    SystemPrompts.SAMPLING_WORKFLOW_EXECUTION_TOOLS,
+  ),
   workflowInit: p(WorkflowPrompts.WORKFLOW_INIT),
   workflowToolDescription: p(WorkflowPrompts.WORKFLOW_TOOL_DESCRIPTION),
   nextStepDecision: p(WorkflowPrompts.NEXT_STEP_DECISION),

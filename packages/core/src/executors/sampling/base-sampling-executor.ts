@@ -1,4 +1,12 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  CallToolResult,
+  CreateMessageResult,
+  CreateMessageResultWithTools,
+  SamplingMessage,
+  TextContent,
+  Tool,
+  ToolResultContent,
+} from "@modelcontextprotocol/sdk/types.js";
 import type { ComposableMCPServer } from "../../compose.ts";
 import type { SamplingConfig } from "../../types.ts";
 import { parseJSON } from "@mcpc/utils";
@@ -9,34 +17,13 @@ import type { Span } from "@opentelemetry/api";
 import { endSpan, initializeTracing, startSpan } from "../../utils/tracing.ts";
 import { createModelCompatibleJSONSchema } from "../../utils/common/provider.ts";
 
-export interface ConversationMessage {
-  role: "user" | "assistant";
-  content: {
-    type: "text";
-    text: string;
-  };
-  [x: string]: unknown;
-}
-
-export interface ResponseContent {
-  type: string;
-  text?: string;
-}
-
-export interface LLMResponse {
-  content: ResponseContent[];
-  stopReason?: string;
-  model: string;
-  role: "user" | "assistant";
-}
-
 export interface ExternalTool {
   inputSchema?: Record<string, unknown>;
   description?: string;
 }
 
 export abstract class BaseSamplingExecutor {
-  protected conversationHistory: ConversationMessage[] = [];
+  protected conversationHistory: SamplingMessage[] = [];
   protected maxIterations: number = 55;
   protected currentIteration: number = 0;
   protected logger: MCPLogger;
@@ -82,21 +69,98 @@ export abstract class BaseSamplingExecutor {
     }
   }
 
+  /**
+   * Convert toolNameToDetailList to MCP Tool format for sampling
+   */
+  protected convertToMcpTools(): Tool[] {
+    return this.toolNameToDetailList.map(([name, detail]) => ({
+      name,
+      description: detail.description || `Tool: ${name}`,
+      inputSchema: {
+        type: "object" as const,
+        ...detail.inputSchema,
+      },
+    }));
+  }
+
+  /**
+   * Check if client supports sampling with tools
+   */
+  protected supportsSamplingTools(): boolean {
+    const capabilities = this.server.getClientCapabilities();
+    return !!capabilities?.sampling?.tools;
+  }
+
+  /**
+   * Check if response contains tool use
+   */
+  protected isToolUseResponse(
+    response: CreateMessageResult | CreateMessageResultWithTools,
+  ): boolean {
+    if (!response.content) return false;
+
+    const content = Array.isArray(response.content)
+      ? response.content
+      : [response.content];
+
+    return content.some((block) => block.type === "tool_use");
+  }
+
+  /**
+   * Extract tool calls from response
+   */
+  protected extractToolCalls(
+    response: CreateMessageResult | CreateMessageResultWithTools,
+  ): Array<{
+    id: string;
+    name: string;
+    input: Record<string, unknown>;
+  }> {
+    if (!response.content) return [];
+
+    const content = Array.isArray(response.content)
+      ? response.content
+      : [response.content];
+
+    return content
+      .filter((block) => block.type === "tool_use")
+      .map((block) => (
+        "id" in block && "name" in block && "input" in block
+          ? {
+            id: block.id as string,
+            name: block.name as string,
+            input: (block.input as Record<string, unknown>) || {},
+          }
+          : { id: "", name: "", input: {} }
+      ));
+  }
+
   protected async runSamplingLoop<TState>(
     systemPrompt: () => string,
     schema: Record<string, unknown>,
     state?: TState,
   ) {
-    // Initialize conversation with an initial user message
-    // Ensure at least one message (Claude requirement) and enforce JSON-only output
-    this.conversationHistory = [{
-      role: "user",
-      content: {
-        type: "text",
-        text:
-          'Return ONE AND ONLY ONE raw JSON object (no code fences, explanations, or multiple objects). During execution provide: {"action":"<tool>","decision":"proceed|retry","<tool>":{}}. When complete provide: {"decision":"complete"}',
+    // Check if client supports tool use in sampling
+    const useTools = this.supportsSamplingTools();
+
+    this.logger.debug({
+      message: "Sampling mode determined",
+      useTools,
+      mode: useTools ? "native_tools" : "json_fallback",
+    });
+
+    // Initialize conversation based on mode
+
+    this.conversationHistory = [
+      {
+        // Failed: 400 {"error":{"message":"messages: at least one message is required","code":"invalid_request_body"}}
+        role: "user",
+        content: {
+          type: "text",
+          text: `start`,
+        },
       },
-    }];
+    ];
 
     // Create a root span for the entire sampling loop
     const loopSpan: Span | null = this.tracingEnabled
@@ -116,18 +180,132 @@ export abstract class BaseSamplingExecutor {
         let iterationSpan: Span | null = null;
 
         try {
-          const response = await this.server.createMessage({
-            systemPrompt: systemPrompt(),
-            messages: this.conversationHistory,
-            maxTokens: 55_000,
-          });
+          // Build createMessage params based on mode
+          let createMessageParams;
 
-          const responseContent = (response.content.text as string) || "{}";
+          if (useTools) {
+            createMessageParams = {
+              systemPrompt: systemPrompt(),
+              messages: this.conversationHistory,
+              maxTokens: 55_000,
+              tools: this.convertToMcpTools(),
+              toolChoice: { mode: "auto" as const },
+            };
+          } else {
+            createMessageParams = {
+              systemPrompt: systemPrompt(),
+              messages: this.conversationHistory,
+              maxTokens: 55_000,
+            };
+          }
+
+          const response = await this.server.createMessage(createMessageParams);
+
           const model = response.model;
           const stopReason = response.stopReason;
           const role = response.role;
 
-          // Parse JSON response
+          // Handle response based on mode
+          if (useTools && this.isToolUseResponse(response)) {
+            // Tool mode: handle tool calls
+            const toolCalls = this.extractToolCalls(response);
+
+            if (toolCalls.length === 0) {
+              // No tool calls but using tool mode - might be completion
+              const contentArray = Array.isArray(response.content)
+                ? response.content
+                : [response.content];
+              const textBlock = contentArray.find((c) => c.type === "text");
+              const textContent = textBlock && "text" in textBlock
+                ? textBlock.text
+                : undefined;
+
+              if (textContent) {
+                // Natural completion with text response
+                return await this.createCompletionResult(
+                  textContent,
+                  loopSpan,
+                );
+              }
+              continue;
+            }
+
+            // Execute tool calls and add results to history
+            iterationSpan = this.tracingEnabled
+              ? startSpan(
+                "mcpc.sampling_iteration.tool_use",
+                {
+                  iteration: this.currentIteration + 1,
+                  agent: this.name,
+                  toolCalls: toolCalls.length,
+                  maxIterations: this.maxIterations,
+                },
+                loopSpan ?? undefined,
+              )
+              : null;
+
+            // Add assistant's tool call to history
+            this.conversationHistory.push({
+              role: "assistant",
+              content: response.content,
+            });
+
+            // Execute each tool and collect results
+            const toolResults: ToolResultContent[] = [];
+            for (const toolCall of toolCalls) {
+              try {
+                const result = await this.server.callTool(
+                  toolCall.name,
+                  toolCall.input,
+                ) as CallToolResult;
+                toolResults.push({
+                  type: "tool_result",
+                  toolUseId: toolCall.id,
+                  content: result.content || [],
+                  isError: result.isError,
+                } as ToolResultContent);
+              } catch (error) {
+                toolResults.push({
+                  type: "tool_result",
+                  toolUseId: toolCall.id,
+                  content: [{
+                    type: "text",
+                    text: `Error: ${
+                      error instanceof Error ? error.message : String(error)
+                    }`,
+                  }],
+                  isError: true,
+                } as ToolResultContent);
+              }
+            }
+
+            // Add tool results to history
+            this.conversationHistory.push({
+              role: "user",
+              content: toolResults,
+            });
+
+            if (iterationSpan) {
+              iterationSpan.setAttributes({
+                toolExecutions: toolResults.length,
+                hasErrors: toolResults.some((r) => r.isError),
+              });
+              endSpan(iterationSpan);
+            }
+
+            // Continue to next iteration for LLM to process results
+            continue;
+          }
+
+          // JSON fallback mode: parse and validate JSON response
+          const content = Array.isArray(response.content)
+            ? response.content
+            : [response.content];
+          const textContent = content.find((c) => c.type === "text") as
+            | TextContent
+            | undefined;
+          const responseContent = (textContent?.text as string) || "{}";
+
           let parsedData: Record<string, unknown>;
           try {
             parsedData = parseJSON(responseContent.trim(), true);
@@ -160,56 +338,13 @@ export abstract class BaseSamplingExecutor {
             },
           });
 
-          const action = parsedData["action"];
+          // Create span name from parsed data
           const decision = parsedData["decision"];
-
-          // Validate decision field
-          if (typeof decision !== "string") {
-            this.conversationHistory.push({
-              role: "user",
-              content: {
-                type: "text",
-                text:
-                  'Missing required field "decision". Provide: {"action":"<tool>","decision":"proceed|retry","<tool>":{}} or {"decision":"complete"}',
-              },
-            });
-            if (iterationSpan) endSpan(iterationSpan);
-            continue;
-          }
-
-          // Validate: decision="complete" should not have action field
-          if (decision === "complete" && action) {
-            this.conversationHistory.push({
-              role: "user",
-              content: {
-                type: "text",
-                text:
-                  'Invalid: Cannot have both "decision":"complete" and "action" field. When complete, only provide {"decision":"complete"}.',
-              },
-            });
-            if (iterationSpan) endSpan(iterationSpan);
-            continue;
-          }
-
-          // Validate: non-complete decisions require action field
-          if (decision !== "complete" && !action) {
-            this.conversationHistory.push({
-              role: "user",
-              content: {
-                type: "text",
-                text:
-                  'Missing required field "action". When executing, provide: {"action":"<tool>","decision":"proceed|retry","<tool>":{}}',
-              },
-            });
-            if (iterationSpan) endSpan(iterationSpan);
-            continue;
-          }
-
-          // Create span with action name or "completion" for decision="complete"
+          const useTool = parsedData["useTool"];
           const actionStr = decision === "complete"
             ? "completion"
-            : (action && typeof action === "string"
-              ? String(action)
+            : (useTool && typeof useTool === "string"
+              ? String(useTool)
               : "unknown_action");
           const spanName = `mcpc.sampling_iteration.${actionStr}`;
 
@@ -258,7 +393,7 @@ export abstract class BaseSamplingExecutor {
               iteration: this.currentIteration + 1,
               maxIterations: this.maxIterations,
               parsed: rawJson,
-              action: typeof action === "string" ? action : String(action),
+              action: typeof useTool === "string" ? useTool : String(useTool),
               decision: typeof decision === "string"
                 ? decision
                 : String(decision),
@@ -275,11 +410,14 @@ export abstract class BaseSamplingExecutor {
 
           if (result.isError) {
             // If processing resulted in an error, add to conversation history
+            const errorText = result.content?.[0] && "text" in result.content[0]
+              ? result.content[0].text as string
+              : "Unknown error";
             this.conversationHistory.push({
               role: "user",
               content: {
                 type: "text",
-                text: result.content[0].text as string,
+                text: errorText,
               },
             });
             if (iterationSpan) endSpan(iterationSpan);
@@ -410,7 +548,14 @@ ${summary}`,
       const history = this.conversationHistory
         .map((msg, i) => {
           const prefix = `[${i + 1}] ${msg.role.toUpperCase()}`;
-          return `${prefix}:\n${msg.content.text}`;
+          const contentArray = Array.isArray(msg.content)
+            ? msg.content
+            : [msg.content];
+          const textBlock = contentArray.find((c) => c.type === "text") as
+            | TextContent
+            | undefined;
+          const text = textBlock?.text || "(No text content)";
+          return `${prefix}:\n${text}`;
         })
         .join("\n\n---\n\n");
 
@@ -433,7 +578,13 @@ ${history}`,
         maxTokens: 3000,
       });
 
-      const summary = "\n\n" + (response.content.text as string);
+      const summaryContent = Array.isArray(response.content)
+        ? response.content.find((c) => c.type === "text") as
+          | TextContent
+          | undefined
+        : response.content as TextContent | undefined;
+      const summary = "\n\n" +
+        (summaryContent?.text as string || "No summary available");
 
       this.logger.debug({
         message: "Summarization completed",
@@ -473,21 +624,34 @@ ${history}`,
     const messages = this.conversationHistory.map((msg, i) => {
       const header = `### Message ${i + 1}: ${msg.role}`;
 
+      // Extract text from content (which can be array or single block)
+      const contentArray = Array.isArray(msg.content)
+        ? msg.content
+        : [msg.content];
+      const textBlock = contentArray.find((c) => c.type === "text") as
+        | TextContent
+        | undefined;
+      const contentText = textBlock?.text;
+
+      if (!contentText) {
+        return `${header}\\n(No text content)`;
+      }
+
       try {
-        const parsed = JSON.parse(msg.content.text);
+        const parsed = JSON.parse(contentText);
         // For parsed JSON, show compact single-line for short content
         if (JSON.stringify(parsed).length < 100) {
-          return `${header}\n${JSON.stringify(parsed)}`;
+          return `${header}\\n${JSON.stringify(parsed)}`;
         }
-        return `${header}\n\`\`\`json\n${
+        return `${header}\\n\`\`\`json\\n${
           JSON.stringify(
             parsed,
             null,
             2,
           )
-        }\n\`\`\``;
+        }\\n\`\`\``;
       } catch {
-        return `${header}\n${msg.content.text}`;
+        return `${header}\\n${contentText}`;
       }
     });
 
@@ -522,7 +686,7 @@ ${history}`,
     parentSpan?: Span | null,
   ): Promise<CallToolResult>;
 
-  protected injectJsonInstruction({
+  protected formatPromptForMode({
     prompt,
     schema,
     schemaPrefix = "JSON schema:",
@@ -539,6 +703,12 @@ VALID: {"key":"value"}`,
     schemaPrefix?: string;
     schemaSuffix?: string;
   }): string {
+    // If using native tools mode, return just the prompt without JSON instructions
+    if (this.supportsSamplingTools()) {
+      return prompt && prompt.length > 0 ? prompt : "";
+    }
+
+    // JSON fallback mode: include schema and formatting instructions
     return [
       prompt != null && prompt.length > 0 ? prompt : undefined,
       prompt != null && prompt.length > 0 ? "" : undefined, // add a newline if prompt is not null
