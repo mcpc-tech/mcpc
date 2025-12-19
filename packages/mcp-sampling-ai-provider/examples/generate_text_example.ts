@@ -21,7 +21,7 @@ import { z } from "zod";
 // Create a simple MCP server with sampling capability
 const server = new Server(
   { name: "ai-sdk-example", version: "1.0.0" },
-  { capabilities: { sampling: {}, tools: {} } },
+  { capabilities: { tools: {} } },
 );
 
 // Register tools
@@ -91,6 +91,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             b: z.number().describe("Second number"),
           }),
           execute: (params: { operation: string; a: number; b: number }) => {
+            console.log("Calculator tool called with params:", params);
             switch (params.operation) {
               case "add":
                 return { result: params.a + params.b };
@@ -113,6 +114,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     console.log(result.text);
     console.log("\n✅ Finish reason:", result.finishReason);
     console.log("✅ Token usage:", result.usage);
+    console.log(
+      "✅ Steps:",
+      JSON.stringify(result.steps, null, 2),
+      result.toolCalls,
+      result,
+    );
+    console.log("✅ Tool results:", result.toolResults);
 
     return {
       content: [

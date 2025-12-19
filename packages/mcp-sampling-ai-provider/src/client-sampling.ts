@@ -21,6 +21,11 @@ import { type AISDKMessage, convertMCPMessagesToAISDK } from "./utils.ts";
 export type AISDKHandler = (params: {
   messages: AISDKMessage[];
   modelPreferences?: CreateMessageRequest["params"]["modelPreferences"];
+  tools?: CreateMessageRequest["params"]["tools"];
+  helpers?: {
+    tool: (...args: any[]) => any;
+    jsonSchema: (...args: any[]) => any;
+  };
 }) => Promise<CreateMessageResult>;
 
 /**
@@ -31,6 +36,15 @@ export interface ClientSamplingConfig {
    * AI SDK handler function that generates completions
    */
   handler: AISDKHandler;
+
+  /**
+   * AI SDK helpers for tool conversion (tool and jsonSchema from "ai" package)
+   * Required for proper tool support when MCP server sends tools in createMessage request
+   */
+  helpers?: {
+    tool: (...args: any[]) => any;
+    jsonSchema: (...args: any[]) => any;
+  };
 
   /**
    * Optional model selection map for preference-based routing
@@ -85,6 +99,7 @@ export function createClientSampling(
     const {
       messages,
       modelPreferences,
+      tools,
     } = request.params;
 
     try {
@@ -97,6 +112,8 @@ export function createClientSampling(
       return await config.handler({
         messages: aiMessages,
         modelPreferences,
+        tools,
+        helpers: config.helpers,
       });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));

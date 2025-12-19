@@ -13,7 +13,7 @@
  *
  * const server = new Server(
  *   { name: "my-agent", version: "1.0.0" },
- *   { capabilities: { sampling: {}, tools: {} } }
+ *   { capabilities: { tools: {} } }
  * );
  *
  * const provider = createMCPSamplingProvider({ server });
@@ -49,4 +49,7 @@ export type {
 } from "./src/client-sampling.ts";
 
 // Utilities
-export { convertAISDKFinishReasonToMCP } from "./src/utils.ts";
+export {
+  convertAISDKFinishReasonToMCP,
+  convertMCPToolsToAISDK,
+} from "./src/utils.ts";

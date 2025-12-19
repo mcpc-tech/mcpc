@@ -150,7 +150,7 @@ const server = await mcpc(
       name: "coding-agent",
       version: "0.1.0",
     },
-    { capabilities: { tools: {}, sampling: {} } },
+    { capabilities: { tools: {} } },
   ],
   [
     {

@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/mcp-sampling-ai-provider",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -13,7 +13,7 @@
   },
   "imports": {
     "@mcpc/core": "jsr:@mcpc/core@^0.3.10",
-    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.25.1",
     "@ai-sdk/provider": "npm:@ai-sdk/provider@^2.0.0",
     "@ai-sdk/provider-utils": "npm:@ai-sdk/provider-utils@^2.2.8",
     "ai": "npm:ai@^5.0.60",

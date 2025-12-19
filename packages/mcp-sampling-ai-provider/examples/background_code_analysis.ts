@@ -38,7 +38,7 @@ const analysisResults = new Map<
 const fileUtilsServer = await mcpc(
   [
     { name: "file-utils", version: "1.0.0" },
-    { capabilities: { tools: {}, sampling: {} } },
+    { capabilities: { tools: {} } },
   ],
   [
     {
@@ -79,7 +79,7 @@ const fileUtilsServer = await mcpc(
 const server = await mcpc(
   [
     { name: "code-analyzer", version: "1.0.0" },
-    { capabilities: { tools: {}, sampling: {} } },
+    { capabilities: { tools: {} } },
   ],
   [],
 );

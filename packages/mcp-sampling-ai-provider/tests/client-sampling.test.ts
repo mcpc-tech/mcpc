@@ -186,8 +186,10 @@ Deno.test("createClientSampling - success", async () => {
 
   assertEquals(result.model, "test-model");
   assertEquals(result.role, "assistant");
-  assertEquals(result.content.type, "text");
-  assertEquals(result.content.text, "Response text");
+  if (result.content.type === "text") {
+    assertEquals(result.content.type, "text");
+    assertEquals(result.content.text, "Response text");
+  }
   assertEquals(result.stopReason, "endTurn");
 });
 

@@ -150,7 +150,7 @@ const serverInitOpts = [
     name: "coding-agent",
     version: "0.1.0",
   },
-  { capabilities: { tools: {}, sampling: {} } },
+  { capabilities: { tools: {} } },
 ];
 
 const server = mcpc(serverInitOpts, [

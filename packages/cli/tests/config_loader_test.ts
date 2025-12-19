@@ -96,7 +96,7 @@ Deno.test("Config Loader - object format", async () => {
   const testConfig = {
     name: "custom-server",
     version: "2.0.0",
-    capabilities: { tools: {}, sampling: {} },
+    capabilities: { tools: {} },
     agents: [{ name: "agent", description: "Test", deps: { mcpServers: {} } }],
   };
   process.env.MCPC_CONFIG = JSON.stringify(testConfig);

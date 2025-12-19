@@ -7,18 +7,21 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import {
   convertAISDKFinishReasonToMCP,
+  convertMCPToolsToAISDK,
   selectModelFromPreferences,
   setupClientSampling,
 } from "../mod.ts";
-import { generateText } from "ai";
+import { generateText, jsonSchema, tool } from "ai";
 import { cwd } from "node:process";
+import { writeFileSync } from "node:fs";
 
 const client = new Client(
   { name: "my-client", version: "1.0.0" },
-  { capabilities: { sampling: {} } },
+  { capabilities: { sampling: { tools: {} } } },
 );
 
 setupClientSampling(client, {
+  helpers: { tool, jsonSchema },
   handler: async (params) => {
     const modelId = selectModelFromPreferences(params.modelPreferences, {
       hints: {
@@ -34,9 +37,15 @@ setupClientSampling(client, {
 
     try {
       console.log(`🤖 Using model: ${modelId}`);
+
+      // Convert MCP tools from server to AI SDK format
+      const aiTools = convertMCPToolsToAISDK(params.tools, params.helpers);
+      console.log(`🔧 Tools:`, aiTools ? Object.keys(aiTools) : "none");
+
       const result = await generateText({
         model: modelId,
         messages: params.messages,
+        tools: aiTools,
         onStepFinish: (step) => {
           if (step.text) {
             console.log(`   💬 Text:`, step.text);
@@ -57,9 +66,11 @@ setupClientSampling(client, {
         },
       });
 
+      writeFileSync("/tmp/steps.json", JSON.stringify(result.steps, null, 2));
       console.log("✅ Generated text:", result.text);
       console.log("✅ Finish reason:", result.finishReason);
       console.log("✅ Token usage:", result.usage);
+      console.log("✅ Tool results:", result.toolResults);
 
       return {
         model: modelId,
@@ -89,7 +100,7 @@ const transport = new StdioClientTransport({
   args: [
     "run",
     "-A",
-    "packages/mcp-sampling-ai-provider/examples/background_code_analysis.ts",
+    "examples/background_code_analysis.ts",
   ],
 });
 

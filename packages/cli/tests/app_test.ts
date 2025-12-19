@@ -38,7 +38,6 @@ Deno.test("App - createServer with custom capabilities", async () => {
     version: "2.0.0",
     capabilities: {
       tools: { listChanged: true },
-      sampling: {},
     },
     agents: [
       {

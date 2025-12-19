@@ -12,13 +12,12 @@ import type {
   LanguageModelV2FinishReason,
   LanguageModelV2Prompt,
 } from "@ai-sdk/provider";
-import type { CoreMessage } from "ai";
+import type { ModelMessage } from "ai";
 
 /**
  * AI SDK compatible message format
- * Re-export CoreMessage from AI SDK for convenience
  */
-export type AISDKMessage = CoreMessage;
+export type AISDKMessage = ModelMessage;
 
 /**
  * Convert MCP message format to AI SDK compatible format
@@ -26,24 +25,36 @@ export type AISDKMessage = CoreMessage;
 export function convertMCPMessagesToAISDK(
   messages: CreateMessageRequest["params"]["messages"],
 ): AISDKMessage[] {
-  return messages.map((msg): CoreMessage => {
+  return messages.map((msg): ModelMessage => {
     const role = msg.role as "user" | "assistant";
+    const content = msg.content;
 
-    if (msg.content.type === "text") {
+    // Handle array content (multiple content blocks)
+    if (Array.isArray(content)) {
+      // For simplicity, extract first text block or return placeholder
+      const textBlock = content.find((c) => c.type === "text");
+      if (textBlock && "text" in textBlock) {
+        return { role, content: textBlock.text } as ModelMessage;
+      }
+      return { role, content: "[multiple content blocks]" } as ModelMessage;
+    }
+
+    // Handle single content object
+    if (content.type === "text") {
       return {
         role,
-        content: msg.content.text,
-      } as CoreMessage;
-    } else if (msg.content.type === "image") {
+        content: content.text,
+      } as ModelMessage;
+    } else if (content.type === "image") {
       return {
         role,
         content: [
           {
             type: "image" as const,
-            image: `data:${msg.content.mimeType};base64,${msg.content.data}`,
+            image: `data:${content.mimeType};base64,${content.data}`,
           },
         ],
-      } as CoreMessage;
+      } as ModelMessage;
     } else {
       // Handle other types (audio, resource, etc.)
       return {
@@ -51,10 +62,10 @@ export function convertMCPMessagesToAISDK(
         content: [
           {
             type: "text" as const,
-            text: `[${msg.content.type} content not supported]`,
+            text: `[${content.type} content not supported]`,
           },
         ],
-      } as CoreMessage;
+      } as ModelMessage;
     }
   });
 }
@@ -153,4 +164,69 @@ export function convertMCPStopReasonToAISDK(
   }
   if (stopReason === "maxTokens") return "length";
   return (stopReason as LanguageModelV2FinishReason) ?? "unknown";
+}
+
+/**
+ * Convert MCP tools to AI SDK tools format
+ *
+ * This is used in client sampling to convert tools from the MCP server's
+ * createMessage request into AI SDK tool format that can be passed to generateText.
+ *
+ * Note: This function does NOT provide execute implementations because in client sampling,
+ * tool execution happens on the MCP server side, not the client side. The client just
+ * returns tool-call content blocks which the server will then execute.
+ *
+ * @param mcpTools - Array of MCP Tool definitions from server's createMessage request
+ * @param helpers - AI SDK helper functions (tool and jsonSchema from "ai" package)
+ * @returns AI SDK tools object or undefined if no tools
+ *
+ * @example
+ * ```typescript
+ * import { tool, jsonSchema, generateText } from "ai";
+ * import { convertMCPToolsToAISDK } from "@mcpc/mcp-sampling-ai-provider";
+ *
+ * const aiTools = convertMCPToolsToAISDK(params.tools, { tool, jsonSchema });
+ * const result = await generateText({
+ *   model: modelId,
+ *   messages: params.messages,
+ *   tools: aiTools,  // Tools without execute - they're just for the LLM to know about
+ * });
+ * ```
+ */
+export function convertMCPToolsToAISDK(
+  mcpTools?: CreateMessageRequest["params"]["tools"],
+  helpers?: {
+    tool: (...args: any[]) => any;
+    jsonSchema: (...args: any[]) => any;
+  },
+): Record<string, any> | undefined {
+  if (!mcpTools || mcpTools.length === 0) {
+    return undefined;
+  }
+
+  // If helpers not provided, return simple format (for backward compatibility)
+  if (!helpers) {
+    const aiTools: Record<string, any> = {};
+    for (const tool of mcpTools) {
+      aiTools[tool.name] = {
+        description: tool.description,
+        parameters: tool.inputSchema,
+      };
+    }
+    return aiTools;
+  }
+
+  // Use AI SDK helpers for proper tool format
+  const { tool, jsonSchema } = helpers;
+
+  return Object.fromEntries(
+    mcpTools.map((mcpTool) => [
+      mcpTool.name,
+      tool({
+        description: mcpTool.description || "No description",
+        inputSchema: jsonSchema(mcpTool.inputSchema),
+        // No execute function - tools are executed on the server side
+      }),
+    ]),
+  );
 }

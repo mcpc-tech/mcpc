@@ -21,7 +21,7 @@ import { z } from "zod";
 // Create a simple MCP server with sampling capability
 const server = new Server(
   { name: "ai-sdk-example", version: "1.0.0" },
-  { capabilities: { sampling: {}, tools: {} } },
+  { capabilities: { tools: {} } },
 );
 
 // Register a tool that generates structured data

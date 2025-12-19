@@ -228,7 +228,6 @@ async function createWrapConfig(args: {
     version: "0.1.0",
     capabilities: {
       tools: {},
-      sampling: {},
     },
     agents: [
       {

@@ -78,7 +78,7 @@ export class MCPSamplingProvider {
  *
  * const server = new Server(
  *   { name: "my-agent", version: "1.0.0" },
- *   { capabilities: { sampling: {}, tools: {} } }
+ *   { capabilities: { tools: {} } }
  * );
  *
  * const provider = createMCPSamplingProvider({ server });

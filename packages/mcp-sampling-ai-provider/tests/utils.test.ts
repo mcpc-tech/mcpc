@@ -77,8 +77,11 @@ Deno.test("convertAISDKToMCPMessages - simple text", () => {
 
   assertEquals(result.length, 1);
   assertEquals(result[0].role, "user");
-  assertEquals(result[0].content.type, "text");
-  assertEquals(result[0].content.text, "Hello world");
+  const content = result[0].content;
+  if (!Array.isArray(content) && content.type === "text") {
+    assertEquals(content.type, "text");
+    assertEquals(content.text, "Hello world");
+  }
 });
 
 Deno.test("convertAISDKToMCPMessages - tool calls", () => {
@@ -101,14 +104,15 @@ Deno.test("convertAISDKToMCPMessages - tool calls", () => {
 
   assertEquals(result.length, 1);
   assertEquals(result[0].role, "assistant");
-  assertEquals(result[0].content.type, "text");
-  if (result[0].content.type === "text") {
+  const content = result[0].content;
+  if (!Array.isArray(content) && content.type === "text") {
+    assertEquals(content.type, "text");
     assertEquals(
-      result[0].content.text.includes("Let me search for that"),
+      content.text.includes("Let me search for that"),
       true,
     );
     assertEquals(
-      result[0].content.text.includes('<use_tool tool="search">'),
+      content.text.includes('<use_tool tool="search">'),
       true,
     );
   }

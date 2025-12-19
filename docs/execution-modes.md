@@ -189,7 +189,7 @@ reached.
 }
 ```
 
-⚠️ **Requires**: `capabilities: { sampling: {} }` in server configuration
+⚠️ **Requires**: `capabilities: { sampling: {} }` in client
 
 ### Implementation
 
@@ -210,7 +210,7 @@ reached.
 const server = await mcpc(
   [
     { name: "autonomous-agent", version: "1.0.0" },
-    { capabilities: { tools: {}, sampling: {} } }, // sampling required!
+    { capabilities: { tools: {} } },
   ],
   [{
     name: "autonomous-agent",
@@ -265,7 +265,7 @@ Executes a predefined or dynamic workflow autonomously.
 }
 ```
 
-⚠️ **Requires**: `capabilities: { sampling: {} }` in server configuration
+⚠️ **Requires**: `capabilities: { sampling: {} }` in client
 
 ### Implementation
 
@@ -278,7 +278,7 @@ Executes a predefined or dynamic workflow autonomously.
 const server = await mcpc(
   [
     { name: "build-agent", version: "1.0.0" },
-    { capabilities: { tools: {}, sampling: {} } },
+    { capabilities: { tools: {} } },
   ],
   [{
     name: "build-agent",

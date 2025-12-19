@@ -53,7 +53,7 @@ export class ComposableMCPServer extends Server {
       capabilities: {
         logging: {},
         tools: {},
-        sampling: {},
+
         ...(options?.capabilities ?? {}),
       },
     };

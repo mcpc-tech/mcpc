@@ -38,7 +38,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 const server = await mcpc(
   [
     { name: "my-agent", version: "1.0.0" },
-    { capabilities: { tools: {}, sampling: {} } },
+    { capabilities: { tools: {} } },
   ],
   [{
     name: "my-agent",

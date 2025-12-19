@@ -105,7 +105,7 @@ export function parseMcpcConfigs(
  * const server = await mcpc(
  *   [
  *     { name: "coding-agent", version: "1.0.0" },
- *     { capabilities: { tools: {}, sampling: {} } }
+ *     { capabilities: { tools: {} } }
  *   ],
  *   [{
  *     name: "codex-fork",

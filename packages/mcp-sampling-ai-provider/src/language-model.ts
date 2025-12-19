@@ -13,7 +13,11 @@ import type {
   LanguageModelV2Text,
 } from "@ai-sdk/provider";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import type { SamplingMessage } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  CreateMessageRequestParams,
+  SamplingMessage,
+  Tool,
+} from "@modelcontextprotocol/sdk/types.js";
 import type { ModelPreferences } from "./provider.ts";
 import {
   convertAISDKToMCPMessages,
@@ -91,39 +95,85 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
       options.responseFormat,
     );
 
-    // Inject tool definitions into system prompt
-    // TODO: Remove this workaround when MCP natively supports tools parameter
-    systemPrompt = this.injectToolInstructions(systemPrompt, options.tools);
+    // Check if client supports native tools
+    const useNativeTools = this.supportsSamplingTools();
 
-    // Call MCP server's createMessage method directly (like base-sampling-executor)
-    const result = await this.server.createMessage({
+    // Inject tool definitions into system prompt (only for JSON fallback mode)
+    // injectToolInstructions will skip injection when using native tools mode
+    systemPrompt = this.injectToolInstructions(
+      systemPrompt,
+      options.tools,
+      useNativeTools,
+    );
+
+    // Build createMessage params based on mode
+    const createMessageParams: CreateMessageRequestParams = {
       systemPrompt,
       messages,
       maxTokens: options.maxOutputTokens ?? 55_000,
       modelPreferences: this.modelPreferences,
-    });
+    };
+
+    // Add tools and toolChoice when using native tools mode
+    if (useNativeTools && options.tools && options.tools.length > 0) {
+      createMessageParams.tools = this.convertAISDKToolsToMCP(options.tools);
+      createMessageParams.toolChoice = { mode: "auto" as const };
+    }
+
+    // Call MCP server's createMessage method
+    const result = await this.server.createMessage(createMessageParams);
 
     // Extract text and tool calls from result
     const content: LanguageModelV2Content[] = [];
 
-    if (result.content.type === "text" && result.content.text) {
-      // Parse the response text to extract tool calls
-      const { text, toolCalls } = this.extractToolCalls(
-        result.content.text,
-        options.tools,
-      );
+    // Handle response based on mode
+    if (useNativeTools) {
+      // Native tools mode: check for tool_use content blocks
+      const contentArray = Array.isArray(result.content)
+        ? result.content
+        : [result.content];
 
-      // Add text content if present
-      if (text.trim()) {
-        const textContent: LanguageModelV2Text = {
-          type: "text",
-          text: text,
-        };
-        content.push(textContent);
+      for (const block of contentArray) {
+        if (block.type === "text" && "text" in block) {
+          // Add text content
+          content.push({
+            type: "text",
+            text: block.text as string,
+          });
+        } else if (
+          block.type === "tool_use" && "id" in block && "name" in block
+        ) {
+          // Add native tool call content
+          const toolInput = (block as any).input || {};
+          content.push({
+            type: "tool-call",
+            toolCallId: block.id as string,
+            toolName: block.name as string,
+            args: JSON.stringify(toolInput),
+            input: toolInput,
+          } as LanguageModelV2Content);
+        }
       }
+    } else {
+      // JSON/XML fallback mode: parse XML-style tool calls from text
+      if (result.content.type === "text" && result.content.text) {
+        const { text, toolCalls } = this.extractToolCalls(
+          result.content.text,
+          options.tools,
+        );
 
-      // Add tool call content
-      content.push(...toolCalls);
+        // Add text content if present
+        if (text.trim()) {
+          const textContent: LanguageModelV2Text = {
+            type: "text",
+            text: text,
+          };
+          content.push(textContent);
+        }
+
+        // Add tool call content
+        content.push(...toolCalls);
+      }
     }
 
     const finishReason = this.mapStopReason(result.stopReason);
@@ -223,6 +273,37 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
   }
 
   /**
+   * Check if client supports native tool use in sampling
+   */
+  private supportsSamplingTools(): boolean {
+    const capabilities = this.server.getClientCapabilities();
+    return !!capabilities?.sampling?.tools;
+  }
+
+  /**
+   * Convert AI SDK tools to MCP Tool format
+   */
+  private convertAISDKToolsToMCP(
+    tools?: LanguageModelV2CallOptions["tools"],
+  ): Tool[] {
+    if (!tools || tools.length === 0) return [];
+
+    return tools
+      .filter((tool) => tool.type === "function")
+      .map((tool) => {
+        const toolAny = tool as any;
+        return {
+          name: tool.name,
+          description: toolAny.description || `Tool: ${tool.name}`,
+          inputSchema: {
+            type: "object" as const,
+            ...(toolAny.inputSchema || toolAny.parameters),
+          },
+        };
+      });
+  }
+
+  /**
    * Inject response format instructions into system prompt
    *
    * WORKAROUND: MCP sampling currently doesn't support native responseFormat parameter.
@@ -281,9 +362,15 @@ IMPORTANT: You MUST respond with valid JSON only. Do not include any text before
   private injectToolInstructions(
     systemPrompt: string | undefined,
     tools?: LanguageModelV2CallOptions["tools"],
+    useNativeTools?: boolean,
   ): string | undefined {
     // If no tools specified, return original prompt
     if (!tools || tools.length === 0) {
+      return systemPrompt;
+    }
+
+    // If using native tools mode, don't inject XML-style instructions
+    if (useNativeTools) {
       return systemPrompt;
     }
 
@@ -366,15 +453,7 @@ Tools:`;
       textParts.push(responseText.slice(lastIndex, match.index));
 
       const toolName = match[1];
-      const argsText = match[2].trim();
-
-      // Parse args to get input object
-      let argsObject;
-      try {
-        argsObject = JSON.parse(argsText);
-      } catch {
-        argsObject = {};
-      }
+      const argsText = match[2].trim?.();
 
       // Create tool call in AI SDK format
       // Based on: https://sdk.vercel.ai/docs/ai-sdk-core/tools-and-tool-calling
@@ -383,7 +462,7 @@ Tools:`;
         toolCallId: `call_${Date.now()}_${callIndex++}`,
         toolName: toolName,
         args: argsText,
-        input: argsObject,
+        input: argsText,
       } as LanguageModelV2Content);
 
       lastIndex = match.index + match[0].length;

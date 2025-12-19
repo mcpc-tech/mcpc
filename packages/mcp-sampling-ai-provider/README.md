@@ -69,7 +69,7 @@ import { generateText } from "ai";
 // Create MCP server with sampling capability
 const server = new Server(
   { name: "translator", version: "1.0.0" },
-  { capabilities: { sampling: {}, tools: {} } },
+  { capabilities: { tools: {} } },
 );
 
 // Register a translation tool that uses AI
@@ -95,6 +95,54 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 const transport = new StdioServerTransport();
 await server.connect(transport);
 ```
+
+### Using Tools
+
+You can use tools within your MCP server. The tools will be executed by the
+server, and the MCP client only handles the LLM calls:
+
+```typescript
+import { createMCPSamplingProvider } from "@mcpc/mcp-sampling-ai-provider";
+import { generateText, tool } from "ai";
+import { z } from "zod";
+
+// Create provider from the server
+const provider = createMCPSamplingProvider({ server });
+
+// Define AI SDK tools
+const tools = {
+  search: tool({
+    description: "Search for information",
+    parameters: z.object({
+      query: z.string().describe("Search query"),
+    }),
+    execute: async ({ query }) => {
+      // Tool execution happens here in the MCP server
+      const results = await performSearch(query);
+      return { results };
+    },
+  }),
+};
+
+// Use in a tool handler
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  if (request.params.name === "research") {
+    const result = await generateText({
+      model: provider.languageModel({
+        modelPreferences: { hints: [{ name: "copilot/gpt-4o" }] },
+      }),
+      prompt: `Research: ${request.params.arguments?.topic}`,
+      tools, // AI SDK tools are executed in the MCP server
+    });
+
+    return { content: [{ type: "text", text: result.text }] };
+  }
+});
+```
+
+**Note:** This is different from client sampling. Here, AI SDK tools are defined
+and executed within the MCP server itself. The MCP client only provides the LLM
+inference.
 
 See the [examples](./examples/) directory for complete working examples:
 
@@ -175,6 +223,48 @@ setupClientSampling(client, {
 });
 ```
 
+### Client Sampling with Tools
+
+When the MCP server requests tool usage through `createMessage`, you can convert
+MCP tools to AI SDK format using `convertMCPToolsToAISDK`:
+
+```typescript
+import {
+  convertAISDKFinishReasonToMCP,
+  convertMCPToolsToAISDK,
+  selectModelFromPreferences,
+} from "@mcpc/mcp-sampling-ai-provider";
+import { generateText, jsonSchema, tool } from "ai";
+
+setupClientSampling(client, {
+  handler: async (params) => {
+    const modelId = selectModelFromPreferences(params.modelPreferences, {
+      default: "openai/gpt-4o-mini",
+    });
+
+    // Convert MCP tools to AI SDK format
+    const aiTools = convertMCPToolsToAISDK(params.tools, { tool, jsonSchema });
+
+    const result = await generateText({
+      model: modelId,
+      messages: params.messages,
+      tools: aiTools, // Tools are for LLM awareness only - execution happens server-side
+    });
+
+    return {
+      model: modelId,
+      role: "assistant",
+      content: { type: "text", text: result.text },
+      stopReason: convertAISDKFinishReasonToMCP(result.finishReason),
+    };
+  },
+});
+```
+
+**Note:** In client sampling, tools are **not executed** on the client side. The
+client only returns tool-call content blocks, which the MCP server then
+executes.
+
 See [`client-sampling-example.ts`](./examples/client-sampling-example.ts) for a
 complete example.
 
@@ -195,8 +285,10 @@ based on `modelPreferences`.
 - **No token counting**: MCP doesn't provide token usage (returns 0)
 - **No native streaming**: MCP sampling doesn't support streaming - we call
   `doGenerate` first, then emit the complete response as stream events
-- **Experimental tool/json support**: Implemented via systemPrompt as MCP
-  sampling doesn't natively support these
+- **Tool support in client sampling**: When implementing client sampling, use
+  `convertMCPToolsToAISDK()` to convert MCP tools to AI SDK format. Tool
+  execution happens server-side; the client only returns tool-call content
+  blocks
 
 ## Related
 

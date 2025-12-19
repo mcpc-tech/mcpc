@@ -145,7 +145,10 @@ export function createCodeExecutionPlugin(
           // Generate appropriate response message
           let text: string;
           if (contentParts.length > 0) {
-            text = contentParts.map((p) => p.text).join("\n");
+            text = contentParts
+              .filter((p) => p.type === "text")
+              .map((p) => (p as { type: "text"; text: string }).text)
+              .join("\n");
           } else if (definitionsOf.length > 0) {
             // All requested schemas already in hasDefinitions
             text =

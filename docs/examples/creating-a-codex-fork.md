@@ -75,7 +75,7 @@ const server = mcpc(
     name: "codex-fork-agent",
     version: "0.1.0",
   }, {
-    capabilities: { tools: {}, sampling: {} },
+    capabilities: { tools: {} },
   }],
   // Agent definition
   [{

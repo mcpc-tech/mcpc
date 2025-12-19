@@ -32,11 +32,10 @@ export const createServer = async (
         version: serverConfig.version || "0.1.0",
       },
       {
-        capabilities: serverConfig?.capabilities || {
+        capabilities: (serverConfig?.capabilities || {
           tools: {},
-          sampling: {},
           logging: {},
-        },
+        }),
       },
     ],
     serverConfig.agents,

@@ -15,7 +15,7 @@ Every MCPC server follows the same simple pattern:
 ```typescript
 const server = await mcpc(
   [{ name: "my-agent", version: "1.0.0" }, {
-    capabilities: { tools: {}, sampling: {} },
+    capabilities: { tools: {} },
   }],
   [{
     name: "my-agent",
@@ -77,7 +77,7 @@ deps: {
 - **`sampling: true`**: Autonomous execution in compatible clients (VS Code,
   etc.)
 
-Sampling requires `capabilities.sampling: {}` in server metadata.
+Sampling requires `capabilities.sampling: {}` in client.
 
 ## Plugin System
 
@@ -169,6 +169,5 @@ KISS principle throughout:
 
 - Tool not found? Use full name: `server.tool` (not just `tool`)
 - `__ALL__` includes every tool from a server - use sparingly
-- Sampling mode not working? Check `capabilities.sampling: {}` in metadata
 - Config not loading? CLI checks: `--config` → `--config-url` → `--config-file`
   → `./mcpc.config.json`

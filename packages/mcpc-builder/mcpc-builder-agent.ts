@@ -51,7 +51,7 @@ I help you discover and compose MCP servers from the mcpc.tech registry to build
   const server = await mcpc(
     [
       { name: "mcpc-builder-agent", version: "1.0.0" },
-      { capabilities: { tools: {}, sampling: {} } },
+      { capabilities: { tools: {} } },
     ],
     [
       {
