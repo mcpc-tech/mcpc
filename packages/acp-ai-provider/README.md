@@ -261,11 +261,16 @@ You can import this constant using `ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME`.
 
 ### Raw stream parts (plan, diffs, terminals)
 
-The provider emits additional data as `raw` stream parts. You can handle them
-directly in the stream:
+The provider emits additional data as `raw` stream parts.
+
+> **Important**: You must set `includeRawChunks: true` to receive raw stream
+> parts, otherwise they will be filtered out by the AI SDK.
+
+You can handle them directly in the stream:
 
 ```ts
 const { fullStream } = streamText({
+  includeRawChunks: true, // Required to receive raw parts
   model: provider.languageModel(),
   prompt: "...",
 });
@@ -293,6 +298,7 @@ Or use `messageMetadata` to attach them to messages when streaming to UI:
 
 ```ts
 const result = streamText({
+  includeRawChunks: true, // Required to receive raw parts
   model: provider.languageModel(),
   prompt: "...",
 });
