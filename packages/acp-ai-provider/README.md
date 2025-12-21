@@ -259,6 +259,67 @@ export const providerAgentDynamicToolSchema = z.object({
 
 You can import this constant using `ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME`.
 
+### Raw stream parts (plan, diffs, terminals)
+
+The provider emits additional data as `raw` stream parts. You can handle them
+directly in the stream:
+
+```ts
+const { fullStream } = streamText({
+  model: provider.languageModel(),
+  prompt: "...",
+});
+
+for await (const chunk of fullStream) {
+  if (chunk.type === "raw") {
+    const data = JSON.parse(chunk.rawValue);
+
+    switch (data.type) {
+      case "plan":
+        // Plan steps: data.entries
+        break;
+      case "diff":
+        // File changes: data.path, data.oldText, data.newText, data.toolCallId
+        break;
+      case "terminal":
+        // Terminal output: data.terminalId, data.toolCallId
+        break;
+    }
+  }
+}
+```
+
+Or use `messageMetadata` to attach them to messages when streaming to UI:
+
+```ts
+const result = streamText({
+  model: provider.languageModel(),
+  prompt: "...",
+});
+
+const response = result.toUIMessageStreamResponse({
+  messageMetadata: ({ part }) => {
+    // Convert raw parts to metadata for easier UI access
+    if (part.type === "raw" && part.rawValue) {
+      const data = JSON.parse(part.rawValue as string);
+      switch (data.type) {
+        case "plan":
+          return { plan: data.entries };
+        case "diff":
+          return { diffs: [data] }; // Accumulate multiple diffs
+        case "terminal":
+          return { terminals: [data] }; // Accumulate terminal outputs
+      }
+    }
+  },
+});
+
+// In your UI component:
+// message.metadata?.plan → plan entries
+// message.metadata?.diffs → file changes
+// message.metadata?.terminals → terminal outputs
+```
+
 ## Limitations
 
 - **No token counting** — ACP doesn't provide token usage information (it always
