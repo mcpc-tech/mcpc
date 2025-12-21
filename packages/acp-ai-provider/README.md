@@ -320,6 +320,42 @@ const response = result.toUIMessageStreamResponse({
 // message.metadata?.terminals → terminal outputs
 ```
 
+## Performance Optimization
+
+<details>
+<summary><strong>Performance ⚡️</strong></summary>
+
+For the best user experience, we recommend **pre-initializing the session** with
+your tools. Benchmarking shows this can reduce the Time to First Token (TTFT) by
+over 60%.
+
+| Strategy            | Connect Time | TTFT (Perceived) |
+| ------------------- | ------------ | ---------------- |
+| Standard (Lazy)     | N/A          | ~7.3s            |
+| **Pre-Initialized** | ~2.3s        | **~2.8s**        |
+
+```typescript
+// 1. Create provider and tools
+const provider = createACPProvider({/* ... */});
+const tools = acpTools({/* ... */});
+
+try {
+  // 2. Pre-initialize to warm up connection (saves ~5s)
+  await provider.initSession(tools);
+
+  // 3. Use in streamText (instant start)
+  await streamText({
+    model: provider.languageModel("model-id"),
+    tools, // Must use same tools instance
+    prompt: "Hello",
+  });
+} finally {
+  provider.cleanup();
+}
+```
+
+</details>
+
 ## Limitations
 
 - **No token counting** — ACP doesn't provide token usage information (it always
