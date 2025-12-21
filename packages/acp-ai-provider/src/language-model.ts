@@ -281,7 +281,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
     }
 
     const initConfig: InitializeRequest = {
-      ...(this.config.initialize ?? {}),
+      ...this.config.initialize,
       protocolVersion: this.config.initialize?.protocolVersion ??
         PROTOCOL_VERSION,
       clientCapabilities: this.config.initialize?.clientCapabilities ?? {
@@ -298,7 +298,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
       (a) => a.id === this.config.authMethodId,
     )?.id;
 
-    if (initResult.authMethods?.length ?? 0 > 0) {
+    if ((initResult.authMethods?.length ?? 0) > 0) {
       if (!this.config.authMethodId || !validAuthMethods) {
         console.log(
           "[acp-ai-provider] Warning: No authMethodId specified in config, skipping authentication step. If this is not desired, please set one of the authMethodId in the ACPProviderSettings.",
@@ -558,6 +558,37 @@ export class ACPLanguageModel implements LanguageModelV2 {
   }
 
   /**
+   * Emits raw content (plan, diffs, terminals) as raw stream parts.
+   * Plan data is emitted directly, while diffs and terminals are bound to a toolCallId.
+   */
+  private emitRawContent(
+    controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>,
+    data: { type: "plan"; entries: unknown } | {
+      content: ToolCallContent[];
+      toolCallId: string;
+    },
+  ): void {
+    if ("entries" in data) {
+      // Plan data
+      controller.enqueue({
+        type: "raw",
+        rawValue: JSON.stringify({ type: "plan", entries: data.entries }),
+      });
+      return;
+    }
+
+    // Tool call content (diffs, terminals)
+    for (const item of data.content) {
+      if (item.type === "diff" || item.type === "terminal") {
+        controller.enqueue({
+          type: "raw",
+          rawValue: JSON.stringify({ ...item, toolCallId: data.toolCallId }),
+        });
+      }
+    }
+  }
+
+  /**
    * Standardized handler for converting SessionNotifications into
    * LanguageModelV2StreamPart objects, pushing them onto a stream controller.
    */
@@ -568,9 +599,9 @@ export class ACPLanguageModel implements LanguageModelV2 {
     const update = notification.update;
     switch (update.sessionUpdate) {
       case "plan":
-        controller.enqueue({
-          type: "raw",
-          rawValue: JSON.stringify(update.entries),
+        this.emitRawContent(controller, {
+          type: "plan",
+          entries: update.entries,
         });
         break;
       case "agent_thought_chunk":
@@ -745,6 +776,11 @@ export class ACPLanguageModel implements LanguageModelV2 {
               }),
             });
           }
+
+          const content = update.content ?? [];
+          if (content.length > 0) {
+            this.emitRawContent(controller, { content, toolCallId });
+          }
           break;
         }
 
@@ -804,6 +840,11 @@ export class ACPLanguageModel implements LanguageModelV2 {
             result: new Error(formatToolError(toolResult)),
           }),
         });
+
+        const content = update.content ?? [];
+        if (content.length > 0) {
+          this.emitRawContent(controller, { content, toolCallId });
+        }
         break;
       }
     }
@@ -872,7 +913,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
                 (tc) => tc.id === part.toolCallId,
               );
               toolResults.set(part.toolCallId, {
-                name: matchingToolCall?.name || matchingToolCall?.id!,
+                name: matchingToolCall?.name || part.toolCallId,
                 result: part.result,
                 isError: part.isError,
               });
