@@ -20,7 +20,10 @@ import type {
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { ModelPreferences } from "./provider.ts";
-import { convertAISDKToMCPMessages, convertMCPStopReasonToAISDK } from "./utils.ts";
+import {
+  convertAISDKToMCPMessages,
+  convertMCPStopReasonToAISDK,
+} from "./utils.ts";
 
 /**
  * Configuration for MCP Language Model
@@ -88,14 +91,21 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
 
     // Inject response format instructions into system prompt
     // TODO: Remove this workaround when MCP natively supports responseFormat
-    systemPrompt = this.injectResponseFormatInstructions(systemPrompt, options.responseFormat);
+    systemPrompt = this.injectResponseFormatInstructions(
+      systemPrompt,
+      options.responseFormat,
+    );
 
     // Check if client supports native tools
     const useNativeTools = this.supportsSamplingTools();
 
     // Inject tool definitions into system prompt (only for JSON fallback mode)
     // injectToolInstructions will skip injection when using native tools mode
-    systemPrompt = this.injectToolInstructions(systemPrompt, options.tools, useNativeTools);
+    systemPrompt = this.injectToolInstructions(
+      systemPrompt,
+      options.tools,
+      useNativeTools,
+    );
 
     // Build createMessage params based on mode
     const createMessageParams: CreateMessageRequestParams = {
@@ -120,7 +130,9 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
     // Handle response based on mode
     if (useNativeTools) {
       // Native tools mode: check for tool_use content blocks
-      const contentArray = Array.isArray(result.content) ? result.content : [result.content];
+      const contentArray = Array.isArray(result.content)
+        ? result.content
+        : [result.content];
 
       for (const block of contentArray) {
         if (block.type === "text" && "text" in block) {
@@ -129,22 +141,26 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
             type: "text",
             text: block.text as string,
           });
-        } else if (block.type === "tool_use" && "id" in block && "name" in block) {
+        } else if (
+          block.type === "tool_use" && "id" in block && "name" in block
+        ) {
           // Add native tool call content
           const toolInput = (block as any).input || {};
           content.push({
             type: "tool-call",
             toolCallId: block.id as string,
             toolName: block.name as string,
-            args: JSON.stringify(toolInput),
-            input: toolInput,
+            input: JSON.stringify(toolInput),
           } as LanguageModelV2Content);
         }
       }
     } else {
       // JSON/XML fallback mode: parse XML-style tool calls from text
       if (result.content.type === "text" && result.content.text) {
-        const { text, toolCalls } = this.extractToolCalls(result.content.text, options.tools);
+        const { text, toolCalls } = this.extractToolCalls(
+          result.content.text,
+          options.tools,
+        );
 
         // Add text content if present
         if (text.trim()) {
@@ -200,7 +216,8 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
           controller.enqueue({
             type: "response-metadata",
             modelId: result.response.modelId,
-            ...(result.response.headers && { headers: result.response.headers }),
+            ...(result.response.headers &&
+              { headers: result.response.headers }),
           });
         }
 
@@ -218,7 +235,7 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
               type: "tool-call",
               toolCallId: part.toolCallId,
               toolName: part.toolName,
-              input: JSON.stringify(part.input),
+              input: part.input,
             });
           }
         }
@@ -266,7 +283,9 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
   /**
    * Convert AI SDK tools to MCP Tool format
    */
-  private convertAISDKToolsToMCP(tools?: LanguageModelV2CallOptions["tools"]): Tool[] {
+  private convertAISDKToolsToMCP(
+    tools?: LanguageModelV2CallOptions["tools"],
+  ): Tool[] {
     if (!tools || tools.length === 0) return [];
 
     return tools
@@ -380,7 +399,9 @@ Tools:`;
           const description = toolAny.description || "No description provided";
           // Try both inputSchema and parameters for compatibility
           const schema = toolAny.inputSchema || toolAny.parameters;
-          const params = schema ? `\n  JSON Schema: ${JSON.stringify(schema, null, 2)}` : "";
+          const params = schema
+            ? `\n  JSON Schema: ${JSON.stringify(schema, null, 2)}`
+            : "";
           return `
 - ${tool.name}: ${description}${params}`;
         } else if (tool.type === "provider-defined") {
