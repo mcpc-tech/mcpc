@@ -136,7 +136,9 @@ export interface ComposibleMCPConfig {
   [key: string]: ComposeDefinition[];
 }
 
-export function parseMcpcConfigs(conf?: ComposeDefinition[]): ComposeDefinition[] {
+export function parseMcpcConfigs(
+  conf?: ComposeDefinition[],
+): ComposeDefinition[] {
   return conf ?? [];
 }
 

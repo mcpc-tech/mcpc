@@ -10,7 +10,11 @@ import {
   MCPSamplingProvider,
   type MCPSamplingProviderOptions,
 } from "@mcpc/mcp-sampling-ai-provider";
-import { BaseAIExecutor, type AIExecutorConfig, type ExternalTool } from "./base-ai-executor.ts";
+import {
+  type AIExecutorConfig,
+  BaseAIExecutor,
+  type ExternalTool,
+} from "./base-ai-executor.ts";
 import type { ComposableMCPServer } from "../../compose.ts";
 
 export interface AISamplingExecutorConfig extends AIExecutorConfig {
@@ -26,7 +30,12 @@ export class AISamplingExecutor extends BaseAIExecutor {
   private model: LanguageModelV2 | null = null;
 
   constructor(config: AISamplingExecutorConfig) {
-    super(config, "callTool" in config.server ? (config.server as ComposableMCPServer) : undefined);
+    super(
+      config,
+      "callTool" in config.server
+        ? (config.server as ComposableMCPServer)
+        : undefined,
+    );
     this.server = config.server;
     this.tools = config.tools;
     this.providerOptions = config.providerOptions;
@@ -49,6 +58,14 @@ export class AISamplingExecutor extends BaseAIExecutor {
     return "mcp";
   }
 
+  protected override getToolListDescription(): string {
+    return this.tools
+      .map(([name, detail]) =>
+        `- ${name}: ${detail.description || "No description"}`
+      )
+      .join("\n");
+  }
+
   protected buildTools(): Record<string, Tool<any, any>> {
     const aiTools: Record<string, Tool<any, any>> = {};
     for (const [name, detail] of this.tools) {
@@ -60,9 +77,15 @@ export class AISamplingExecutor extends BaseAIExecutor {
     return aiTools;
   }
 
-  private async callTool(name: string, input: Record<string, unknown>): Promise<CallToolResult> {
+  private async callTool(
+    name: string,
+    input: Record<string, unknown>,
+  ): Promise<CallToolResult> {
     if ("callTool" in this.server) {
-      return (await (this.server as ComposableMCPServer).callTool(name, input)) as CallToolResult;
+      return (await (this.server as ComposableMCPServer).callTool(
+        name,
+        input,
+      )) as CallToolResult;
     }
     const detail = this.tools.find(([n]) => n === name)?.[1];
     if (detail?.execute) return await detail.execute(input);
@@ -76,7 +99,9 @@ export class AISamplingExecutor extends BaseAIExecutor {
     return texts?.length ? texts.join("\n") : JSON.stringify(result.content);
   }
 
-  override execute(args: Parameters<BaseAIExecutor["execute"]>[0]): Promise<CallToolResult> {
+  override execute(
+    args: Parameters<BaseAIExecutor["execute"]>[0],
+  ): Promise<CallToolResult> {
     this.initProvider();
     return super.execute(args);
   }

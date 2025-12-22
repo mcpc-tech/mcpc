@@ -37,7 +37,13 @@ export function registerAISamplingTool(
     tracingEnabled = false,
   } = params;
 
-  const createArgsDef = createArgsDefFactory(name, allToolNames, depGroups, undefined, undefined);
+  const createArgsDef = createArgsDefFactory(
+    name,
+    allToolNames,
+    depGroups,
+    undefined,
+    undefined,
+  );
   const executor = new AISamplingExecutor({
     name,
     description,
@@ -49,12 +55,15 @@ export function registerAISamplingTool(
   });
 
   const toolDescription = CompiledPrompts.samplingToolDescription({
+    toolName: name,
     description,
     toolList: allToolNames.map((n) => `- ${n}`).join("\n"),
   });
 
   const argsDef = createArgsDef.forSampling();
-  const schema = allToolNames.length > 0 ? argsDef : { type: "object", properties: {} };
+  const schema = allToolNames.length > 0
+    ? argsDef
+    : { type: "object", properties: {} };
 
   server.tool(
     name,
@@ -63,9 +72,13 @@ export function registerAISamplingTool(
       createModelCompatibleJSONSchema(schema as Record<string, unknown>),
     ),
     (args: Record<string, unknown>) => {
-      const userRequest =
-        typeof args.userRequest === "string" ? args.userRequest : JSON.stringify(args);
-      return executor.execute({ userRequest, context: args.context as Record<string, unknown> });
+      const userRequest = typeof args.userRequest === "string"
+        ? args.userRequest
+        : JSON.stringify(args);
+      return executor.execute({
+        userRequest,
+        context: args.context as Record<string, unknown>,
+      });
     },
   );
 }

@@ -5,8 +5,15 @@
 import type { LanguageModelV2 } from "@ai-sdk/provider";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Tool } from "ai";
-import { createACPProvider, type ACPProviderSettings } from "@mcpc/acp-ai-provider";
-import { BaseAIExecutor, type AIExecutorConfig, type ExternalTool } from "./base-ai-executor.ts";
+import {
+  type ACPProviderSettings,
+  createACPProvider,
+} from "@mcpc/acp-ai-provider";
+import {
+  type AIExecutorConfig,
+  BaseAIExecutor,
+  type ExternalTool,
+} from "./base-ai-executor.ts";
 
 export type { ACPProviderSettings };
 
@@ -44,6 +51,18 @@ export class AIACPExecutor extends BaseAIExecutor {
     return "acp";
   }
 
+  protected override getToolListDescription(): string {
+    if (this.clientTools.length === 0) {
+      return "Tools will be provided by AI SDK";
+    }
+
+    return this.clientTools
+      .map(([name, detail]) =>
+        `- ${name}: ${detail.description || "No description"}`
+      )
+      .join("\n");
+  }
+
   protected buildTools(): Record<string, Tool<any, any>> {
     const aiTools: Record<string, Tool<any, any>> = {};
     for (const [name, detail] of this.clientTools) {
@@ -63,7 +82,9 @@ export class AIACPExecutor extends BaseAIExecutor {
     return texts?.length ? texts.join("\n") : JSON.stringify(result.content);
   }
 
-  override execute(args: Parameters<BaseAIExecutor["execute"]>[0]): Promise<CallToolResult> {
+  override execute(
+    args: Parameters<BaseAIExecutor["execute"]>[0],
+  ): Promise<CallToolResult> {
     this.initProvider();
     return super.execute(args);
   }

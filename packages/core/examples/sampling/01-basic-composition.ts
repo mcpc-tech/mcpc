@@ -20,7 +20,8 @@ export const toolDefinitions: ComposeDefinition[] = [
     options: {
       mode: "ai_sampling",
     },
-    description: `I am a smart file organizer that helps users manage their files efficiently.
+    description:
+      `I am a smart file organizer that helps users manage their files efficiently.
 
 Available tools:
 <tool name="@wonderwhy-er/desktop-commander.list_directory"/>

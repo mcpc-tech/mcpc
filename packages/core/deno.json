@@ -36,7 +36,7 @@
     "ai": "npm:ai@^5.0.60",
     "@ai-sdk/provider": "npm:@ai-sdk/provider@^2.0.0",
     "@ai-sdk/provider-utils": "npm:@ai-sdk/provider-utils@^2.2.8",
-    "@mcpc/mcp-sampling-ai-provider": "jsr:@mcpc/mcp-sampling-ai-provider@^0.1.13",
+    "@mcpc/mcp-sampling-ai-provider": "jsr:@mcpc/mcp-sampling-ai-provider@^0.1.15",
     "@mcpc/acp-ai-provider": "jsr:@mcpc/acp-ai-provider@^0.1.47"
   }
 }

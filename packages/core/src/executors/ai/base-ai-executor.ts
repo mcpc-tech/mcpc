@@ -6,7 +6,7 @@ import type { LanguageModelV2 } from "@ai-sdk/provider";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Span, Tracer } from "@opentelemetry/api";
 import { trace } from "@opentelemetry/api";
-import { streamText, tool, stepCountIs, jsonSchema } from "ai";
+import { jsonSchema, stepCountIs, streamText, tool } from "ai";
 import type { Tool } from "ai";
 import { createLogger, type MCPLogger } from "../../utils/logger.ts";
 import type { ComposableMCPServer } from "../../compose.ts";
@@ -60,25 +60,31 @@ export abstract class BaseAIExecutor {
   }
 
   private executeWithTracing(args: ExecuteArgs): Promise<CallToolResult> {
-    return this.tracer.startActiveSpan(`mcpc.ai.${this.config.name}`, async (span: Span) => {
-      try {
-        span.setAttributes({
-          "mcpc.executor": this.config.name,
-          "mcpc.type": this.getExecutorType(),
-        });
-        const result = await this.executeCore(args, span);
-        span.setAttributes({ "mcpc.error": !!result.isError });
-        return result;
-      } catch (error) {
-        span.recordException(error as Error);
-        throw error;
-      } finally {
-        span.end();
-      }
-    });
+    return this.tracer.startActiveSpan(
+      `mcpc.ai.${this.config.name}`,
+      async (span: Span) => {
+        try {
+          span.setAttributes({
+            "mcpc.executor": this.config.name,
+            "mcpc.type": this.getExecutorType(),
+          });
+          const result = await this.executeCore(args, span);
+          span.setAttributes({ "mcpc.error": !!result.isError });
+          return result;
+        } catch (error) {
+          span.recordException(error as Error);
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
-  private async executeCore(args: ExecuteArgs, span?: Span): Promise<CallToolResult> {
+  private async executeCore(
+    args: ExecuteArgs,
+    span?: Span,
+  ): Promise<CallToolResult> {
     try {
       const result = streamText({
         model: this.getModel(),
@@ -88,10 +94,10 @@ export abstract class BaseAIExecutor {
         stopWhen: stepCountIs(this.config.maxSteps),
         experimental_telemetry: this.config.tracingEnabled
           ? {
-              isEnabled: true,
-              functionId: `mcpc.${this.config.name}`,
-              tracer: this.tracer,
-            }
+            isEnabled: true,
+            functionId: `mcpc.${this.config.name}`,
+            tracer: this.tracer,
+          }
           : undefined,
         onStepFinish: (step) => {
           if (span) {
@@ -103,15 +109,14 @@ export abstract class BaseAIExecutor {
         },
       });
 
-      this.logger.error({ steps: await result.steps });
-
       return {
         content: [
           {
             type: "text",
-            text:
-              (await result.text) ||
-              `Completed in ${(await result.steps)?.length ?? "unknown"} step(s).`,
+            text: (await result.text) ||
+              `Completed in ${
+                (await result.steps)?.length ?? "unknown"
+              } step(s).`,
           },
         ],
         isError: false,
@@ -122,7 +127,9 @@ export abstract class BaseAIExecutor {
         content: [
           {
             type: "text",
-            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            text: `Error: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
           },
         ],
         isError: true,
@@ -131,12 +138,40 @@ export abstract class BaseAIExecutor {
   }
 
   protected buildSystemPrompt(args: ExecuteArgs): string {
-    let prompt = `You are ${this.config.name}: ${this.config.description}\n`;
-    if (args.context) {
-      prompt += `\nContext: ${JSON.stringify(args.context, null, 2)}\n`;
-    }
-    prompt += `\nUse tools to complete the task. Summarize when done.`;
-    return prompt;
+    return `Agent \`${this.config.name}\` that completes tasks by calling tools.
+
+<manual>
+${this.config.description}
+</manual>
+
+<rules>
+${this.getRules()}
+</rules>
+
+<tools>
+${this.getToolListDescription()}
+</tools>${args.context ? this.formatContext(args.context) : ""}`;
+  }
+
+  protected getRules(): string {
+    return `1. Use tools to complete the user's request
+2. Review results after each tool call
+3. Adapt your approach based on outcomes
+4. Continue until task is complete
+5. When complete, provide a summary WITHOUT calling more tools`;
+  }
+
+  protected getToolListDescription(): string {
+    // Override in subclasses to provide specific tool list
+    return "Tools will be provided by AI SDK";
+  }
+
+  protected formatContext(context: Record<string, unknown>): string {
+    return `
+
+<context>
+${JSON.stringify(context, null, 2)}
+</context>`;
   }
 
   protected convertToAISDKTool(
@@ -146,7 +181,9 @@ export abstract class BaseAIExecutor {
   ): Tool<any, any> {
     return tool({
       description: toolDetail.description || `Tool: ${name}`,
-      inputSchema: jsonSchema((toolDetail.inputSchema as any) || { type: "object" }),
+      inputSchema: jsonSchema(
+        (toolDetail.inputSchema as any) || { type: "object" },
+      ),
       execute,
     });
   }

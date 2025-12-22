@@ -89,15 +89,15 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
       }
     }
 
+    // Check if client supports native tools
+    const useNativeTools = this.supportsSamplingTools();
+
     // Inject response format instructions into system prompt
-    // TODO: Remove this workaround when MCP natively supports responseFormat
     systemPrompt = this.injectResponseFormatInstructions(
       systemPrompt,
       options.responseFormat,
+      useNativeTools,
     );
-
-    // Check if client supports native tools
-    const useNativeTools = this.supportsSamplingTools();
 
     // Inject tool definitions into system prompt (only for JSON fallback mode)
     // injectToolInstructions will skip injection when using native tools mode
@@ -306,20 +306,21 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
   /**
    * Inject response format instructions into system prompt
    *
-   * WORKAROUND: MCP sampling currently doesn't support native responseFormat parameter.
-   * This method injects formatting instructions directly into the system prompt.
-   *
-   * TODO: Remove this workaround when MCP protocol adds native support for:
-   * - responseFormat parameter in createMessage
-   * - JSON schema validation
-   * - Structured output modes
+   * Only injects formatting instructions in JSON fallback mode.
+   * In native tools mode, structured output is handled by the provider.
    */
   private injectResponseFormatInstructions(
     systemPrompt: string | undefined,
     responseFormat?: LanguageModelV2CallOptions["responseFormat"],
+    useNativeTools?: boolean,
   ): string | undefined {
     // If no response format specified, return original prompt
     if (!responseFormat) {
+      return systemPrompt;
+    }
+
+    // If using native tools mode, don't inject JSON formatting instructions
+    if (useNativeTools) {
       return systemPrompt;
     }
 
