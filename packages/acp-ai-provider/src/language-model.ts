@@ -55,9 +55,9 @@ export const providerAgentDynamicToolSchema: z.ZodType<
 > = z.object({
   toolCallId: z.string().describe("The unique ID of the tool call."),
   toolName: z.string().describe("The name of the tool being called."),
-  args: z
-    .record(z.unknown())
-    .describe("The input arguments for the tool call."),
+  args: z.record(z.unknown()).describe(
+    "The input arguments for the tool call.",
+  ),
 });
 
 /**
@@ -263,10 +263,12 @@ export class ACPLanguageModel implements LanguageModelV2 {
         throw new Error("Failed to spawn agent process with stdio");
       }
 
-      const input = Writable.toWeb(this.agentProcess.stdin);
-      const output = Readable.toWeb(
-        this.agentProcess.stdout,
-      ) as ReadableStream<Uint8Array>;
+      const input = Writable.toWeb(this.agentProcess.stdin) as WritableStream<
+        Uint8Array
+      >;
+      const output = Readable.toWeb(this.agentProcess.stdout) as ReadableStream<
+        Uint8Array
+      >;
 
       this.client = new ACPAISDKClient();
 
@@ -309,8 +311,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
       // Some agents never implement authentication, so we skip this unless user specifies it.
       if (this.config.authMethodId && validAuthMethods) {
         await this.connection.authenticate({
-          methodId: this.config.authMethodId ??
-            initResult.authMethods?.[0].id!,
+          methodId: this.config.authMethodId ?? initResult.authMethods?.[0].id!,
         });
       }
     }
@@ -467,9 +468,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
    *
    * @param acpTools - Optional list of tools to register during session initialization.
    */
-  async initSession(
-    tools?: ToolsInput,
-  ): Promise<NewSessionResponse> {
+  async initSession(tools?: ToolsInput): Promise<NewSessionResponse> {
     // This ensures tools have registered execute handlers attached
     const acpTools = extractACPTools(tools, false);
 
@@ -563,10 +562,12 @@ export class ACPLanguageModel implements LanguageModelV2 {
    */
   private emitRawContent(
     controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>,
-    data: { type: "plan"; entries: unknown } | {
-      content: ToolCallContent[];
-      toolCallId: string;
-    },
+    data:
+      | { type: "plan"; entries: unknown }
+      | {
+        content: ToolCallContent[];
+        toolCallId: string;
+      },
   ): void {
     if ("entries" in data) {
       // Plan data
@@ -667,8 +668,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         const existingToolCall = this.toolCallsMap.get(toolCallId);
 
         // Check if rawInput has actual data (not empty object)
-        const hasInput = toolInput &&
-          typeof toolInput === "object" &&
+        const hasInput = toolInput && typeof toolInput === "object" &&
           Object.keys(toolInput as object).length > 0;
 
         if (!existingToolCall) {
@@ -706,7 +706,8 @@ export class ACPLanguageModel implements LanguageModelV2 {
 
           // Update the stored name if we now have a better one (title vs toolCallId)
           if (
-            update.title && existingToolCall.name !== update.title &&
+            update.title &&
+            existingToolCall.name !== update.title &&
             update.title !== toolCallId
           ) {
             existingToolCall.name = update.title;
@@ -909,8 +910,8 @@ export class ACPLanguageModel implements LanguageModelV2 {
             }
 
             case "tool-result": {
-              const matchingToolCall = toolCalls.find(
-                (tc) => tc.id === part.toolCallId,
+              const matchingToolCall = toolCalls.find((tc) =>
+                tc.id === part.toolCallId
               );
               toolResults.set(part.toolCallId, {
                 name: matchingToolCall?.name || part.toolCallId,
