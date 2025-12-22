@@ -1394,8 +1394,12 @@
       },
       "packages/core": {
         "dependencies": [
+          "jsr:@mcpc/acp-ai-provider@~0.1.47",
+          "jsr:@mcpc/mcp-sampling-ai-provider@~0.1.13",
           "jsr:@mcpc/utils@~0.2.5",
           "jsr:@std/assert@1",
+          "npm:@ai-sdk/provider-utils@^2.2.8",
+          "npm:@ai-sdk/provider@2",
           "npm:@mcpc-tech/ripgrep-napi@^0.0.4",
           "npm:@modelcontextprotocol/sdk@^1.25.1",
           "npm:@opentelemetry/api@^1.9.0",
@@ -1405,6 +1409,7 @@
           "npm:@opentelemetry/sdk-trace-node@^1.29.0",
           "npm:@opentelemetry/semantic-conventions@^1.29.0",
           "npm:@segment/ajv-human-errors@^2.15.0",
+          "npm:ai@^5.0.60",
           "npm:ajv-errors@3",
           "npm:ajv-formats@^3.0.1",
           "npm:ajv@^8.17.1",

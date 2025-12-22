@@ -39,6 +39,8 @@ export interface ComposeDefinition {
      * - "agentic_workflow": Agent workflow mode that can either generate steps at runtime or use predefined steps
      * - "agentic_sampling": Autonomous sampling mode for agentic execution
      * - "agentic_workflow_sampling": Autonomous sampling mode for workflow execution
+     * - "ai_sampling": AI SDK sampling mode using streamText with MCP sampling provider
+     * - "ai_acp": AI SDK ACP mode for coding agents (Claude Code, etc.)
      * @default "agentic"
      */
     mode?: ExecutionMode;
@@ -48,6 +50,55 @@ export interface ComposeDefinition {
      * Only applies when mode is "agentic_sampling" or "agentic_workflow_sampling"
      */
     samplingConfig?: SamplingConfig;
+
+    /**
+     * Provider options for AI SDK sampling mode
+     * Only applies when mode is "ai_sampling"
+     * @see https://github.com/mcpc-tech/mcpc/tree/main/packages/mcp-sampling-ai-provider
+     */
+    providerOptions?: {
+      modelPreferences?: {
+        hints?: Array<{ name?: string }>;
+        costPriority?: number;
+        speedPriority?: number;
+        intelligencePriority?: number;
+      };
+    };
+
+    /**
+     * ACP settings for AI SDK ACP mode
+     * Only applies when mode is "ai_acp"
+     * @see https://github.com/mcpc-tech/mcpc/tree/main/packages/acp-ai-provider
+     */
+    acpSettings?: {
+      command: string;
+      args?: string[];
+      env?: Record<string, string>;
+      session?: {
+        cwd?: string;
+        mcpServers?: Array<{
+          name: string;
+          command: string;
+          args?: string[];
+          env?: Record<string, string>;
+        }>;
+      };
+      persistSession?: boolean;
+    };
+
+    /**
+     * Maximum number of agentic steps
+     * Applies to ai_sampling and ai_acp modes
+     * @default 50
+     */
+    maxSteps?: number;
+
+    /**
+     * Enable OpenTelemetry tracing
+     * Applies to ai_sampling and ai_acp modes
+     * @default false
+     */
+    tracingEnabled?: boolean;
 
     /**
      * Optional predefined workflow steps for agentic_workflow mode
@@ -85,9 +136,7 @@ export interface ComposibleMCPConfig {
   [key: string]: ComposeDefinition[];
 }
 
-export function parseMcpcConfigs(
-  conf?: ComposeDefinition[],
-): ComposeDefinition[] {
+export function parseMcpcConfigs(conf?: ComposeDefinition[]): ComposeDefinition[] {
   return conf ?? [];
 }
 

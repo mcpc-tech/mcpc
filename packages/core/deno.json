@@ -32,6 +32,11 @@
     "ajv-errors": "npm:ajv-errors@^3.0.0",
     "ajv-formats": "npm:ajv-formats@^3.0.1",
     "cheerio": "npm:cheerio@^1.0.0",
-    "jsonrepair": "npm:jsonrepair@^3.13.0"
+    "jsonrepair": "npm:jsonrepair@^3.13.0",
+    "ai": "npm:ai@^5.0.60",
+    "@ai-sdk/provider": "npm:@ai-sdk/provider@^2.0.0",
+    "@ai-sdk/provider-utils": "npm:@ai-sdk/provider-utils@^2.2.8",
+    "@mcpc/mcp-sampling-ai-provider": "jsr:@mcpc/mcp-sampling-ai-provider@^0.1.13",
+    "@mcpc/acp-ai-provider": "jsr:@mcpc/acp-ai-provider@^0.1.47"
   }
 }

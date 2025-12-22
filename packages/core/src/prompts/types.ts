@@ -34,6 +34,8 @@ export type ExecutionMode =
   | "agentic_workflow"
   | "agentic_sampling"
   | "agentic_workflow_sampling"
+  | "ai_sampling"
+  | "ai_acp"
   | (string & Record<never, never>);
 
 /**
