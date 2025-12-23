@@ -7,6 +7,7 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import type { CreateMessageResultWithTools } from "@modelcontextprotocol/sdk/types.js";
 import { generateText, jsonSchema, stepCountIs, tool } from "ai";
 import {
   convertMCPToolsToAISDK,
@@ -35,12 +36,47 @@ setupClientSampling(client, {
 
     // Call Mock LLM
     const result = await generateText({
+      system: params.systemPrompt,
       model: "openai/gpt-5-mini",
       messages: params.messages,
       tools: aiTools,
-      stopWhen: stepCountIs(5),
+      stopWhen: stepCountIs(1),
     });
 
+    console.log(
+      "####### Model Messages #######",
+      JSON.stringify(params.messages, null, 2),
+      JSON.stringify(result.text, null, 2),
+    );
+
+    const tools = result.toolCalls;
+
+    // Handle tool calls
+    if (tools.length > 0) {
+      const toolContentItems = tools.map((tool) => ({
+        type: "tool_use",
+        id: tool.toolCallId,
+        name: tool.toolName,
+        input: tool.input,
+      }));
+
+      console.error(
+        `✅ Client requesting ${tools.length} tool call(s)`,
+      );
+
+      console.log(`####### Tool Calls from LLM #######`, toolContentItems);
+
+      return {
+        model: "mock-model",
+        role: "assistant",
+        content: toolContentItems.length === 1
+          ? toolContentItems[0]
+          : toolContentItems,
+        stopReason: "toolUse",
+      } as CreateMessageResultWithTools;
+    }
+
+    // Handle text response
     console.error(
       `✅ Client generation finished: ${JSON.stringify(result.text)}`,
     );
@@ -50,7 +86,7 @@ setupClientSampling(client, {
       role: "assistant",
       content: { type: "text", text: result.text },
       stopReason: "endTurn",
-    };
+    } as CreateMessageResultWithTools;
   },
 });
 
@@ -69,7 +105,10 @@ console.error("❓ Calling 'ask-agent' tool on server...");
 try {
   const result = await client.callTool({
     name: "file-organizer",
-    arguments: { userRequest: "List files in /Users/beet/Downloads" },
+    arguments: {
+      userRequest: "List files in /Users/beet/Downloads",
+      context: {},
+    },
   });
 
   console.log("\n🏁 Final Result from Server:");

@@ -194,7 +194,7 @@ export class SamplingExecutor extends BaseSamplingExecutor {
 ## Current Task
 You will now use agentic sampling to complete the following task: "${userRequest}"${contextInfo}
 
-When you need to use a tool, specify the tool name in 'action' and provide tool-specific parameters as additional properties.`;
+When you need to use a tool, specify the tool name in 'useTool' and provide tool-specific parameters as additional properties.`;
 
     return this.formatPromptForMode({
       prompt: basePrompt + taskPrompt,

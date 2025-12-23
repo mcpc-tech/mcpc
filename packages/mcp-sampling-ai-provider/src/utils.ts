@@ -25,47 +25,152 @@ export type AISDKMessage = ModelMessage;
 export function convertMCPMessagesToAISDK(
   messages: CreateMessageRequest["params"]["messages"],
 ): AISDKMessage[] {
+  // First pass: build a map of toolUseId -> toolName from tool_use messages
+  const toolNameMap = new Map<string, string>();
+  for (const msg of messages) {
+    const content = msg.content;
+    if (Array.isArray(content)) {
+      for (const item of content) {
+        if (item.type === "tool_use" && "id" in item && "name" in item) {
+          toolNameMap.set(item.id as string, item.name as string);
+        }
+      }
+    } else if (
+      content.type === "tool_use" && "id" in content && "name" in content
+    ) {
+      toolNameMap.set(content.id as string, content.name as string);
+    }
+  }
+
+  // Second pass: convert messages using the tool name map
   return messages.map((msg): ModelMessage => {
     const role = msg.role as "user" | "assistant";
     const content = msg.content;
 
     // Handle array content (multiple content blocks)
     if (Array.isArray(content)) {
-      // For simplicity, extract first text block or return placeholder
-      const textBlock = content.find((c) => c.type === "text");
-      if (textBlock && "text" in textBlock) {
-        return { role, content: textBlock.text } as ModelMessage;
+      // Preserve all supported parts so tool loops can work.
+      const parts: any[] = [];
+      let hasToolResult = false;
+
+      for (const item of content) {
+        switch (item.type) {
+          case "text":
+            parts.push({ type: "text", text: (item as any).text ?? "" });
+            break;
+          case "image":
+            parts.push({
+              type: "image",
+              image: `data:${(item as any).mimeType};base64,${
+                (item as any).data
+              }`,
+            });
+            break;
+          case "tool_use":
+            parts.push({
+              type: "tool-call",
+              toolCallId: (item as any).id,
+              toolName: (item as any).name,
+              // AI SDK ecosystem has both `args` and `input` variants.
+              args: (item as any).input,
+              input: (item as any).input,
+            });
+            break;
+          case "tool_result": {
+            hasToolResult = true;
+            const toolUseId = (item as any).toolUseId ?? "";
+            const toolName = toolNameMap.get(toolUseId) || "unknown_tool";
+            const resultValue = (item as any).content ?? "";
+            parts.push({
+              type: "tool-result",
+              toolName,
+              toolCallId: toolUseId,
+              // AI SDK ecosystem has both `result` and `output` variants.
+              result: resultValue,
+              output: resultValue,
+            });
+            break;
+          }
+          default:
+            parts.push({
+              type: "text",
+              text: `[${(item as any).type} content not supported]`,
+            });
+            break;
+        }
       }
-      return { role, content: "[multiple content blocks]" } as ModelMessage;
+
+      // AI SDK expects tool results as role: "tool".
+      const finalRole = hasToolResult ? ("tool" as const) : role;
+
+      // If it's only a single text part, collapse to string for compatibility.
+      if (!hasToolResult && parts.length === 1 && parts[0].type === "text") {
+        return { role: finalRole, content: parts[0].text } as ModelMessage;
+      }
+
+      return { role: finalRole, content: parts } as ModelMessage;
     }
 
     // Handle single content object
-    if (content.type === "text") {
-      return {
-        role,
-        content: content.text,
-      } as ModelMessage;
-    } else if (content.type === "image") {
-      return {
-        role,
-        content: [
-          {
-            type: "image" as const,
-            image: `data:${content.mimeType};base64,${content.data}`,
-          },
-        ],
-      } as ModelMessage;
-    } else {
-      // Handle other types (audio, resource, etc.)
-      return {
-        role,
-        content: [
-          {
-            type: "text" as const,
-            text: `[${content.type} content not supported]`,
-          },
-        ],
-      } as ModelMessage;
+    switch (content.type) {
+      case "text":
+        return {
+          role,
+          content: content.text,
+        } as ModelMessage;
+
+      case "image":
+        return {
+          role,
+          content: [
+            {
+              type: "image" as const,
+              image: `data:${content.mimeType};base64,${content.data}`,
+            },
+          ],
+        } as ModelMessage;
+
+      case "tool_use":
+        return {
+          role,
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: content.id,
+              toolName: content.name,
+              input: content.input,
+            },
+          ],
+        } as ModelMessage;
+
+      case "tool_result": {
+        const toolUseId = "toolUseId" in content ? content.toolUseId : "";
+        const toolName = toolNameMap.get(toolUseId as string) || "unknown_tool";
+        const resultContent = "content" in content ? content.content : "";
+        return {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolName: toolName,
+              toolCallId: toolUseId as string,
+              output: resultContent as any,
+            },
+          ],
+        } as ModelMessage;
+      }
+
+      default:
+        // Handle other types (audio, resource, etc.)
+        return {
+          role,
+          content: [
+            {
+              type: "text" as const,
+              text: `[${content.type} content not supported]`,
+            },
+          ],
+        } as ModelMessage;
     }
   });
 }
@@ -101,8 +206,9 @@ export function convertAISDKToMCPMessages(
     if (toolCalls.length > 0) {
       const calls = toolCalls.map((c) => {
         const call = c as any;
+        const toolArgs = call.args ?? call.input ?? {};
         return `<use_tool tool="${call.toolName}">\n${
-          JSON.stringify(call.input || {})
+          JSON.stringify(toolArgs)
         }\n</use_tool>`;
       });
       parts.push(calls.join("\n"));
@@ -111,8 +217,9 @@ export function convertAISDKToMCPMessages(
     if (toolResults.length > 0) {
       const results = toolResults.map((c) => {
         const result = c as any;
+        const resultValue = result.result ?? result.output ?? "undefined";
         const output = JSON.stringify(
-          result.output || result.result || "undefined",
+          resultValue,
         );
         return `Tool "${result.toolName}" result:\n${output}`;
       });

@@ -11,7 +11,7 @@ import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import {
   type CreateMessageRequest,
   CreateMessageRequestSchema,
-  type CreateMessageResult,
+  type CreateMessageResultWithTools,
 } from "@modelcontextprotocol/sdk/types.js";
 import { type AISDKMessage, convertMCPMessagesToAISDK } from "./utils.ts";
 
@@ -19,6 +19,7 @@ import { type AISDKMessage, convertMCPMessagesToAISDK } from "./utils.ts";
  * AI SDK handler function type
  */
 export type AISDKHandler = (params: {
+  systemPrompt?: string;
   messages: AISDKMessage[];
   modelPreferences?: CreateMessageRequest["params"]["modelPreferences"];
   tools?: CreateMessageRequest["params"]["tools"];
@@ -26,7 +27,7 @@ export type AISDKHandler = (params: {
     tool: (...args: any[]) => any;
     jsonSchema: (...args: any[]) => any;
   };
-}) => Promise<CreateMessageResult>;
+}) => Promise<CreateMessageResultWithTools>;
 
 /**
  * Client sampling configuration
@@ -94,9 +95,10 @@ export interface ClientSamplingConfig {
  */
 export function createClientSampling(
   config: ClientSamplingConfig,
-): (request: CreateMessageRequest) => Promise<CreateMessageResult> {
+): (request: CreateMessageRequest) => Promise<CreateMessageResultWithTools> {
   return async (request: CreateMessageRequest) => {
     const {
+      systemPrompt,
       messages,
       modelPreferences,
       tools,
@@ -110,6 +112,7 @@ export function createClientSampling(
       }
 
       return await config.handler({
+        systemPrompt,
         messages: aiMessages,
         modelPreferences,
         tools,

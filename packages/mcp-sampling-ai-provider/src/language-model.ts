@@ -16,6 +16,7 @@ import type {
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import type {
   CreateMessageRequestParams,
+  CreateMessageRequestParamsWithTools,
   SamplingMessage,
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
@@ -122,7 +123,9 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
     }
 
     // Call MCP server's createMessage method
-    const result = await this.server.createMessage(createMessageParams);
+    const result = await this.server.createMessage(
+      createMessageParams as CreateMessageRequestParamsWithTools,
+    );
 
     // Extract text and tool calls from result
     const content: LanguageModelV2Content[] = [];

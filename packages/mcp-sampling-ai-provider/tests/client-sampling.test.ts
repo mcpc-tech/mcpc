@@ -2,7 +2,7 @@
  * Tests for client sampling
  */
 
-import { assertEquals } from "@std/assert";
+import { assert, assertEquals, assertExists } from "@std/assert";
 import {
   createClientSampling,
   selectModelFromPreferences,
@@ -186,10 +186,14 @@ Deno.test("createClientSampling - success", async () => {
 
   assertEquals(result.model, "test-model");
   assertEquals(result.role, "assistant");
-  if (result.content.type === "text") {
-    assertEquals(result.content.type, "text");
-    assertEquals(result.content.text, "Response text");
-  }
+  const contentArray = Array.isArray(result.content)
+    ? result.content
+    : [result.content];
+  const textBlock = contentArray.find((block) => block.type === "text");
+  assertExists(textBlock);
+  assertEquals(textBlock.type, "text");
+  assert("text" in textBlock);
+  assertEquals(textBlock.text, "Response text");
   assertEquals(result.stopReason, "endTurn");
 });
 
@@ -219,8 +223,12 @@ Deno.test("createClientSampling - error handling", async () => {
   const result = await handler(request);
 
   assertEquals(result.model, "error");
-  assertEquals(result.content.type, "text");
-  if (result.content.type === "text") {
-    assertEquals(result.content.text.includes("Test error"), true);
-  }
+  const contentArray = Array.isArray(result.content)
+    ? result.content
+    : [result.content];
+  const textBlock = contentArray.find((block) => block.type === "text");
+  assertExists(textBlock);
+  assertEquals(textBlock.type, "text");
+  assert("text" in textBlock);
+  assertEquals(textBlock.text.includes("Test error"), true);
 });
