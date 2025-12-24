@@ -2,6 +2,7 @@
   "version": "5",
   "specifiers": {
     "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.41.0",
+    "jsr:@mcpc/acp-ai-provider@~0.1.47": "0.1.47",
     "jsr:@std/assert@1": "1.0.14",
     "jsr:@std/assert@^1.0.14": "1.0.14",
     "jsr:@std/cli@^1.0.21": "1.0.21",
@@ -52,6 +53,15 @@
   "jsr": {
     "@es-toolkit/es-toolkit@1.41.0": {
       "integrity": "4df54a18e80b869880cee8a8a9ff7a5e1c424a9fd0916dccd38d34686f110071"
+    },
+    "@mcpc/acp-ai-provider@0.1.47": {
+      "integrity": "94379b35803ce3ee933eeed62cbfc0b1a64c6e70d649e6a003cca43dc1b46b34",
+      "dependencies": [
+        "npm:@agentclientprotocol/sdk",
+        "npm:@ai-sdk/provider@2",
+        "npm:ai@^5.0.60",
+        "npm:zod@^3.24.2"
+      ]
     },
     "@std/assert@1.0.14": {
       "integrity": "68d0d4a43b365abc927f45a9b85c639ea18a9fab96ad92281e493e4ed84abaa4",

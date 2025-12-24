@@ -5,8 +5,12 @@
 
 > **Version Compatibility**
 >
-> - `v0.2.x` requires **AI SDK v6** ([`main`](https://github.com/mcpc-tech/mcpc/tree/main/packages/acp-ai-provider) branch)
-> - For **AI SDK v5**, use the [`release-v5`](https://github.com/mcpc-tech/mcpc/tree/release-v5/packages/acp-ai-provider) branch or install `@mcpc-tech/acp-ai-provider@0.1.x`
+> - `v0.2.x` requires **AI SDK v6**
+>   ([`main`](https://github.com/mcpc-tech/mcpc/tree/main/packages/acp-ai-provider)
+>   branch)
+> - For **AI SDK v5**, use the
+>   [`release-v5`](https://github.com/mcpc-tech/mcpc/tree/release-v5/packages/acp-ai-provider)
+>   branch or install `@mcpc-tech/acp-ai-provider@0.1.x`
 
 Use [ACP (Agent Client Protocol)](https://agentclientprotocol.com/) agents with
 the [AI SDK](https://ai-sdk.dev/).
