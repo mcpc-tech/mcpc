@@ -3,6 +3,11 @@
 [![NPM Version](https://img.shields.io/npm/v/@mcpc-tech/acp-ai-provider)](https://www.npmjs.com/package/@mcpc-tech/acp-ai-provider)
 [![JSR](https://jsr.io/badges/@mcpc/acp-ai-provider)](https://jsr.io/@mcpc/acp-ai-provider)
 
+> **Version Compatibility**
+>
+> - `v0.2.x` requires **AI SDK v6** ([`main`](https://github.com/mcpc-tech/mcpc/tree/main/packages/acp-ai-provider) branch)
+> - For **AI SDK v5**, use the [`release-v5`](https://github.com/mcpc-tech/mcpc/tree/release-v5/packages/acp-ai-provider) branch or install `@mcpc-tech/acp-ai-provider@0.1.x`
+
 Use [ACP (Agent Client Protocol)](https://agentclientprotocol.com/) agents with
 the [AI SDK](https://ai-sdk.dev/).
 
@@ -22,6 +27,16 @@ npm i @mcpc-tech/acp-ai-provider
 
 # deno
 deno add jsr:@mcpc/acp-ai-provider
+```
+
+For **AI SDK v5** users:
+
+```bash
+# npm (v5)
+npm i @mcpc-tech/acp-ai-provider@0.1
+
+# deno (v5)
+deno add jsr:@mcpc/acp-ai-provider@0.1
 ```
 
 ## Usage
