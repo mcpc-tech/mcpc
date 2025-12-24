@@ -59,9 +59,8 @@ export function acpTools<T extends Record<string, Tool<any, any>>>(
 export function getACPDynamicTool(): Record<string, ReturnType<typeof tool>> {
   return {
     [ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME]: tool({
-      type: "provider-defined",
+      type: "provider",
       id: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME as `${string}.${string}`,
-      name: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
       args: {},
       inputSchema: jsonSchema({}),
     }),
