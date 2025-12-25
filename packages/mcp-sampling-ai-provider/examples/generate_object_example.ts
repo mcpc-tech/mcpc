@@ -61,7 +61,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // Use generateObject with the provider
     const result = await generateObject({
-      mode: "json",
+      // mode: "json",
       model: provider.languageModel({
         modelPreferences: { hints: [{ name: "copilot/gpt-5-mini" }] },
       }),

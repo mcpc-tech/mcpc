@@ -1,8 +1,28 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
-import type { LanguageModelV2CallOptions } from "@ai-sdk/provider";
+import type {
+  LanguageModelV3CallOptions,
+  LanguageModelV3FunctionTool,
+  LanguageModelV3ProviderTool,
+} from "@ai-sdk/provider";
 import { extractBase64Data } from "./utils.ts";
 import { asSchema, type Tool } from "ai";
 import { getExecuteByName, hasRegisteredExecute } from "./acp-tool.ts";
+
+const ROLE_PREFIXES: Record<string, string> = {
+  system: "System: ",
+  assistant: "Assistant: ",
+  tool: "Result: ",
+};
+
+function getRolePrefix(role: string): string {
+  return ROLE_PREFIXES[role] || "";
+}
+
+function getMediaType(mimeType: string): "image" | "audio" | null {
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("audio/")) return "audio";
+  return null;
+}
 
 /**
  * Converts AI SDK prompt messages into ACP ContentBlock objects.
@@ -12,10 +32,9 @@ import { getExecuteByName, hasRegisteredExecute } from "./acp-tool.ts";
  * @param isFreshSession - Whether this is a fresh session (send full history) or reused (send only latest user message)
  */
 export function convertAiSdkMessagesToAcp(
-  options: LanguageModelV2CallOptions,
+  options: LanguageModelV3CallOptions,
   isFreshSession: boolean,
 ): ContentBlock[] {
-  // If not a fresh session (meaning persistent session reused), only send the latest user message
   const messages = !isFreshSession
     ? options.prompt.filter((m) => m.role === "user").slice(-1)
     : options.prompt;
@@ -23,54 +42,52 @@ export function convertAiSdkMessagesToAcp(
   const contentBlocks: ContentBlock[] = [];
 
   for (const msg of messages) {
-    // Prefix to identify role since ACP has no role field
-    let prefix = "";
-    if (msg.role === "system") prefix = "System: ";
-    else if (msg.role === "assistant") prefix = "Assistant: ";
-    else if (msg.role === "tool") prefix = "Result: ";
+    const prefix = getRolePrefix(msg.role);
 
-    if (Array.isArray(msg.content)) {
-      let isFirst = true;
-      for (const part of msg.content) {
-        if (part.type === "text") {
-          const text = isFirst ? `${prefix}${part.text} ` : part.text;
-          contentBlocks.push({ type: "text" as const, text });
-          isFirst = false;
-        } else if (part.type === "tool-call") {
-          // Convert tool-call to text representation for ACP
-          const toolCallText = `[Tool Call: ${part.toolName}(${
-            JSON.stringify(part.input)
-          })]`;
-          const text = isFirst ? `${prefix}${toolCallText} ` : toolCallText;
-          contentBlocks.push({ type: "text" as const, text });
-          isFirst = false;
-        } else if (part.type === "tool-result") {
-          // Handle both 'result' and 'output' properties (AI SDK uses different formats)
-          const resultData = (part as any).result ?? (part as any).output;
-          const resultText = JSON.stringify(resultData) ?? "null";
-          const text = isFirst ? `${prefix}${resultText} ` : resultText;
-          contentBlocks.push({ type: "text" as const, text });
-          isFirst = false;
-        } else if (part.type === "file" && typeof part.data === "string") {
-          const type = part.mediaType.startsWith("image/")
-            ? "image"
-            : part.mediaType.startsWith("audio/")
-            ? "audio"
-            : null;
-          if (type) {
-            contentBlocks.push({
-              type,
-              mimeType: part.mediaType,
-              data: extractBase64Data(part.data),
-            });
-          }
+    if (typeof msg.content === "string") {
+      contentBlocks.push({ type: "text", text: `${prefix}${msg.content} ` });
+      continue;
+    }
+
+    if (!Array.isArray(msg.content)) continue;
+
+    let needsPrefix = true;
+    for (const part of msg.content) {
+      const currentPrefix = needsPrefix ? prefix : "";
+
+      if (part.type === "text") {
+        contentBlocks.push({ type: "text", text: currentPrefix + part.text });
+        needsPrefix = false;
+      }
+
+      if (part.type === "tool-call") {
+        const toolCallText = `[Tool Call: ${part.toolName}(${
+          JSON.stringify(part.input)
+        })]`;
+        contentBlocks.push({
+          type: "text",
+          text: currentPrefix + toolCallText,
+        });
+        needsPrefix = false;
+      }
+
+      if (part.type === "tool-result") {
+        const resultData = (part as any).result ?? (part as any).output;
+        const resultText = JSON.stringify(resultData) ?? "null";
+        contentBlocks.push({ type: "text", text: currentPrefix + resultText });
+        needsPrefix = false;
+      }
+
+      if (part.type === "file" && typeof part.data === "string") {
+        const mediaType = getMediaType(part.mediaType);
+        if (mediaType) {
+          contentBlocks.push({
+            type: mediaType,
+            mimeType: part.mediaType,
+            data: extractBase64Data(part.data),
+          });
         }
       }
-    } else if (typeof msg.content === "string") {
-      contentBlocks.push({
-        type: "text" as const,
-        text: `${prefix}${msg.content} `,
-      });
     }
   }
 
@@ -79,7 +96,7 @@ export function convertAiSdkMessagesToAcp(
 
 /** Input type for tools - matches streamText's tools parameter */
 export type ToolsInput =
-  | LanguageModelV2CallOptions["tools"]
+  | (LanguageModelV3FunctionTool | LanguageModelV3ProviderTool)[]
   | Record<string, Tool<any, any>>;
 
 /**

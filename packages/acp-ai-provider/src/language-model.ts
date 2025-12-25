@@ -1,10 +1,10 @@
 import type {
-  LanguageModelV2,
-  LanguageModelV2CallOptions,
-  LanguageModelV2CallWarning,
-  LanguageModelV2Content,
-  LanguageModelV2FinishReason,
-  LanguageModelV2StreamPart,
+  LanguageModelV3,
+  LanguageModelV3CallOptions,
+  LanguageModelV3Content,
+  LanguageModelV3FinishReason,
+  LanguageModelV3GenerateResult,
+  LanguageModelV3StreamPart,
 } from "@ai-sdk/provider";
 import {
   type Client,
@@ -123,8 +123,8 @@ export class ACPAISDKClient implements Client {
  *
  * @see https://ai-sdk.dev/providers/community-providers/custom-providers#reasoning
  */
-export class ACPLanguageModel implements LanguageModelV2 {
-  readonly specificationVersion = "v2" as const;
+export class ACPLanguageModel implements LanguageModelV3 {
+  readonly specificationVersion = "v3" as const;
   readonly provider = "acp";
   modelId: string;
   modeId?: string;
@@ -561,7 +561,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
    * Plan data is emitted directly, while diffs and terminals are bound to a toolCallId.
    */
   private emitRawContent(
-    controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>,
+    controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>,
     data:
       | { type: "plan"; entries: unknown }
       | {
@@ -591,10 +591,10 @@ export class ACPLanguageModel implements LanguageModelV2 {
 
   /**
    * Standardized handler for converting SessionNotifications into
-   * LanguageModelV2StreamPart objects, pushing them onto a stream controller.
+   * LanguageModelV3StreamPart objects, pushing them onto a stream controller.
    */
   private handleStreamNotification(
-    controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>,
+    controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>,
     notification: SessionNotification,
   ): void {
     const update = notification.update;
@@ -833,8 +833,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
           type: "tool-result",
           toolCallId,
           toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
-          result: toolResult,
-          providerExecuted: true,
+          result: toolResult as any,
           // https://github.com/vercel/ai/blob/282f062922cb59167dd3a11e3af67cfa0b75f317/packages/ai/src/generate-text/run-tools-transformation.ts#L316
           ...(isError && {
             isError: true,
@@ -854,16 +853,9 @@ export class ACPLanguageModel implements LanguageModelV2 {
   /**
    * Implements the non-streaming generation method.
    */
-  async doGenerate(options: LanguageModelV2CallOptions): Promise<{
-    content: LanguageModelV2Content[];
-    finishReason: LanguageModelV2FinishReason;
-    usage: {
-      inputTokens: number;
-      outputTokens: number;
-      totalTokens: number;
-    };
-    warnings: LanguageModelV2CallWarning[];
-  }> {
+  async doGenerate(
+    options: LanguageModelV3CallOptions,
+  ): Promise<LanguageModelV3GenerateResult> {
     try {
       await this.ensureConnected();
       /*
@@ -891,7 +883,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
       // This object mimics the ReadableStreamDefaultController API
       // to aggregate stream parts into final results.
       const mockController = {
-        enqueue: (part: LanguageModelV2StreamPart) => {
+        enqueue: (part: LanguageModelV3StreamPart) => {
           switch (part.type) {
             case "text-delta":
               accumulatedText += part.delta;
@@ -941,7 +933,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
           // Reuse the stream notification handler, passing the mock controller
           streamHandler(
             mockController as unknown as ReadableStreamDefaultController<
-              LanguageModelV2StreamPart
+              LanguageModelV3StreamPart
             >,
             notification,
           );
@@ -953,7 +945,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         prompt: promptContent,
       });
 
-      const content: LanguageModelV2Content[] = [];
+      const content: LanguageModelV3Content[] = [];
 
       if (accumulatedText.trim()) {
         content.push({
@@ -972,20 +964,28 @@ export class ACPLanguageModel implements LanguageModelV2 {
           args: JSON.stringify(toolCall.input),
           input: toolCall.input,
           output: toolResults.get(toolCall.id)?.result,
-        } as LanguageModelV2Content);
+        } as LanguageModelV3Content);
       }
 
-      const result = {
+      const result: LanguageModelV3GenerateResult = {
         content,
-        finishReason: response.stopReason === "end_turn"
-          ? ("stop" as const)
-          : ("other" as const),
+        finishReason: (response.stopReason === "end_turn"
+          ? "stop"
+          : "other") as unknown as LanguageModelV3FinishReason,
         usage: {
-          inputTokens: 0,
-          outputTokens: 0,
-          totalTokens: 0,
+          inputTokens: {
+            total: undefined,
+            noCache: undefined,
+            cacheRead: undefined,
+            cacheWrite: undefined,
+          },
+          outputTokens: {
+            total: undefined,
+            text: undefined,
+            reasoning: undefined,
+          },
         },
-        warnings: [] as LanguageModelV2CallWarning[],
+        warnings: [],
       };
 
       this.cleanup();
@@ -1000,9 +1000,9 @@ export class ACPLanguageModel implements LanguageModelV2 {
   /**
    * Implements the streaming generation method.
    */
-  async doStream(options: LanguageModelV2CallOptions): Promise<{
-    stream: ReadableStream<LanguageModelV2StreamPart>;
-    warnings: LanguageModelV2CallWarning[];
+  async doStream(options: LanguageModelV3CallOptions): Promise<{
+    stream: ReadableStream<LanguageModelV3StreamPart>;
+    warnings: undefined;
   }> {
     // IMPORTANT: Extract and register ACP tools BEFORE ensureConnected
     // This ensures Tool Proxy can discover them when it starts
@@ -1030,9 +1030,9 @@ export class ACPLanguageModel implements LanguageModelV2 {
     // Get a reference to the bound method
     const streamHandler = this.handleStreamNotification.bind(this);
 
-    const stream = new ReadableStream<LanguageModelV2StreamPart>({
+    const stream = new ReadableStream<LanguageModelV3StreamPart>({
       start: async (
-        controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>,
+        controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>,
       ) => {
         controller.enqueue({ type: "stream-start", warnings: [] });
 
@@ -1056,11 +1056,21 @@ export class ACPLanguageModel implements LanguageModelV2 {
 
           controller.enqueue({
             type: "finish",
-            finishReason: response.stopReason === "end_turn" ? "stop" : "other",
+            finishReason: (response.stopReason === "end_turn"
+              ? "stop"
+              : "other") as unknown as LanguageModelV3FinishReason,
             usage: {
-              inputTokens: 0,
-              outputTokens: 0,
-              totalTokens: 0,
+              inputTokens: {
+                total: undefined,
+                noCache: undefined,
+                cacheRead: undefined,
+                cacheWrite: undefined,
+              },
+              outputTokens: {
+                total: undefined,
+                text: undefined,
+                reasoning: undefined,
+              },
             },
           });
 
@@ -1079,7 +1089,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
       },
     });
 
-    return { stream, warnings: [] as LanguageModelV2CallWarning[] };
+    return { stream, warnings: undefined };
   }
 
   get tools(): Record<string, ReturnType<typeof tool>> {
