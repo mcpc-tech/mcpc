@@ -2,7 +2,6 @@ import type {
   LanguageModelV3,
   LanguageModelV3CallOptions,
   LanguageModelV3Content,
-  LanguageModelV3FinishReason,
   LanguageModelV3GenerateResult,
   LanguageModelV3StreamPart,
 } from "@ai-sdk/provider";
@@ -969,9 +968,10 @@ export class ACPLanguageModel implements LanguageModelV3 {
 
       const result: LanguageModelV3GenerateResult = {
         content,
-        finishReason: (response.stopReason === "end_turn"
-          ? "stop"
-          : "other") as unknown as LanguageModelV3FinishReason,
+        finishReason: {
+          unified: (response.stopReason === "end_turn" ? "stop" : "other"),
+          raw: undefined,
+        },
         usage: {
           inputTokens: {
             total: undefined,
@@ -1056,9 +1056,10 @@ export class ACPLanguageModel implements LanguageModelV3 {
 
           controller.enqueue({
             type: "finish",
-            finishReason: (response.stopReason === "end_turn"
-              ? "stop"
-              : "other") as unknown as LanguageModelV3FinishReason,
+            finishReason: {
+              unified: (response.stopReason === "end_turn" ? "stop" : "other"),
+              raw: undefined,
+            },
             usage: {
               inputTokens: {
                 total: undefined,
