@@ -35,9 +35,9 @@ async function main() {
   console.log("\n--- Streaming response ---\n");
 
   try {
-    const { textStream, steps } = streamText({
+    const { steps } = streamText({
       onChunk: ({ chunk }) => {
-        console.log(JSON.stringify(chunk));
+        console.log(JSON.stringify(chunk), "\n");
       },
       model: provider.languageModel(
         process.env.ACP_MODEL,
@@ -74,16 +74,12 @@ async function main() {
       }),
     });
 
-    for await (const chunk of textStream) {
-      process.stdout.write(chunk);
-    }
-
     console.log("\n\n--- Results ---");
     const resultSteps = await steps;
     console.log(
       "Tool calls made:",
       resultSteps
-        .flatMap((s) => s.toolCalls.map((tc) => tc.toolName))
+        .flatMap((s) => s.toolCalls)
         .filter(Boolean),
     );
 

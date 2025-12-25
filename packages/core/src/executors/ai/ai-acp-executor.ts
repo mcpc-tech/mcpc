@@ -8,7 +8,7 @@ import type { Tool } from "ai";
 import {
   type ACPProviderSettings,
   createACPProvider,
-} from "@mcpc/acp-ai-provider";
+} from "@mcpc-tech/acp-ai-provider";
 import {
   type AIExecutorConfig,
   BaseAIExecutor,
@@ -39,7 +39,7 @@ export class AIACPExecutor extends BaseAIExecutor {
       this.provider = createACPProvider(this.acpSettings);
       this.model = this.provider.languageModel();
     }
-    return this.model;
+    return this.model!;
   }
 
   protected getModel(): LanguageModelV2 {
