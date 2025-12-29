@@ -4,7 +4,6 @@ import process from "node:process";
 
 // Create provider for an ACP agent (using claude-code-acp as example)
 const provider = createACPProvider({
-  sessionDelayMs: 2000,
   command: "claude-code-acp",
   args: [],
   session: {
