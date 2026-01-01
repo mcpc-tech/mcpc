@@ -185,9 +185,16 @@ for the runtime to call back to the host for tool execution:
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Session Persistence
+### Session Management
 
-Keep sessions alive for multi-turn conversations:
+> **Key Difference**: ACP providers maintain **stateful sessions** across
+> multiple requests, while `streamText` itself is **stateless**. Each
+> `streamText` call is independent, but the underlying ACP agent process can
+> persist conversation context when properly managed.
+
+#### Simple Session Persistence (Single Provider)
+
+For simple use cases, use `persistSession` to keep the same provider alive:
 
 ```typescript
 const provider = createACPProvider({
@@ -215,6 +222,62 @@ const provider = createACPProvider({
   persistSession: true,
 });
 ```
+
+#### Multi-Session Management (Server/API Pattern)
+
+For server applications handling multiple concurrent users, manage sessions in a
+Map:
+
+```typescript
+interface SessionEntry {
+  provider: ReturnType<typeof createACPProvider>;
+  createdAt: number;
+}
+
+const sessionProviders = new Map<string, SessionEntry>();
+
+// Initialize a new session
+async function initSession(agentCommand: string): Promise<string> {
+  const provider = createACPProvider({
+    command: agentCommand,
+    args: [],
+    session: { cwd: process.cwd(), mcpServers: [] },
+    persistSession: true,
+  });
+
+  const session = await provider.initSession();
+  const sessionId = session.sessionId;
+
+  sessionProviders.set(sessionId, { provider, createdAt: Date.now() });
+  return sessionId;
+}
+
+// Use existing session
+async function chat(sessionId: string, prompt: string) {
+  const entry = sessionProviders.get(sessionId);
+  if (!entry) throw new Error("Session not found");
+
+  const { textStream } = streamText({
+    model: entry.provider.languageModel(),
+    prompt,
+    tools: entry.provider.tools,
+  });
+
+  // Stream response...
+}
+
+// Cleanup session
+function cleanupSession(sessionId: string) {
+  const entry = sessionProviders.get(sessionId);
+  if (entry) {
+    entry.provider.cleanup();
+    sessionProviders.delete(sessionId);
+  }
+}
+```
+
+See [session-management-example.ts](./examples/session-management-example.ts)
+for a complete working example.
 
 ### Selecting Models and Modes
 
