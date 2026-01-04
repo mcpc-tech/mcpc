@@ -1,11 +1,11 @@
 /**
- * Example: Test image understanding with MCP-format image content
+ * Example: Test image understanding with MCP-format image content in Tool Results
  *
  * This example demonstrates how acpTools() correctly handles images returned
  * by tools in MCP CallToolResult format, preserving the image data instead of
  * JSON.stringify-ing it.
  *
- * Run: deno run -A packages/acp-ai-provider/examples/image-understanding-example.ts
+ * Run: deno run -A packages/acp-ai-provider/examples/image-tool-result-example.ts
  */
 
 import { createACPProvider } from "../src/provider.ts";
@@ -17,10 +17,8 @@ import { Buffer } from "node:buffer";
 
 // Create provider for an ACP agent
 const provider = createACPProvider({
-  // command: "claude-code-acp",
-  // args: [],
-  command: "codebuddy",
-  args: ["--acp"],
+  command: "claude-code-acp",
+  args: [],
   session: {
     cwd: process.cwd(),
     mcpServers: [],
