@@ -1,58 +1,10 @@
 {
   "packages": [
     {
-      "name": "@mcpc/utils",
-      "version": "latest",
-      "packageJson": {
-        "name": "@mcpc-tech/utils"
-      }
-    },
-    {
-      "name": "@mcpc/core",
-      "version": "latest",
-      "packageJson": {
-        "name": "@mcpc-tech/core"
-      }
-    },
-    {
-      "name": "@mcpc/cli",
-      "version": "latest",
-      "bin": {
-        "mcpc": "src/bin.ts"
-      },
-      "packageJson": {
-        "name": "@mcpc-tech/cli"
-      }
-    },
-    {
-      "name": "@mcpc/mcp-sampling-ai-provider",
-      "version": "latest",
-      "packageJson": {
-        "name": "@mcpc-tech/mcp-sampling-ai-provider"
-      }
-    },
-    {
-      "name": "@mcpc/builder",
-      "version": "latest",
-      "bin": {
-        "mcpc-builder-agent": "mcpc-builder-agent.ts"
-      },
-      "packageJson": {
-        "name": "@mcpc-tech/builder"
-      }
-    },
-    {
       "name": "@mcpc/acp-ai-provider",
-      "version": "latest",
+      "version": "0.1.x",
       "packageJson": {
         "name": "@mcpc-tech/acp-ai-provider"
-      }
-    },
-    {
-      "name": "@mcpc/plugin-code-execution",
-      "version": "latest",
-      "packageJson": {
-        "name": "@mcpc-tech/plugin-code-execution"
       }
     }
   ]
