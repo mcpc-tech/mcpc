@@ -2,7 +2,7 @@
   "packages": [
     {
       "name": "@mcpc/acp-ai-provider",
-      "version": "0.1.x",
+      "version": "0.1.49",
       "packageJson": {
         "name": "@mcpc-tech/acp-ai-provider"
       }
