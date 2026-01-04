@@ -22,6 +22,7 @@ import {
   type ToolDefinition,
   type ToolResult,
 } from "./types.ts";
+import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 
 /**
  * ACP EnvVariable format
@@ -225,17 +226,29 @@ export class ToolProxyHost {
           messages: [],
         });
 
-        // Format as MCP tool result
-        const toolResult: ToolResult = {
-          content: [
-            {
-              type: "text",
-              text: typeof result === "string"
-                ? result
-                : JSON.stringify(result),
-            },
-          ],
-        };
+        // Prepare MCP CallToolResult
+        // Tools can return either:
+        // 1. MCP CallToolResult with { content: ContentBlock[], isError?: boolean }
+        // 2. Primitive values (string, number, object) that need wrapping
+        let toolResult: ToolResult;
+        const parseResult = CallToolResultSchema.safeParse(result);
+
+        if (parseResult.success) {
+          // Already has MCP-style content array, use directly
+          toolResult = parseResult.data as ToolResult;
+        } else {
+          // Wrap primitive result in text content
+          toolResult = {
+            content: [
+              {
+                type: "text",
+                text: typeof result === "string"
+                  ? result
+                  : JSON.stringify(result),
+              },
+            ],
+          };
+        }
 
         this.sendResponse(socket, createResponse(request.id, toolResult));
       } else if (request.method === "getTools") {
