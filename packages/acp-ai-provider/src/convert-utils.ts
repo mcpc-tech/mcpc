@@ -1,11 +1,14 @@
-import type { ContentBlock } from "@agentclientprotocol/sdk";
+import type {
+  ContentBlock,
+  SessionNotification,
+} from "@agentclientprotocol/sdk";
 import type {
   LanguageModelV3CallOptions,
   LanguageModelV3FunctionTool,
   LanguageModelV3ProviderTool,
 } from "@ai-sdk/provider";
 import { extractBase64Data } from "./utils.ts";
-import { asSchema, type Tool } from "ai";
+import { asSchema, type ModelMessage, type Tool } from "ai";
 import { getExecuteByName, hasRegisteredExecute } from "./acp-tool.ts";
 
 const ROLE_PREFIXES: Record<string, string> = {
@@ -156,4 +159,203 @@ export function extractACPTools(
   }
 
   return acpTools;
+}
+
+/**
+ * Converts ACP session notifications (replayed history) to AI SDK CoreMessage format.
+ *
+ * This function processes the sessionUpdate notifications that an ACP agent sends
+ * during loadSession to replay conversation history. It groups related notifications
+ * into proper AI SDK message structures.
+ *
+ * Supported notification types:
+ * - user_message_chunk -> user message
+ * - agent_message_chunk -> assistant message (text)
+ * - agent_thought_chunk -> assistant message (reasoning, if supported)
+ * - tool_call -> assistant message (tool call)
+ * - tool_call_update (completed/failed) -> tool message (result)
+ *
+ * @param notifications - Array of SessionNotification from loadSession
+ * @returns Array of ModelMessage suitable for AI SDK
+ */
+export function convertAcpHistoryToAiSdk(
+  notifications: SessionNotification[],
+): ModelMessage[] {
+  const messages: ModelMessage[] = [];
+
+  // Accumulators for building messages
+  let currentUserText = "";
+  let currentAssistantText = "";
+  let currentReasoningText = "";
+  const pendingToolCalls: Array<{
+    toolCallId: string;
+    toolName: string;
+    args: unknown;
+  }> = [];
+  const pendingToolResults: Array<{
+    toolCallId: string;
+    toolName: string;
+    result: unknown;
+    isError?: boolean;
+  }> = [];
+
+  // Helper to flush accumulated user message
+  const flushUserMessage = () => {
+    if (currentUserText.trim()) {
+      messages.push({
+        role: "user",
+        content: currentUserText.trim(),
+      });
+      currentUserText = "";
+    }
+  };
+
+  // Helper to flush accumulated assistant message
+  const flushAssistantMessage = () => {
+    if (currentAssistantText.trim() || pendingToolCalls.length > 0) {
+      const content: any[] = [];
+
+      if (currentAssistantText.trim()) {
+        content.push({
+          type: "text",
+          text: currentAssistantText.trim(),
+        });
+      }
+
+      // Add reasoning if present (AI SDK experimental feature)
+      if (currentReasoningText.trim()) {
+        content.push({
+          type: "reasoning",
+          text: currentReasoningText.trim(),
+        });
+      }
+
+      // Add tool calls
+      for (const tc of pendingToolCalls) {
+        content.push({
+          type: "tool-call",
+          toolCallId: tc.toolCallId,
+          toolName: tc.toolName,
+          args: tc.args,
+        });
+      }
+
+      messages.push({
+        role: "assistant",
+        content: content.length === 1 && content[0].type === "text"
+          ? content[0].text
+          : content,
+      } as ModelMessage);
+
+      currentAssistantText = "";
+      currentReasoningText = "";
+      pendingToolCalls.length = 0;
+    }
+  };
+
+  // Helper to flush tool results as tool message
+  const flushToolResults = () => {
+    if (pendingToolResults.length > 0) {
+      messages.push({
+        role: "tool",
+        content: pendingToolResults.map((tr) => ({
+          type: "tool-result",
+          toolCallId: tr.toolCallId,
+          toolName: tr.toolName,
+          output: tr.result, // AI SDK uses 'output' not 'result'
+          isError: tr.isError,
+        })),
+      } as ModelMessage);
+      pendingToolResults.length = 0;
+    }
+  };
+
+  for (const notification of notifications) {
+    const update = notification.update;
+
+    switch (update.sessionUpdate) {
+      case "user_message_chunk": {
+        // Flush any pending assistant/tool messages before user message
+        flushAssistantMessage();
+        flushToolResults();
+
+        if (update.content.type === "text") {
+          currentUserText += update.content.text;
+        }
+        break;
+      }
+
+      case "agent_message_chunk": {
+        // Flush user message if we're starting assistant response
+        flushUserMessage();
+
+        if (update.content.type === "text") {
+          currentAssistantText += update.content.text;
+        }
+        break;
+      }
+
+      case "agent_thought_chunk": {
+        // Reasoning/thinking content
+        flushUserMessage();
+
+        if (update.content.type === "text") {
+          currentReasoningText += update.content.text;
+        }
+        break;
+      }
+
+      case "tool_call": {
+        // Flush user message, accumulate tool call
+        flushUserMessage();
+
+        const toolCallId = update.toolCallId;
+        const toolName = update.title || toolCallId;
+        const args = update.rawInput ?? {};
+
+        // Only add if we have actual input (not just a pending notification)
+        if (args && Object.keys(args as object).length > 0) {
+          pendingToolCalls.push({
+            toolCallId,
+            toolName,
+            args,
+          });
+        }
+        break;
+      }
+
+      case "tool_call_update": {
+        const status = update.status;
+
+        // Only process completed/failed tool calls
+        if (status === "completed" || status === "failed") {
+          // Flush assistant message with tool calls before adding results
+          flushAssistantMessage();
+
+          const toolCallId = update.toolCallId;
+          const toolName = update.title || toolCallId;
+          const result = update.rawOutput ?? update.content ?? null;
+
+          pendingToolResults.push({
+            toolCallId,
+            toolName,
+            result,
+            isError: status === "failed",
+          });
+        }
+        break;
+      }
+
+      // Ignore other notification types (plan, available_commands_update, etc.)
+      default:
+        break;
+    }
+  }
+
+  // Flush any remaining accumulated content
+  flushUserMessage();
+  flushAssistantMessage();
+  flushToolResults();
+
+  return messages;
 }
