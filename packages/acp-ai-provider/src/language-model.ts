@@ -26,12 +26,13 @@ import { type ChildProcess, spawn } from "node:child_process";
 import process from "node:process";
 import { Readable, Writable } from "node:stream";
 import type { ACPProviderSettings } from "./types.ts";
-import type { Tool, tool } from "ai";
+import type { ModelMessage, Tool, tool } from "ai";
 import z from "zod";
 import { formatToolError } from "./format-tool-error.ts";
 import { ToolProxyHost } from "./tool-proxy/mod.ts";
 import { getACPDynamicTool } from "./acp-tool.ts";
 import {
+  convertAcpHistoryToAiSdk,
   convertAiSdkMessagesToAcp,
   extractACPTools,
   type ToolsInput,
@@ -156,6 +157,9 @@ export class ACPLanguageModel implements LanguageModelV3 {
 
   // Tool proxy for host-side tool execution
   private toolProxyHost: ToolProxyHost | null = null;
+
+  // History replayed during loadSession (per ACP protocol)
+  private replayedHistory: SessionNotification[] = [];
 
   constructor(
     modelId: string | undefined,
@@ -373,18 +377,35 @@ export class ACPLanguageModel implements LanguageModelV3 {
 
     // Start a fresh session
     if (this.config.existingSessionId) {
+      // Set up handler to capture history replayed during loadSession
+      // Per ACP protocol, loadSession should stream conversation history via sessionUpdate
+      this.replayedHistory = [];
+      if (this.client) {
+        this.client.setSessionUpdateHandler((notification) => {
+          this.replayedHistory.push(notification);
+        });
+      }
+
       // Note: loadSession typically assumes servers are already known or config is separate?
       // Protocol says loadSession usually just resumes.
       // But if we want to Add tools to a loaded session, we might need newSession logic?
       // For now, preserving original logic: loadSession takes mcpServers.
-      await this.connection.loadSession({
+      const loadResponse = await this.connection.loadSession({
         sessionId: this.config.existingSessionId,
         cwd: this.config.session?.cwd ?? process.cwd(),
         mcpServers,
       });
       this.sessionId = this.config.existingSessionId;
-      this.sessionResponse = { sessionId: this.config.existingSessionId };
+      this.sessionResponse = {
+        sessionId: this.config.existingSessionId,
+        ...loadResponse,
+      };
       this.isFreshSession = false;
+
+      // Clear the handler after loadSession completes
+      if (this.client) {
+        this.client.setSessionUpdateHandler(() => {});
+      }
     } else {
       this.sessionResponse = await this.connection.newSession({
         ...this.config.session,
@@ -455,6 +476,35 @@ export class ACPLanguageModel implements LanguageModelV3 {
    */
   getSessionId(): string | null {
     return this.sessionId;
+  }
+
+  /**
+   * Returns the raw session notifications replayed during loadSession.
+   * Per ACP protocol, when loading an existing session, the agent streams
+   * the conversation history via sessionUpdate notifications.
+   *
+   * This is useful for:
+   * - Displaying previous conversation to the user
+   * - Debugging session state
+   * - Custom history processing
+   *
+   * @returns Array of SessionNotification objects received during loadSession
+   */
+  getReplayedHistory(): SessionNotification[] {
+    return this.replayedHistory;
+  }
+
+  /**
+   * Returns the replayed history converted to AI SDK ModelMessage format.
+   * This allows integrating the history into the AI SDK message array.
+   *
+   * Note: The conversion may be lossy as ACP notifications don't map 1:1 to AI SDK messages.
+   * Tool calls and results are grouped into assistant/tool messages.
+   *
+   * @returns Array of ModelMessage objects suitable for AI SDK
+   */
+  getReplayedHistoryAsMessages(): ModelMessage[] {
+    return convertAcpHistoryToAiSdk(this.replayedHistory);
   }
 
   /**

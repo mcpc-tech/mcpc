@@ -3,9 +3,12 @@
  */
 
 import { ACPLanguageModel } from "./language-model.ts";
-import type { tool } from "ai";
+import type { ModelMessage, tool } from "ai";
 import type { ACPProviderSettings } from "./types.ts";
-import type { NewSessionResponse } from "@agentclientprotocol/sdk";
+import type {
+  NewSessionResponse,
+  SessionNotification,
+} from "@agentclientprotocol/sdk";
 
 /**
  * ACP Provider - implements AI SDK provider pattern
@@ -59,6 +62,30 @@ export class ACPProvider {
    */
   getSessionId(): string | null {
     return this.model?.getSessionId() ?? null;
+  }
+
+  /**
+   * Returns the raw session notifications replayed during loadSession.
+   * Per ACP protocol, when loading an existing session, the agent streams
+   * the conversation history via sessionUpdate notifications.
+   *
+   * @returns Array of SessionNotification objects received during loadSession
+   */
+  getReplayedHistory(): SessionNotification[] {
+    return this.model?.getReplayedHistory() ?? [];
+  }
+
+  /**
+   * Returns the replayed history converted to AI SDK ModelMessage format.
+   * This allows integrating the history into the AI SDK message array.
+   *
+   * Note: The conversion may be lossy as ACP notifications don't map 1:1 to AI SDK messages.
+   * Tool calls and results are grouped into assistant/tool messages.
+   *
+   * @returns Array of ModelMessage objects suitable for AI SDK
+   */
+  getReplayedHistoryAsMessages(): ModelMessage[] {
+    return this.model?.getReplayedHistoryAsMessages() ?? [];
   }
 
   /**
