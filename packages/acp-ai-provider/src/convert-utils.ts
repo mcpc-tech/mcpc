@@ -135,22 +135,21 @@ export function extractACPTools(
         | Record<string, unknown>
         | undefined;
 
-      // Check if this tool has a registered execute (by name)
+      // Check if this tool is registered (both server-side and client-side tools)
       if (hasRegisteredExecute(t.name) && toolInputSchema) {
         const execute = getExecuteByName(t.name);
-        if (execute) {
-          // Add name to Tool for internal tracking
-          acpTools.push(
-            {
-              ...t,
-              name: t.name,
-              inputSchema: prepared
-                ? toolInputSchema
-                : asSchema(toolInputSchema as any).jsonSchema,
-              execute,
-            } as Tool<any, any> & { name: string },
-          );
-        }
+        // Add name to Tool for internal tracking
+        // Note: execute may be undefined for client-side tools
+        acpTools.push(
+          {
+            ...t,
+            name: t.name,
+            inputSchema: prepared
+              ? toolInputSchema
+              : asSchema(toolInputSchema as any).jsonSchema,
+            execute,
+          } as Tool<any, any> & { name: string },
+        );
       }
     }
   }
