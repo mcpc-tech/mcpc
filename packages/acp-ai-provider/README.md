@@ -135,7 +135,7 @@ for await (const chunk of textStream) {
 
 **Prerequisites:**
 - Install OpenCode: `npm install -g @opencode/cli` (see [OpenCode docs](https://opencode.ai/docs/installation))
-- Set `OPENCODE_API_KEY` environment variable
+- Set the `OPENCODE_API_KEY` environment variable
 - Learn more: [OpenCode ACP Documentation](https://opencode.ai/docs/acp/)
 
 ### With Tools (MCP Servers)
