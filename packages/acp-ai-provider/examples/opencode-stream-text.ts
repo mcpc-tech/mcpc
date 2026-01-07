@@ -15,9 +15,8 @@
  * npx tsx examples/opencode-stream-text.ts
  */
 
-import { acpTools, createACPProvider } from "../mod.ts";
-import { streamText, tool } from "ai";
-import { z } from "zod";
+import { createACPProvider } from "../mod.ts";
+import { streamText } from "ai";
 import process from "node:process";
 import { logChunkToConsole } from "../src/utils.ts";
 
@@ -43,15 +42,7 @@ async function main() {
   const { toolCalls } = streamText({
     model: provider.languageModel(),
     prompt,
-    tools: acpTools({
-      hello: tool({
-        description: `Say hello`,
-        inputSchema: z.object({}),
-        execute: () => {
-          return `Hello`;
-        },
-      }),
-    }),
+    tools: provider.tools,
     onChunk: (arg: any) => {
       const { chunk } = arg;
       logChunkToConsole(chunk);
