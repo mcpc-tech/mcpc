@@ -18,7 +18,7 @@ the [AI SDK](https://ai-sdk.dev/).
 ![acp-demo](./examples/acp-demo.gif)
 
 This package bridges ACP agents to the AI SDK. It spawns ACP agents (Claude
-Code, Gemini, Codex CLI, and more) as child processes and exposes them through
+Code, Gemini, Codex CLI, OpenCode, and more) as child processes and exposes them through
 the AI SDK's `LanguageModelV2` protocol.
 
 [Try a full stack web ACP example here](https://github.com/mcpc-tech/dev-inspector-mcp)
@@ -100,6 +100,43 @@ for await (const chunk of textStream) {
   process.stdout.write(chunk);
 }
 ```
+
+### OpenCode Example
+
+[OpenCode](https://opencode.ai/) is an ACP-compatible coding agent. Here's how to use it:
+
+```typescript
+import { createACPProvider } from "@mcpc/acp-ai-provider";
+import { streamText } from "ai";
+import process from "node:process";
+
+const provider = createACPProvider({
+  command: "opencode",
+  args: ["acp"],
+  env: {
+    OPENCODE_API_KEY: process.env.OPENCODE_API_KEY, // Required
+  },
+  session: {
+    cwd: process.cwd(),
+    mcpServers: [],
+  },
+});
+
+const { textStream } = streamText({
+  model: provider.languageModel(),
+  prompt: "Write a simple Hello World program",
+  tools: provider.tools,
+});
+
+for await (const chunk of textStream) {
+  process.stdout.write(chunk);
+}
+```
+
+**Prerequisites:**
+- Install OpenCode: `npm install -g @opencode/cli` (see [OpenCode docs](https://opencode.ai/docs/installation))
+- Set `OPENCODE_API_KEY` environment variable
+- Learn more: [OpenCode ACP Documentation](https://opencode.ai/docs/acp/)
 
 ### With Tools (MCP Servers)
 
