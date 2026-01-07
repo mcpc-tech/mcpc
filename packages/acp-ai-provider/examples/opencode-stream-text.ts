@@ -27,7 +27,7 @@ async function main() {
     command: "opencode",
     args: ["acp"],
     env: {
-      ...(process.env as Record<string, string>),
+      OPENCODE_API_KEY: process.env.OPENCODE_API_KEY,
     },
     session: {
       cwd: process.cwd(),
