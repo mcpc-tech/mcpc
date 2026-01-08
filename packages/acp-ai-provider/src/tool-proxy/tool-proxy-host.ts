@@ -47,6 +47,10 @@ import { RUNTIME_CODE } from "./tool-proxy-runtime.ts";
 /**
  * Tool Proxy Host manages a TCP server that receives tool execution requests
  * from the runtime process (spawned by ACP agent).
+ *
+ * The proxy supports two types of AI SDK tools:
+ * 1. **Server-side tools** (with `execute` function): Executed on the host and return results
+ * 2. **Client-side tools** (without `execute` function): Forwarded to client, execution must stop
  */
 export class ToolProxyHost {
   private server: Server | null = null;
@@ -208,20 +212,32 @@ export class ToolProxyHost {
           return;
         }
 
+        // Handle client tools (tools without execute function)
+        // For AI SDK client tools, there is no execute function
+        // and execution must stop after the client tool is called
         if (!tool.execute) {
+          // Return a special response indicating this is a client tool
+          // The runtime should stop execution and let the client handle this
+          const clientToolResult: ToolResult = {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                isClientTool: true,
+                toolName: params.name,
+                args: params.args,
+              }),
+            }],
+            isError: false,
+          };
           this.sendResponse(
             socket,
-            createErrorResponse(
-              request.id,
-              JsonRpcErrorCode.INTERNAL_ERROR,
-              `Tool has no execute function: ${params.name}`,
-            ),
+            createResponse(request.id, clientToolResult),
           );
           return;
         }
 
         // Execute the tool on host side (Tool.execute expects args and options)
-        const result = await tool.execute?.(params.args, {
+        const result = await tool.execute(params.args, {
           toolCallId: params.name,
           messages: [],
         });
