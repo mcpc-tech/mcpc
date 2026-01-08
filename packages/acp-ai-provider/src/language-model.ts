@@ -178,7 +178,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
    */
   private resetStreamState(): void {
     this.textBlockIndex = 0;
-    this.thinkBlockIndex = 0; // Added this line to match state
+    this.thinkBlockIndex = 0;
     this.currentTextId = null;
     this.currentThinkingId = null; // Added this line to match state
     this.toolCallsMap.clear();
@@ -250,24 +250,20 @@ export class ACPLanguageModel implements LanguageModelV3 {
       return { isClientTool: false };
     }
 
-    // Try to extract the text content from different formats
     const content = toolResult[0] as Record<string, unknown>;
-    let textContent: string | undefined;
-
-    // MCP format: { type: "text", text: "..." }
-    if (content?.type === "text" && typeof content?.text === "string") {
-      textContent = content.text;
-    } // ACP ToolCallContent format: { type: "content", content: { type: "text", text: "..." } }
-    else if (content?.type === "content") {
-      const innerContent = content.content as
-        | Record<string, unknown>
-        | undefined;
-      if (
-        innerContent?.type === "text" && typeof innerContent?.text === "string"
-      ) {
-        textContent = innerContent.text;
-      }
+    if (!content?.type) {
+      return { isClientTool: false };
     }
+
+    // Extract text from MCP format: { type: "text", text: "..." }
+    // or ACP format: { type: "content", content: { type: "text", text: "..." } }
+    const textContent =
+      content.type === "text" && typeof content.text === "string"
+        ? content.text
+        : content.type === "content" &&
+            (content.content as Record<string, unknown>)?.type === "text"
+        ? (content.content as Record<string, unknown>).text as string
+        : undefined;
 
     if (!textContent) {
       return { isClientTool: false };

@@ -135,11 +135,11 @@ export function extractACPTools(
         | Record<string, unknown>
         | undefined;
 
-      // Check if this tool is registered (both server-side and client-side tools)
+      // Check if this tool is registered (both server-side and client-side tools).
+      // Client-side tools have execute as undefined.
       if (hasRegisteredExecute(t.name) && toolInputSchema) {
         const execute = getExecuteByName(t.name);
         // Add name to Tool for internal tracking
-        // Note: execute may be undefined for client-side tools
         acpTools.push(
           {
             ...t,
