@@ -7,9 +7,13 @@ export const ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME =
   "acp.acp_provider_agent_dynamic_tool";
 
 /**
- * Global registry to store execute functions by tool name
+ * Global registry to store execute functions by tool name.
+ * Client tools (without execute) are stored with undefined value.
  */
-const executeRegistry = new Map<string, (args: unknown) => Promise<unknown>>();
+const executeRegistry = new Map<
+  string,
+  ((args: unknown) => Promise<unknown>) | undefined
+>();
 
 /**
  * Wrap AI SDK tools with ACP execute preservation.
@@ -36,14 +40,15 @@ const executeRegistry = new Map<string, (args: unknown) => Promise<unknown>>();
 export function acpTools<T extends Record<string, Tool<any, any>>>(
   tools: T,
 ): T & Record<string, ReturnType<typeof tool>> {
-  // Register all execute functions
+  // Register all tools (both with and without execute)
+  // Client tools (without execute) are registered with undefined value
   for (const [name, toolDef] of Object.entries(tools)) {
-    if (toolDef.execute) {
-      executeRegistry.set(
-        name,
-        toolDef.execute as unknown as (args: unknown) => Promise<unknown>,
-      );
-    }
+    executeRegistry.set(
+      name,
+      toolDef.execute as unknown as
+        | ((args: unknown) => Promise<unknown>)
+        | undefined,
+    );
   }
 
   // Return tools merged with the ACP provider dynamic tool

@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/acp-ai-provider",
-  "version": "0.1.49",
+  "version": "0.1.50",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"

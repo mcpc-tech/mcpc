@@ -158,6 +158,12 @@ export class ACPLanguageModel implements LanguageModelV2 {
   // Tool proxy for host-side tool execution
   private toolProxyHost: ToolProxyHost | null = null;
 
+  // Client tool interrupt mechanism
+  private clientToolAbort: {
+    controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>;
+    resolve: () => void;
+  } | null = null;
+
   constructor(
     modelId: string | undefined,
     modeId: string | undefined,
@@ -173,10 +179,11 @@ export class ACPLanguageModel implements LanguageModelV2 {
    */
   private resetStreamState(): void {
     this.textBlockIndex = 0;
-    this.thinkBlockIndex = 0; // Added this line to match state
+    this.thinkBlockIndex = 0;
     this.currentTextId = null;
     this.currentThinkingId = null; // Added this line to match state
     this.toolCallsMap.clear();
+    this.clientToolAbort = null;
   }
 
   /**
@@ -228,6 +235,54 @@ export class ACPLanguageModel implements LanguageModelV2 {
       isError,
       status: update.status!,
     };
+  }
+
+  /**
+   * Checks if a tool result is from a client-side tool (no execute function).
+   * Client tools return a special response with `isClientTool: true`.
+   * Handles both MCP format (type: "text") and ACP ToolCallContent format (type: "content").
+   */
+  private isClientToolResult(toolResult: unknown): {
+    isClientTool: boolean;
+    toolName?: string;
+    args?: unknown;
+  } {
+    if (!Array.isArray(toolResult) || toolResult.length === 0) {
+      return { isClientTool: false };
+    }
+
+    const content = toolResult[0] as Record<string, unknown>;
+    if (!content?.type) {
+      return { isClientTool: false };
+    }
+
+    // Extract text from MCP format: { type: "text", text: "..." }
+    // or ACP format: { type: "content", content: { type: "text", text: "..." } }
+    const textContent =
+      content.type === "text" && typeof content.text === "string"
+        ? content.text
+        : content.type === "content" &&
+            (content.content as Record<string, unknown>)?.type === "text"
+        ? (content.content as Record<string, unknown>).text as string
+        : undefined;
+
+    if (!textContent) {
+      return { isClientTool: false };
+    }
+
+    try {
+      const parsed = JSON.parse(textContent);
+      if (parsed.isClientTool === true) {
+        return {
+          isClientTool: true,
+          toolName: parsed.toolName,
+          args: parsed.args,
+        };
+      }
+    } catch {
+      // Not JSON or invalid format
+    }
+    return { isClientTool: false };
   }
 
   /**
@@ -590,6 +645,31 @@ export class ACPLanguageModel implements LanguageModelV2 {
   }
 
   /**
+   * Flushes any pending tool calls that haven't emitted tool-call yet.
+   * This handles the case where a tool emits {} first, then the next message is a different type.
+   */
+  private flushPendingToolCalls(
+    controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>,
+  ): void {
+    for (const [toolCallId, toolInfo] of this.toolCallsMap.entries()) {
+      if (!toolInfo.inputAvailable) {
+        // This tool call hasn't been emitted yet
+        toolInfo.inputAvailable = true;
+        controller.enqueue({
+          type: "tool-call",
+          toolCallId,
+          toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
+          input: JSON.stringify({
+            toolCallId,
+            toolName: toolInfo.name,
+            args: {},
+          }),
+        });
+      }
+    }
+  }
+
+  /**
    * Standardized handler for converting SessionNotifications into
    * LanguageModelV2StreamPart objects, pushing them onto a stream controller.
    */
@@ -600,12 +680,14 @@ export class ACPLanguageModel implements LanguageModelV2 {
     const update = notification.update;
     switch (update.sessionUpdate) {
       case "plan":
+        this.flushPendingToolCalls(controller);
         this.emitRawContent(controller, {
           type: "plan",
           entries: update.entries,
         });
         break;
       case "agent_thought_chunk":
+        this.flushPendingToolCalls(controller);
         if (!this.currentThinkingId) {
           this.currentThinkingId = `reasoning - ${this.thinkBlockIndex++} `;
           controller.enqueue({
@@ -621,6 +703,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         break;
 
       case "agent_message_chunk":
+        this.flushPendingToolCalls(controller);
         if (this.currentThinkingId) {
           controller.enqueue({
             type: "reasoning-end",
@@ -828,7 +911,44 @@ export class ACPLanguageModel implements LanguageModelV2 {
           });
         }
 
-        // Send the tool result
+        // Check if this is a client-side tool (no execute function)
+        const clientToolInfo = this.isClientToolResult(toolResult);
+        if (clientToolInfo.isClientTool) {
+          // For client tools, we need to STOP the stream immediately
+          // The client application must handle the tool execution
+          // and submit the result in a subsequent request
+          console.log(
+            `[acp-ai-provider] Detected client tool: ${clientToolInfo.toolName}, stopping stream`,
+          );
+
+          // Emit the content if any (for UI purposes)
+          const content = update.content ?? [];
+          if (content.length > 0) {
+            this.emitRawContent(controller, { content, toolCallId });
+          }
+
+          // Trigger stream termination - this will resolve the prompt() call
+          // and close the stream with 'tool-calls' finish reason
+          if (this.clientToolAbort) {
+            // Emit finish with 'tool-calls' reason to indicate pending client tool
+            controller.enqueue({
+              type: "finish",
+              finishReason: "tool-calls",
+              usage: {
+                inputTokens: undefined,
+                outputTokens: undefined,
+                totalTokens: undefined,
+              },
+            });
+            controller.close();
+            this.clientToolAbort.resolve();
+            this.cleanup();
+          }
+          // Skip emitting tool-result for client tools
+          break;
+        }
+
+        // Send the tool result (for server-side tools)
         controller.enqueue({
           type: "tool-result",
           toolCallId,
@@ -1039,6 +1159,11 @@ export class ACPLanguageModel implements LanguageModelV2 {
         // Reset stream state for this new stream
         this.resetStreamState();
 
+        // Set up client tool abort mechanism
+        const clientToolPromise = new Promise<void>((resolve) => {
+          this.clientToolAbort = { controller, resolve };
+        });
+
         try {
           if (client) {
             client.setSessionUpdateHandler(
@@ -1049,11 +1174,27 @@ export class ACPLanguageModel implements LanguageModelV2 {
             );
           }
 
-          const response = await connection.prompt({
+          // Race between normal completion and client tool abort
+          const promptPromise = connection.prompt({
             sessionId,
             prompt: promptContent,
           });
 
+          const result = await Promise.race([
+            promptPromise.then((response) => ({
+              type: "response" as const,
+              response,
+            })),
+            clientToolPromise.then(() => ({ type: "client-tool" as const })),
+          ]);
+
+          // If client tool was detected, stream is already closed
+          if (result.type === "client-tool") {
+            return;
+          }
+
+          // Normal completion
+          const response = result.response;
           controller.enqueue({
             type: "finish",
             finishReason: response.stopReason === "end_turn" ? "stop" : "other",
