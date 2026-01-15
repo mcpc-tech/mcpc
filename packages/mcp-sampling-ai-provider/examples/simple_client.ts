@@ -68,8 +68,7 @@ const transport = new StdioClientTransport({
   args: [
     "run",
     "-A",
-    // "examples/simple_server.ts"
-    "/Users/beet/github-repo/mcpc/packages/mcp-sampling-ai-provider/examples/simple_server.ts",
+    "examples/simple_server.ts",
   ],
 });
 
