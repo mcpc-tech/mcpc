@@ -18,7 +18,10 @@ import type {
   CreateMessageRequestParams,
   CreateMessageRequestParamsWithTools,
   SamplingMessage,
+  TextContent,
   Tool,
+  ToolResultContent,
+  ToolUseContent,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { ModelPreferences } from "./provider.ts";
 import {
@@ -76,8 +79,19 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
     };
     warnings: LanguageModelV2CallWarning[];
   }> {
+    // Check if client supports native tools first
+    const useNativeTools = this.supportsSamplingTools();
+    this.server.sendLoggingMessage({
+      level: "info",
+      data: `Client supports native tools: ${useNativeTools}`,
+    });
+
     // Convert AI SDK messages to MCP Sampling format
-    const messages = this.convertMessages(options.prompt);
+    const messages = this.convertMessages(options.prompt, useNativeTools);
+    this.server.sendLoggingMessage({
+      level: "info",
+      data: `Converted messages for MCP: ${JSON.stringify(messages)}`,
+    });
 
     // Extract system prompt from AI SDK messages
     let systemPrompt: string | undefined;
@@ -90,8 +104,10 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
       }
     }
 
-    // Check if client supports native tools
-    const useNativeTools = this.supportsSamplingTools();
+    this.server.sendLoggingMessage({
+      level: "info",
+      data: `Client supports native tools: ${useNativeTools}`,
+    });
 
     // Inject response format instructions into system prompt
     systemPrompt = this.injectResponseFormatInstructions(
@@ -120,12 +136,49 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
     if (useNativeTools && options.tools && options.tools.length > 0) {
       createMessageParams.tools = this.convertAISDKToolsToMCP(options.tools);
       createMessageParams.toolChoice = { mode: "auto" as const };
+      this.server.sendLoggingMessage({
+        level: "info",
+        data: `Converted ${options.tools.length} tools to MCP format: ${
+          JSON.stringify(createMessageParams.tools?.map((t) => t.name))
+        }`,
+      });
+    } else if (options.tools && options.tools.length > 0) {
+      this.server.sendLoggingMessage({
+        level: "info",
+        data:
+          `Tools provided but not using native mode - injecting into system prompt instead`,
+      });
     }
 
     // Call MCP server's createMessage method
+    this.server.sendLoggingMessage({
+      level: "info",
+      data: `Calling createMessage with params: ${
+        JSON.stringify(
+          {
+            hasSystemPrompt: !!systemPrompt,
+            hasTools: !!createMessageParams.tools,
+            toolCount: createMessageParams.tools?.length || 0,
+            createMessageParams,
+          },
+          null,
+          2,
+        )
+      }`,
+    });
     const result = await this.server.createMessage(
       createMessageParams as CreateMessageRequestParamsWithTools,
     );
+    this.server.sendLoggingMessage({
+      level: "info",
+      data: `createMessage result: ${
+        JSON.stringify({
+          contentType: result.content.type,
+          stopReason: result.stopReason,
+          text: result.content,
+        })
+      }`,
+    });
 
     // Extract text and tool calls from result
     const content: LanguageModelV2Content[] = [];
@@ -264,8 +317,72 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
   /**
    * Convert AI SDK messages to MCP sampling format
    */
-  private convertMessages(prompt: LanguageModelV2Prompt): SamplingMessage[] {
-    return convertAISDKToMCPMessages(prompt);
+  private convertMessages(
+    prompt: LanguageModelV2Prompt,
+    useNativeTools?: boolean,
+  ): SamplingMessage[] {
+    // If not using native tools, use the plain text conversion
+    if (!useNativeTools) {
+      return convertAISDKToMCPMessages(prompt);
+    }
+
+    // Native tools mode: convert to MCP format with proper tool_result blocks
+    const messages: SamplingMessage[] = [];
+
+    for (const msg of prompt) {
+      if (msg.role === "system") continue; // System handled separately
+
+      const role = msg.role === "assistant" ? "assistant" : "user";
+      const contentBlocks:
+        (TextContent | ToolUseContent | ToolResultContent)[] = [];
+
+      for (const part of msg.content) {
+        if (part.type === "text") {
+          contentBlocks.push({
+            type: "text",
+            text: (part as { text: string }).text,
+          });
+        } else if (part.type === "tool-call") {
+          const call = part as {
+            toolCallId: string;
+            toolName: string;
+            args?: unknown;
+            input?: unknown;
+          };
+          contentBlocks.push({
+            type: "tool_use",
+            id: call.toolCallId,
+            name: call.toolName,
+            input: (call.args ?? call.input ?? {}) as {
+              [key: string]: unknown;
+            },
+          });
+        } else if (part.type === "tool-result") {
+          const result = part;
+
+          contentBlocks.push({
+            type: "tool_result",
+            toolUseId: result.toolCallId,
+            // TODO: Handle different result types properly
+            content: [{
+              type: "text",
+              text: result.output.type === "text"
+                ? result.output.value?.toString()
+                : JSON.stringify(result.output),
+            }],
+          });
+        }
+      }
+
+      if (contentBlocks.length > 0) {
+        messages.push({
+          role,
+          content: contentBlocks,
+        });
+      }
+    }
+
+    return messages;
   }
 
   /**
@@ -280,7 +397,13 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
    */
   private supportsSamplingTools(): boolean {
     const capabilities = this.server.getClientCapabilities();
-    return !!capabilities?.sampling?.tools;
+    const supportsTools = !!capabilities?.sampling?.tools;
+    this.server.sendLoggingMessage({
+      level: "info",
+      data: `Client capabilities check: sampling=${!!capabilities
+        ?.sampling}, tools=${supportsTools}`,
+    });
+    return supportsTools;
   }
 
   /**
@@ -375,8 +498,18 @@ IMPORTANT: You MUST respond with valid JSON only. Do not include any text before
 
     // If using native tools mode, don't inject XML-style instructions
     if (useNativeTools) {
+      this.server.sendLoggingMessage({
+        level: "info",
+        data: `Using native tools mode - skipping XML tool injection`,
+      });
       return systemPrompt;
     }
+
+    this.server.sendLoggingMessage({
+      level: "info",
+      data:
+        `Injecting ${tools.length} tools into system prompt (fallback mode)`,
+    });
 
     let enhanced = systemPrompt || "";
 
@@ -390,7 +523,7 @@ You have access to the following tools. To use a tool, respond with this XML for
 </use_tool>
 
 Follow the JSON schema definition for each tool's parameters.
-You can use multiple tools in one response. You can include text before tool calls, but do NOT include text after tool calls - wait for the tool results first.
+You can use multiple tools in one response. DO NOT include text before or after tool calls - wait for the tool results first.
 
 Tools:`;
 
