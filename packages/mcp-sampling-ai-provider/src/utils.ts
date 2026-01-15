@@ -50,7 +50,7 @@ export function convertMCPMessagesToAISDK(
     // Handle array content (multiple content blocks)
     if (Array.isArray(content)) {
       // Preserve all supported parts so tool loops can work.
-      const parts: any[] = [];
+      const parts = [];
       let hasToolResult = false;
 
       for (const item of content) {
@@ -71,7 +71,7 @@ export function convertMCPMessagesToAISDK(
               type: "tool-call",
               toolCallId: (item as any).id,
               toolName: (item as any).name,
-              // AI SDK ecosystem has both `args` and `input` variants.
+              // Some ecosystems use `args`, some use `input`.
               args: (item as any).input,
               input: (item as any).input,
             });
@@ -80,14 +80,14 @@ export function convertMCPMessagesToAISDK(
             hasToolResult = true;
             const toolUseId = (item as any).toolUseId ?? "";
             const toolName = toolNameMap.get(toolUseId) || "unknown_tool";
-            const resultValue = (item as any).content ?? "";
             parts.push({
               type: "tool-result",
               toolName,
               toolCallId: toolUseId,
-              // AI SDK ecosystem has both `result` and `output` variants.
-              result: resultValue,
-              output: resultValue,
+              output: {
+                type: "text",
+                value: JSON.stringify((item as any).content),
+              },
             });
             break;
           }
@@ -146,7 +146,7 @@ export function convertMCPMessagesToAISDK(
       case "tool_result": {
         const toolUseId = "toolUseId" in content ? content.toolUseId : "";
         const toolName = toolNameMap.get(toolUseId as string) || "unknown_tool";
-        const resultContent = "content" in content ? content.content : "";
+
         return {
           role: "tool",
           content: [
@@ -154,10 +154,13 @@ export function convertMCPMessagesToAISDK(
               type: "tool-result",
               toolName: toolName,
               toolCallId: toolUseId as string,
-              output: resultContent as any,
+              output: {
+                type: "text",
+                value: JSON.stringify((content as any).content),
+              },
             },
           ],
-        } as ModelMessage;
+        };
       }
 
       default:

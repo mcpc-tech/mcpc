@@ -17,13 +17,16 @@
 
 import { mcpc } from "../../core/mod.ts";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { createMCPSamplingProvider } from "../mod.ts";
-import { generateText, tool } from "ai";
+import { generateText, stepCountIs, tool } from "ai";
 import { z } from "zod";
 
 // 1. Create the MCP Server
 const server = await mcpc(
-  [{ name: "simple-server", version: "1.0.0" }, { capabilities: {} }],
+  [{ name: "simple-server", version: "1.0.0" }, {
+    capabilities: { logging: {} },
+  }],
   [],
   (server) => {
     server.tool("ask-agent", `Use this tool to ask questions to the LLM`, {
@@ -39,7 +42,7 @@ const server = await mcpc(
       // Create the Sampling Provider wrapping this server
       const provider = createMCPSamplingProvider({ server });
 
-      return await generateText({
+      const result = await generateText({
         model: provider.languageModel({
           modelPreferences: { hints: [{ name: "openai/gpt-5-mini" }] },
         }),
@@ -47,16 +50,27 @@ const server = await mcpc(
           { role: "user", content: args.question },
         ],
         tools: {
-          ask: tool({
-            description: "Ask a question",
-            inputSchema: z.object({ question: z.string() }),
-            execute: ({ question }) => {
-              console.error(`🧮 Server executing 'ask' tool with: ${question}`);
-              return "The answer is 42";
+          add: tool({
+            description: "Add two numbers",
+            inputSchema: z.object({ a: z.number(), b: z.number() }),
+            execute: ({ a, b }) => {
+              return a + b;
             },
           }),
         },
+        stopWhen: stepCountIs(5),
       });
+
+      server.sendLoggingMessage({
+        level: "info",
+        data: `Agent response: ${result.text}, tools: ${
+          JSON.stringify(result.toolCalls)
+        }`,
+      });
+
+      return {
+        content: [{ type: "text", text: result.text }],
+      } as CallToolResult;
     });
   },
 );
