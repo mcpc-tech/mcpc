@@ -30,9 +30,9 @@ can use it to:
   parameters
 - **Logging and tracing**: Built-in MCP logging and OpenTelemetry tracing
   support
-- **Skills support**: Define domain-specific knowledge for agentic tools with
-  lazy loading following
-  [Agent Skills specification](https://agentskills.io/specification)
+- **Skills support**: Define domain-specific knowledge following the
+  [Agent Skills specification](https://agentskills.io) - deploy to production,
+  share via MCP, and declare tool dependencies
 - **Flexible execution modes**: Multiple specialized modes to fit different
   scenarios - interactive agent (`agentic`), structured workflow
   (`agentic_workflow`), autonomous sampling (`agentic_sampling`), workflow
@@ -99,81 +99,68 @@ npx -y @mcpc-tech/cli --config-url \
 
 ### Examples: Create a Simple Codex/Claude Code Fork
 
-Build your own Codex or Claude Code fork in minutes:
-
 ```typescript
-import { type ComposeDefinition, mcpc } from "@mcpc/core";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { mcpc } from "@mcpc/core";
 
-// 1. Define MCP server dependencies
-const deps: ComposeDefinition["deps"] = {
-  mcpServers: {
-    "desktop-commander": {
-      command: "npx",
-      args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
-      transportType: "stdio",
-    },
-    lsmcp: {
-      command: "npx",
-      args: ["-y", "@mizchi/lsmcp", "-p", "tsgo"],
-      transportType: "stdio",
-    },
-    github: {
-      transportType: "streamable-http",
-      url: "https://api.githubcopilot.com/mcp/",
-      headers: {
-        Authorization: `Bearer ${process.env.GITHUB_PERSONAL_ACCESS_TOKEN}`,
-      },
-    },
-  },
-};
-
-// 2. Write agent description with tool references
-const description = `
-You are a coding assistant with advanced capabilities.
-
-Your capabilities include:
-- Reading and writing files
-- Searching the codebase using language server features  
-- Executing terminal commands to build, test, and run projects
-- Interacting with GitHub to create pull requests and manage issues
-
-To perform these actions, you must use the following tools:
-- To execute a shell command: <tool name="desktop-commander.execute_command" />
-- To read a file's content: <tool name="desktop-commander.read_file" />
-- To write content to a file: <tool name="desktop-commander.write_file" />
-- To find symbol definitions: <tool name="lsmcp.definition" />
-- To create a GitHub pull request: <tool name="github.create_pull_request" />
-`;
-
-// 3. Create and start the server
 const server = await mcpc(
-  [
-    {
-      name: "coding-agent",
-      version: "0.1.0",
-    },
-    { capabilities: { tools: {} } },
-  ],
-  [
-    {
-      name: "coding-agent",
-      options: {
-        mode: "agentic",
-      },
-      description,
-      deps,
-    },
-  ],
-);
+  [{ name: "coding-agent", version: "0.1.0" }, { capabilities: { tools: {} } }],
+  [{
+    name: "coding-agent",
+    description: `
+      You are a coding assistant with advanced capabilities.
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
+      Your capabilities include:
+      - Reading and writing files
+      - Executing terminal commands to build, test, and run projects
+      - Interacting with GitHub to create pull requests and manage issues
+
+      Available tools:
+      <tool name="desktop-commander.execute_command" />
+      <tool name="desktop-commander.read_file" />
+      <tool name="desktop-commander.write_file" />
+      <tool name="github.create_pull_request" />
+    `,
+    deps: {
+      mcpServers: {
+        "desktop-commander": {
+          command: "npx",
+          args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+          transportType: "stdio",
+        },
+        github: {
+          transportType: "streamable-http",
+          url: "https://api.githubcopilot.com/mcp/",
+        },
+      },
+    },
+  }],
+);
 ```
 
-> 💡 **Complete Example**: See the full
-> [Codex fork tutorial](docs/examples/creating-a-codex-fork.md) for a
-> step-by-step walkthrough.
+> **Complete Example**: See the full
+> [Codex fork tutorial](docs/examples/creating-a-codex-fork.md).
+
+### Examples: Load Agent Skills
+
+For complex agents where inline `description` becomes unwieldy, use
+[Agent Skills](https://agentskills.io) to organize domain knowledge in separate
+files that are loaded on-demand.
+
+```typescript
+import { createSkillsPlugin } from "@mcpc/core/plugins/skills";
+
+const server = await mcpc(
+  [{ name: "my-agent", version: "1.0.0" }, { capabilities: { tools: {} } }],
+  [{
+    name: "my-agent",
+    description: "An agent with domain knowledge",
+    plugins: [createSkillsPlugin({ paths: ["./skills"] })],
+  }],
+);
+```
+
+> **Complete Example**: See
+> [14-skills-plugin.ts](packages/core/examples/14-skills-plugin.ts).
 
 ## How It Works
 
@@ -213,7 +200,7 @@ import { createCodeExecutionPlugin } from "@mcpc/plugin-code-execution/plugin";
 }
 ```
 
-> 📖 **Detailed Documentation**: See
+> **Detailed Documentation**: See
 > [Execution Modes Guide](docs/execution-modes.md) for comprehensive information
 > on each mode, configuration options, and best practices.
 
