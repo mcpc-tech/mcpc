@@ -1414,7 +1414,6 @@
     "members": {
       "packages/acp-ai-provider": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.10",
           "jsr:@std/assert@1",
           "npm:@agentclientprotocol/sdk@~0.4.8",
           "npm:@ai-sdk/provider-utils@4",
@@ -1426,7 +1425,7 @@
       },
       "packages/cli": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.10",
+          "jsr:@mcpc/core@~0.3.15",
           "jsr:@mcpc/utils@~0.2.5",
           "jsr:@std/assert@^1.0.14",
           "jsr:@std/http@^1.0.14",
@@ -1466,7 +1465,6 @@
       },
       "packages/mcp-sampling-ai-provider": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.10",
           "jsr:@std/assert@1",
           "npm:@ai-sdk/provider-utils@^2.2.8",
           "npm:@ai-sdk/provider@2",
@@ -1477,7 +1475,7 @@
       },
       "packages/mcpc-builder": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.10",
+          "jsr:@mcpc/core@~0.3.15",
           "jsr:@std/assert@^1.0.14",
           "npm:@modelcontextprotocol/sdk@^1.8.0",
           "npm:zod@^3.24.2"
@@ -1485,7 +1483,7 @@
       },
       "packages/plugin-code-execution": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.10",
+          "jsr:@mcpc/core@~0.3.15",
           "jsr:@std/assert@1",
           "npm:@mcpc-tech/handle-sandbox@^0.0.8",
           "npm:@modelcontextprotocol/sdk@^1.8.0"

@@ -30,6 +30,9 @@ can use it to:
   parameters
 - **Logging and tracing**: Built-in MCP logging and OpenTelemetry tracing
   support
+- **Skills support**: Define domain-specific knowledge for agentic tools with
+  lazy loading following
+  [Agent Skills specification](https://agentskills.io/specification)
 - **Flexible execution modes**: Multiple specialized modes to fit different
   scenarios - interactive agent (`agentic`), structured workflow
   (`agentic_workflow`), autonomous sampling (`agentic_sampling`), workflow

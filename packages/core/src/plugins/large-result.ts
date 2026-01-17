@@ -7,7 +7,8 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createSearchPlugin, type SearchOptions } from "./search-tool.ts";
-import type { ToolPlugin } from "../plugin-types.ts";
+import type { ComposeStartContext, ToolPlugin } from "../plugin-types.ts";
+import type { ComposableMCPServer } from "../compose.ts";
 
 interface PluginOptions {
   maxSize?: number;
@@ -27,8 +28,9 @@ export function createLargeResultPlugin(
   const previewSize = options.previewSize || 4000;
   let tempDir: string | null = options.tempDir || null;
 
-  // Use Map to track configured servers by reference
-  const configuredServers = new Map<object, boolean>();
+  // Store server reference and agent name
+  let serverRef: ComposableMCPServer | null = null;
+  let agentName: string | null = null;
 
   const defaultSearchDescription =
     `Search within large tool result files that were saved due to size limits. ` +
@@ -36,30 +38,38 @@ export function createLargeResultPlugin(
     `Do NOT use this tool before calling the actual tool first. ` +
     `Provide specific keywords or patterns related to the content you're looking for.`;
 
-  const searchConfig: SearchOptions = {
-    maxResults: options.search?.maxResults || 15,
-    maxOutputSize: options.search?.maxOutputSize || 4000,
-    toolDescription: options.search?.toolDescription ||
-      defaultSearchDescription,
-    global: true,
-  };
-
   return {
     name: "plugin-large-result-handler",
     version: "1.0.0",
     dependencies: [], // Search plugin will be added dynamically
 
-    configureServer: async (server) => {
-      // Add search plugin for this specific server (once per server)
-      if (!configuredServers.has(server)) {
+    configureServer: (server) => {
+      serverRef = server;
+    },
+
+    composeStart: async (context: ComposeStartContext) => {
+      agentName = context.serverName;
+
+      // Add search plugin with agent name prefix
+      if (serverRef) {
+        const searchConfig: SearchOptions = {
+          maxResults: options.search?.maxResults || 15,
+          maxOutputSize: options.search?.maxOutputSize || 4000,
+          toolDescription: options.search?.toolDescription ||
+            defaultSearchDescription,
+          global: true,
+          agentName: agentName,
+        };
         const searchPlugin = createSearchPlugin(searchConfig);
-        await server.addPlugin(searchPlugin);
-        configuredServers.set(server, true);
+        await serverRef.addPlugin(searchPlugin);
       }
     },
 
     transformTool: (tool, context) => {
       const originalExecute = tool.execute;
+      const searchToolName = agentName
+        ? `${agentName}__search-tool-result`
+        : "search-tool-result";
 
       tool.execute = async (args: unknown) => {
         try {
@@ -101,7 +111,7 @@ ${preview}
 \`\`\`
 
 **To read/understand the full content:**
-- Use the \`search-tool-result\` tool with pattern: \`search-tool-result {"pattern": "your-search-term"}\`
+- Use the \`${searchToolName}\` tool with pattern: \`${searchToolName} {"pattern": "your-search-term"}\`
 - Search supports regex patterns for advanced queries`,
               },
             ],
@@ -122,8 +132,9 @@ ${preview}
     },
 
     dispose: () => {
-      // Cleanup: clear server tracking
-      configuredServers.clear();
+      // Cleanup
+      serverRef = null;
+      agentName = null;
       // Note: temp files are in system temp dir and will be cleaned by OS
       tempDir = null;
     },

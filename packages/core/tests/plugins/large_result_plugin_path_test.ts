@@ -1,5 +1,11 @@
 import { mcpc } from "../../mod.ts";
 import { jsonSchema } from "../../src/utils/schema.ts";
+import type { ComposeDefinition } from "../../src/set-up-mcp-compose.ts";
+import type { ComposableMCPServer } from "../../src/compose.ts";
+
+interface ToolResult {
+  content?: { type: string; text: string }[];
+}
 
 Deno.test("large-result plugin loads from path with params", async () => {
   const server = await mcpc(
@@ -15,9 +21,9 @@ Deno.test("large-result plugin loads from path with params", async () => {
           // Load via package export with query params
           "@mcpc/core/plugins/large-result?maxSize=500&previewSize=200",
         ],
-      } as any,
+      } as ComposeDefinition,
     ],
-    (server: any) => {
+    (server: ComposableMCPServer) => {
       // Tool that returns very large output; use wrapped schema to ensure compatibility
       server.tool(
         "huge_output",
@@ -36,9 +42,8 @@ Deno.test("large-result plugin loads from path with params", async () => {
   );
 
   // Invoke tool to trigger large-result handling
-  const res = (await server.callTool("huge_output", {})) as any;
-  const text = res?.content?.find((c: any) => c.type === "text")
-    ?.text as string;
+  const res = (await server.callTool("huge_output", {})) as ToolResult;
+  const text = res?.content?.find((c) => c.type === "text")?.text || "";
 
   if (!text || !text.includes("Result too large") || !text.includes("File:")) {
     throw new Error(
@@ -55,12 +60,11 @@ Deno.test("large-result plugin loads from path with params", async () => {
   }
 
   // Search for the sentinel in the saved file
-  const search = (await server.callTool("search-tool-result", {
+  const search = (await server.callTool("agent__search-tool-result", {
     pattern: "SENTINEL",
     path: filePath,
-  })) as any;
-  const out = search?.content?.find((c: any) => c.type === "text")
-    ?.text as string;
+  })) as ToolResult;
+  const out = search?.content?.find((c) => c.type === "text")?.text || "";
   if (!out || !(out.includes("Found") || out.includes("matches"))) {
     throw new Error(`Search did not return expected matches. Output: ${out}`);
   }

@@ -29,6 +29,8 @@ export interface SearchOptions {
   timeoutMs?: number;
   /** Custom description for the search tool (overrides default) */
   toolDescription?: string;
+  /** Agent name prefix for tool naming (e.g., "my-agent" -> "my-agent__search-tool-result") */
+  agentName?: string;
 }
 
 /**
@@ -40,6 +42,12 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
   const allowedSearchDir = options.allowedDir || tmpdir();
   const timeoutMs = options.timeoutMs || 30000;
   const global = options.global ?? true;
+  const agentName = options.agentName;
+
+  // Tool name with optional agent prefix
+  const toolName = agentName
+    ? `${agentName}__search-tool-result`
+    : "search-tool-result";
 
   // Track active timeouts for cleanup
   const activeTimeouts = new Set<ReturnType<typeof setTimeout>>();
@@ -49,14 +57,16 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
     version: "1.0.0",
 
     configureServer: (server) => {
-      const defaultDescription =
-        `Search for text patterns in files and directories. Use this to find specific content, code, or information within files. Provide a simple literal string or a regular expression. If your pattern is a regex, ensure it's valid; otherwise use quotes or escape special characters to treat it as a literal string.
+      const defaultDescription = agentName
+        ? `Search for text patterns in files for the "${agentName}" agent. Use this to find specific content within large tool results. Provide a simple literal string or a regular expression.
+Only search within the allowed directory: ${allowedSearchDir}`
+        : `Search for text patterns in files and directories. Use this to find specific content, code, or information within files. Provide a simple literal string or a regular expression. If your pattern is a regex, ensure it's valid; otherwise use quotes or escape special characters to treat it as a literal string.
 Only search within the allowed directory: ${allowedSearchDir}`;
       const toolDescription = options.toolDescription || defaultDescription;
 
       // Register the search tool once during plugin initialization
       server.tool(
-        "search-tool-result",
+        toolName,
         toolDescription,
         jsonSchema<{ pattern: string; path?: string; maxResults?: number }>({
           type: "object",

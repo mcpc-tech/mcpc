@@ -600,9 +600,54 @@ import {
 
 **Search Plugin:**
 
-- Adds `search-tool-result` tool
+- Adds `{agentName}__search-tool-result` tool
 - Supports regex patterns
 - Configurable timeout and result limits
+
+**Skills Plugin:**
+
+- Adds domain-specific knowledge with lazy loading
+- Follows [Agent Skills specification](https://agentskills.io/specification)
+- Scans directories for `SKILL.md` files with YAML frontmatter
+- Adds `{agentName}__load-skill` tool to load skill instructions on demand
+
+```typescript
+import { createSkillsPlugin } from "@mcpc/core/plugins";
+
+plugins: [
+  createSkillsPlugin({
+    paths: ["./skills"], // Directories containing skill folders
+  }),
+];
+```
+
+**Skill directory structure:**
+
+```
+skills/
+├── git-workflow/
+│   ├── SKILL.md           # Required: skill definition with frontmatter
+│   └── references/        # Optional: additional reference files
+│       └── branching.md
+└── code-review/
+    └── SKILL.md
+```
+
+**SKILL.md format:**
+
+```markdown
+---
+name: git-workflow
+description: Git branching and commit best practices
+---
+
+# Git Workflow
+
+Your skill instructions here...
+```
+
+The `load-skill` tool description automatically lists available skills, so LLMs
+know what skills exist without loading their full content.
 
 ## Examples
 

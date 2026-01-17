@@ -40,6 +40,7 @@
 // Export all plugin creators
 export { createSearchPlugin } from "./src/plugins/search-tool.ts";
 export { createLargeResultPlugin } from "./src/plugins/large-result.ts";
+export { createSkillsPlugin } from "./src/plugins/skills.ts";
 
 // Export default plugin instances for convenience
 export { default as defaultSearchPlugin } from "./src/plugins/search-tool.ts";
