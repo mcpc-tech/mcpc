@@ -1,19 +1,18 @@
 # Execution Modes
 
 MCPC provides multiple flexible execution modes to fit different use cases, from
-interactive agents to autonomous workflows and secure code execution. Each mode
+interactive agents to autonomous execution and secure code execution. Each mode
 is powered by dedicated executor implementations in
 [`packages/core/src/executors/`](../packages/core/src/executors/).
 
 ## Mode Overview
 
-| Mode                        | Description                         | Use Case                                       | Requires Sampling |
-| --------------------------- | ----------------------------------- | ---------------------------------------------- | ----------------- |
-| `agentic`                   | Interactive step-by-step execution  | Standard agent interactions                    | No                |
-| `agentic_workflow`          | Structured workflow with steps      | Multi-step processes with defined structure    | No                |
-| `agentic_workflow_sampling` | Autonomous workflow execution       | Complex autonomous workflows                   | Yes               |
-| `ai_sampling`               | AI SDK sampling mode                | Autonomous execution with AI SDK               | Yes               |
-| `code_execution`            | Secure JavaScript sandbox execution | Code generation and execution with tool access | No                |
+| Mode             | Description                         | Use Case                                       | Requires Sampling |
+| ---------------- | ----------------------------------- | ---------------------------------------------- | ----------------- |
+| `agentic`        | Interactive step-by-step execution  | Standard agent interactions                    | No                |
+| `ai_sampling`    | AI SDK sampling mode                | Autonomous execution with AI SDK               | Yes               |
+| `ai_acp`         | AI SDK ACP mode                     | Coding agents (Claude Code, etc.)              | No                |
+| `code_execution` | Secure JavaScript sandbox execution | Code generation and execution with tool access | No                |
 
 ## 1. Agentic Mode (default)
 
@@ -74,114 +73,19 @@ await server.connect(new StdioServerTransport());
 
 ---
 
-## 2. Agentic Workflow Mode
+## 2. AI Sampling Mode
 
-Structured agent execution with predefined or dynamically generated workflow
-steps. Each step can include multiple actions.
-
-### Configuration
-
-```typescript
-{
-  options: { 
-    mode: "agentic_workflow",
-    steps: [/* optional predefined steps */],
-    ensureStepActions: [/* required actions */]
-  }
-}
-```
-
-### Implementation
-
-**Executor**:
-[`executors/workflow/workflow-executor.ts`](../packages/core/src/executors/workflow/workflow-executor.ts)
-
-### How It Works
-
-**With Predefined Steps:**
-
-```typescript
-steps: [
-  {
-    description: "Analyze the codebase",
-    actions: ["filesystem.read_file", "lsmcp.definition"],
-  },
-  {
-    description: "Make changes",
-    actions: ["filesystem.write_file"],
-  },
-  {
-    description: "Create pull request",
-    actions: ["github.create_pull_request"],
-  },
-];
-```
-
-**With Dynamic Steps:**
-
-```typescript
-// Omit steps - LLM will generate them based on the task
-options: {
-  mode: "agentic_workflow";
-}
-```
-
-### Example
-
-```typescript
-const server = await mcpc(
-  [{ name: "code-reviewer", version: "1.0.0" }, {
-    capabilities: { tools: {} },
-  }],
-  [{
-    name: "code-reviewer",
-    description: `
-      Code review agent with structured workflow.
-      <tool name="filesystem.read_file"/>
-      <tool name="lsmcp.definition"/>
-      <tool name="github.create_pull_request"/>
-    `,
-    deps: {/* ... */},
-    options: {
-      mode: "agentic_workflow",
-      steps: [
-        {
-          description: "Read and analyze code",
-          actions: ["filesystem.read_file", "lsmcp.definition"],
-        },
-        {
-          description: "Create review PR",
-          actions: ["github.create_pull_request"],
-        },
-      ],
-      ensureStepActions: ["github.create_pull_request"], // Must be included
-    },
-  }],
-);
-```
-
-### When to Use
-
-- Multi-step processes that follow a logical sequence
-- When you want to enforce certain actions are taken
-- Complex tasks that benefit from structured planning
-- Scenarios where you want transparency in the execution flow
-
----
-
-## 3. Agentic Workflow Sampling Mode
-
-Combines the structure of workflow mode with the autonomy of sampling mode.
-Executes a predefined or dynamic workflow autonomously.
+Autonomous execution using AI SDK with MCP sampling provider. The agent runs
+autonomously using the AI SDK's streamText function.
 
 ### Configuration
 
 ```typescript
 {
   options: { 
-    mode: "agentic_workflow_sampling",
-    steps: [/* optional workflow steps */],
-    samplingConfig: { maxIterations: 10 }
+    mode: "ai_sampling",
+    maxSteps: 50,
+    tracingEnabled: true
   }
 }
 ```
@@ -190,43 +94,50 @@ Executes a predefined or dynamic workflow autonomously.
 
 ### Implementation
 
-**Executor**:
-[`executors/sampling/workflow-sampling-executor.ts`](../packages/core/src/executors/sampling/workflow-sampling-executor.ts)
-
-### Example
-
-```typescript
-const server = await mcpc(
-  [
-    { name: "build-agent", version: "1.0.0" },
-    { capabilities: { tools: {} } },
-  ],
-  [{
-    name: "build-agent",
-    description: "Autonomous build and deploy agent",
-    deps: {/* ... */},
-    options: {
-      mode: "agentic_workflow_sampling",
-      steps: [
-        { description: "Run tests", actions: ["terminal.execute_command"] },
-        { description: "Build project", actions: ["terminal.execute_command"] },
-        { description: "Deploy", actions: ["deployment.deploy"] },
-      ],
-      samplingConfig: {
-        maxIterations: 15,
-        summarize: true,
-      },
-    },
-  }],
-);
-```
+**Plugin**:
+[`plugins/built-in/mode-ai-sampling-plugin.ts`](../packages/core/src/plugins/built-in/mode-ai-sampling-plugin.ts)
 
 ### When to Use
 
-- Autonomous execution of complex multi-step workflows
-- CI/CD pipelines and automated deployments
-- Background tasks with structured steps
-- When you need both workflow structure and autonomous execution
+- Autonomous execution with AI SDK
+- Long-running tasks
+- When you need MCP sampling protocol support
+
+---
+
+## 3. AI ACP Mode
+
+AI SDK mode for coding agents like Claude Code, using the ACP (Agent Control
+Protocol) provider.
+
+### Configuration
+
+```typescript
+{
+  options: { 
+    mode: "ai_acp",
+    acpSettings: {
+      command: "claude-code",
+      args: ["--mcp"],
+      session: {
+        cwd: "/path/to/project"
+      }
+    },
+    maxSteps: 50
+  }
+}
+```
+
+### Implementation
+
+**Plugin**:
+[`plugins/built-in/mode-ai-acp-plugin.ts`](../packages/core/src/plugins/built-in/mode-ai-acp-plugin.ts)
+
+### When to Use
+
+- Integration with coding agents (Claude Code, etc.)
+- When you need ACP protocol support
+- Complex coding tasks
 
 ---
 
@@ -379,14 +290,13 @@ for detailed information.
 
 ## Choosing the Right Mode
 
-| Scenario                                | Recommended Mode            |
-| --------------------------------------- | --------------------------- |
-| Simple interactive agent                | `agentic`                   |
-| Multi-step process with clear structure | `agentic_workflow`          |
-| Autonomous structured workflow          | `agentic_workflow_sampling` |
-| AI SDK autonomous execution             | `ai_sampling`               |
-| Code generation and execution           | `code_execution`            |
-| Data processing with tool access        | `code_execution`            |
+| Scenario                          | Recommended Mode |
+| --------------------------------- | ---------------- |
+| Simple interactive agent          | `agentic`        |
+| Autonomous AI SDK execution       | `ai_sampling`    |
+| Coding agent integration          | `ai_acp`         |
+| Code generation and execution     | `code_execution` |
+| Data processing with tool access  | `code_execution` |
 
 ## Configuration Reference
 
@@ -396,15 +306,6 @@ for detailed information.
 interface SamplingConfig {
   maxIterations?: number; // Max LLM calls (default: 10)
   summarize?: boolean; // Summarize results (default: true)
-}
-```
-
-### WorkflowStep
-
-```typescript
-interface MCPCStep {
-  description: string; // Step description
-  actions: string[]; // Tool names for this step
 }
 ```
 
@@ -423,9 +324,8 @@ interface SandboxConfig {
 Each execution mode is implemented as a built-in plugin. You can find them in:
 
 - `packages/core/src/plugins/built-in/mode-agentic-plugin.ts`
-- `packages/core/src/plugins/built-in/mode-workflow-plugin.ts`
-- `packages/core/src/plugins/built-in/mode-workflow-sampling-plugin.ts`
 - `packages/core/src/plugins/built-in/mode-ai-sampling-plugin.ts`
+- `packages/core/src/plugins/built-in/mode-ai-acp-plugin.ts`
 
 The code execution mode is a separate plugin package that can be installed and
 used independently.

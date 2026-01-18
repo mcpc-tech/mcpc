@@ -161,13 +161,21 @@ mcpc --wrap --mode agentic --name "smart-assistant" \
   --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
 ```
 
-#### `agentic_workflow`
+#### `ai_sampling`
 
-Structured execution with predefined or runtime-generated steps. The agent
-follows a workflow pattern with specific actions at each step.
+Autonomous execution using AI SDK with MCP sampling provider.
 
 ```bash
-mcpc --wrap --mode agentic_workflow --name "workflow-processor" \
+mcpc --wrap --mode ai_sampling --name "autonomous-agent" \
+  --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
+```
+
+#### `ai_acp`
+
+AI SDK ACP mode for coding agents like Claude Code.
+
+```bash
+mcpc --wrap --mode ai_acp --name "coding-agent" \
   --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
 ```
 

@@ -444,18 +444,6 @@ export class ComposableMCPServer extends Server {
           this.toolManager.setToolNameMapping(internalName, toolId);
         }
 
-        const matchingStep = options.steps?.find((step) =>
-          step.actions.includes(toolNameWithScope)
-        );
-
-        if (matchingStep) {
-          const actionIndex = matchingStep.actions.indexOf(toolNameWithScope);
-          if (actionIndex !== -1) {
-            matchingStep.actions[actionIndex] = toolId;
-          }
-          return true;
-        }
-
         return tagToResults.tool.find((tool: any) => {
           const selectAll =
             tool.attribs.name === `${mcpName}.${ALL_TOOLS_PLACEHOLDER}` ||

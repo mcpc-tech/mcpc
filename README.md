@@ -34,9 +34,8 @@ can use it to:
   [Agent Skills specification](https://agentskills.io) - deploy to production,
   share via MCP, and declare tool dependencies
 - **Flexible execution modes**: Multiple specialized modes to fit different
-  scenarios - interactive agent (`agentic`), structured workflow
-  (`agentic_workflow`), workflow sampling (`agentic_workflow_sampling`), AI SDK
-  sampling (`ai_sampling`), and secure code execution
+  scenarios - interactive agent (`agentic`), AI SDK sampling (`ai_sampling`),
+  AI ACP mode (`ai_acp`), and secure code execution
   ([`code_execution`](packages/plugin-code-execution/)) - each with dedicated
   implementations
 
@@ -175,13 +174,12 @@ Three simple steps:
 
 MCPC provides multiple flexible execution modes to fit different scenarios:
 
-| Mode                        | Description                                       | Use Case                      |
-| --------------------------- | ------------------------------------------------- | ----------------------------- |
-| `agentic`                   | Interactive step-by-step execution                | Standard agent interactions   |
-| `agentic_workflow`          | Structured workflow with predefined/dynamic steps | Multi-step processes          |
-| `agentic_workflow_sampling` | Autonomous workflow execution                     | Complex autonomous workflows  |
-| `ai_sampling`               | AI SDK sampling mode                              | Autonomous AI SDK execution   |
-| `code_execution`            | Secure JavaScript sandbox with tool access        | Code generation and execution |
+| Mode             | Description                                | Use Case                      |
+| ---------------- | ------------------------------------------ | ----------------------------- |
+| `agentic`        | Interactive step-by-step execution         | Standard agent interactions   |
+| `ai_sampling`    | AI SDK sampling mode                       | Autonomous AI SDK execution   |
+| `ai_acp`         | AI SDK ACP mode                            | Coding agents (Claude Code)   |
+| `code_execution` | Secure JavaScript sandbox with tool access | Code generation and execution |
 
 ### Quick Example
 

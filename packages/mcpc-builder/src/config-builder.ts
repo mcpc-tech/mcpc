@@ -269,7 +269,7 @@ export class ConfigBuilder {
       tools: string[] | "__ALL__";
     }>,
     options?: {
-      mode?: "agentic" | "agentic_workflow";
+      mode?: "agentic" | "ai_sampling" | "ai_acp";
       enableSampling?: boolean;
     },
   ): Promise<{
