@@ -15,8 +15,8 @@ export interface RegisterAIACPToolParams {
   name: string;
   allToolNames: string[];
   depGroups: Record<string, unknown>;
+  toolNameToDetailList: [string, unknown][];
   acpSettings: ACPProviderSettings;
-  clientTools?: [string, ExternalTool][];
   maxSteps?: number;
   tracingEnabled?: boolean;
 }
@@ -30,8 +30,8 @@ export function registerAIACPTool(
     description,
     allToolNames,
     depGroups,
+    toolNameToDetailList,
     acpSettings,
-    clientTools = [],
     maxSteps = 50,
     tracingEnabled = false,
   } = params;
@@ -47,7 +47,7 @@ export function registerAIACPTool(
     name,
     description,
     acpSettings,
-    clientTools,
+    tools: toolNameToDetailList as [string, ExternalTool][],
     maxSteps,
     tracingEnabled,
   });

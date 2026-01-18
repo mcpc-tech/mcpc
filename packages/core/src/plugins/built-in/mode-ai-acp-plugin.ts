@@ -24,8 +24,8 @@ export const createAIACPModePlugin = (): ToolPlugin => ({
       name: context.name,
       allToolNames: context.allToolNames,
       depGroups: context.depGroups,
+      toolNameToDetailList: context.toolNameToDetailList,
       acpSettings: opts.acpSettings,
-      clientTools: opts.clientTools,
       maxSteps: opts.maxSteps,
       tracingEnabled: opts.tracingEnabled,
     });

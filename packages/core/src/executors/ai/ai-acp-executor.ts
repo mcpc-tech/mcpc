@@ -7,6 +7,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Tool } from "ai";
 import {
   type ACPProviderSettings,
+  acpTools,
   createACPProvider,
 } from "@mcpc-tech/acp-ai-provider";
 import {
@@ -19,19 +20,19 @@ export type { ACPProviderSettings };
 
 export interface AIACPExecutorConfig extends AIExecutorConfig {
   acpSettings: ACPProviderSettings;
-  clientTools?: [string, ExternalTool][];
+  tools: [string, ExternalTool][];
 }
 
 export class AIACPExecutor extends BaseAIExecutor {
   private acpSettings: ACPProviderSettings;
-  private clientTools: [string, ExternalTool][];
+  private tools: [string, ExternalTool][];
   private provider: ReturnType<typeof createACPProvider> | null = null;
   private model: LanguageModelV2 | null = null;
 
   constructor(config: AIACPExecutorConfig) {
     super(config);
     this.acpSettings = config.acpSettings;
-    this.clientTools = config.clientTools ?? [];
+    this.tools = config.tools;
   }
 
   private initProvider(): LanguageModelV2 {
@@ -52,11 +53,10 @@ export class AIACPExecutor extends BaseAIExecutor {
   }
 
   protected override getToolListDescription(): string {
-    if (this.clientTools.length === 0) {
-      return "Tools will be provided by AI SDK";
+    if (this.tools.length === 0) {
+      return "Tools will be provided by ACP agent";
     }
-
-    return this.clientTools
+    return this.tools
       .map(([name, detail]) =>
         `- ${name}: ${detail.description || "No description"}`
       )
@@ -65,14 +65,15 @@ export class AIACPExecutor extends BaseAIExecutor {
 
   protected buildTools(): Record<string, Tool<any, any>> {
     const aiTools: Record<string, Tool<any, any>> = {};
-    for (const [name, detail] of this.clientTools) {
+    for (const [name, detail] of this.tools) {
       if (!detail.execute) continue;
       aiTools[name] = this.convertToAISDKTool(name, detail, async (input) => {
         const result = await detail.execute!(input);
         return this.formatResult(result);
       });
     }
-    return aiTools;
+    // Wrap with acpTools to enable ACP agent to call these tools
+    return acpTools(aiTools);
   }
 
   private formatResult(result: CallToolResult): unknown {
