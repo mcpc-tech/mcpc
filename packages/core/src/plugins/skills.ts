@@ -130,7 +130,7 @@ function generateToolDescription(
 
   const toolName = `${agentName}__load-skill`;
 
-  return `Load a skill's detailed instructions or bundled files for the "${agentName}" agent.
+  return `Load a skill's detailed instructions or reference files for the "${agentName}" agent.
 
 Available skills:
 ${skillsList}
@@ -138,8 +138,8 @@ ${skillsList}
 Usage:
 - ${toolName}({ skill: "skill-name" }) - Load main SKILL.md content
 - ${toolName}({ skill: "skill-name", ref: "references/file.md" }) - Load reference documentation
-- ${toolName}({ skill: "skill-name", ref: "scripts/script.py" }) - Load script content
-- ${toolName}({ skill: "skill-name", ref: "assets/template.json" }) - Load asset file`;
+
+Note: For scripts/ and assets/ directories, this tool returns the file path for use with other tools`;
 }
 
 /**
@@ -228,13 +228,57 @@ export function createSkillsPlugin(options: SkillsPluginOptions): ToolPlugin {
                 };
               }
 
+              // Check if file exists
+              try {
+                await stat(refPath);
+              } catch {
+                return {
+                  content: [
+                    { type: "text", text: `File not found: ${args.ref}` },
+                  ],
+                  isError: true,
+                };
+              }
+
+              // scripts/ - return path hint for execution
+              if (
+                relPath.startsWith("scripts/") ||
+                relPath.startsWith("scripts\\")
+              ) {
+                return {
+                  content: [
+                    {
+                      type: "text",
+                      text:
+                        `Script file path: ${refPath}\n\nUse an execution tool (e.g., bash) to run this script.`,
+                    },
+                  ],
+                };
+              }
+
+              // assets/ - return path hint for binary/resource files
+              if (
+                relPath.startsWith("assets/") || relPath.startsWith("assets\\")
+              ) {
+                return {
+                  content: [
+                    {
+                      type: "text",
+                      text:
+                        `Asset file path: ${refPath}\n\nUse appropriate tools to read or process this file.`,
+                    },
+                  ],
+                };
+              }
+
+              // references/ and other text files - return content
               try {
                 const content = await readFile(refPath, "utf-8");
                 return { content: [{ type: "text", text: content }] };
               } catch {
                 return {
                   content: [
-                    { type: "text", text: `File not found: ${args.ref}` },
+                    { type: "text", text: `Failed to read file: ${args.ref}` },
                   ],
                   isError: true,
                 };
