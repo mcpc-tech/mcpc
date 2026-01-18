@@ -9,21 +9,11 @@ import type { ComposeStartContext, ToolPlugin } from "../plugin-types.ts";
 import type { ComposableMCPServer } from "../compose.ts";
 import { jsonSchema } from "../utils/schema.ts";
 
-/** Standard SKILL.md frontmatter fields per agentskills.io spec */
-interface SkillFrontmatter {
+/** Skill metadata from SKILL.md frontmatter */
+interface SkillMeta {
   name: string;
   description: string;
-  license?: string;
-  compatibility?: string;
-  metadata?: Record<string, string>;
-  "allowed-tools"?: string;
-}
-
-interface SkillMeta extends SkillFrontmatter {
-  /** Skill directory path */
   basePath: string;
-  /** SKILL.md file path */
-  filePath: string;
 }
 
 interface SkillsPluginOptions {
@@ -34,38 +24,26 @@ interface SkillsPluginOptions {
 /**
  * Parse YAML frontmatter from SKILL.md content
  */
-function parseFrontmatter(content: string): SkillFrontmatter | null {
+function parseFrontmatter(
+  content: string,
+): { name: string; description: string } | null {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return null;
 
   const yaml = match[1];
-  const result: Record<string, unknown> = {};
+  let name = "", description = "";
 
   for (const line of yaml.split("\n")) {
-    // Handle metadata block
-    if (line.trim() === "metadata:") {
-      result.metadata = {};
-      continue;
-    }
-
-    // Handle indented metadata entries
-    const metadataMatch = line.match(/^\s{2}(\w+):\s*"?([^"]*)"?$/);
-    if (metadataMatch && result.metadata) {
-      (result.metadata as Record<string, string>)[metadataMatch[1]] =
-        metadataMatch[2];
-      continue;
-    }
-
-    // Handle top-level fields
-    const fieldMatch = line.match(/^(\S+):\s*(.*)$/);
-    if (fieldMatch) {
-      const [, key, value] = fieldMatch;
-      result[key] = value.replace(/^["']|["']$/g, "");
+    const m = line.match(/^(name|description):\s*(.+)$/);
+    if (m) {
+      // Remove surrounding quotes if present
+      const value = m[2].replace(/^["']|["']$/g, "");
+      if (m[1] === "name") name = value;
+      else description = value;
     }
   }
 
-  if (!result.name || !result.description) return null;
-  return result as unknown as SkillFrontmatter;
+  return name && description ? { name, description } : null;
 }
 
 /**
@@ -98,7 +76,6 @@ async function scanSkills(basePath: string): Promise<SkillMeta[]> {
           skills.push({
             ...frontmatter,
             basePath: skillDir,
-            filePath: skillFile,
           });
         }
       } catch {
@@ -129,14 +106,16 @@ function generateToolDescription(
 
   const toolName = `${agentName}__load-skill`;
 
-  return `Load a skill's detailed instructions or reference files for the "${agentName}" agent.
+  return `Load a skill's instructions or reference files for the "${agentName}" agent.
 
 Available skills:
 ${skillsList}
 
 Usage:
 - ${toolName}({ skill: "skill-name" }) - Load main SKILL.md content
-- ${toolName}({ skill: "skill-name", ref: "references/file.md" }) - Load reference documentation`;
+- ${toolName}({ skill: "skill-name", ref: "path/to/file" }) - Load reference file
+
+Note: For scripts/ and assets/, use appropriate tools directly.`;
 }
 
 /**
@@ -194,7 +173,7 @@ export function createSkillsPlugin(options: SkillsPluginOptions): ToolPlugin {
               ref: {
                 type: "string",
                 description:
-                  "Optional: relative path to a file within the skill directory (references/, scripts/, or assets/)",
+                  "Optional: relative path to any file within the skill directory",
               },
             },
             required: ["skill"],
@@ -210,7 +189,7 @@ export function createSkillsPlugin(options: SkillsPluginOptions): ToolPlugin {
               };
             }
 
-            // Load reference file
+            // Load file by ref path
             if (args.ref) {
               const refPath = resolve(meta.basePath, args.ref);
               const relPath = relative(meta.basePath, refPath);
@@ -218,38 +197,31 @@ export function createSkillsPlugin(options: SkillsPluginOptions): ToolPlugin {
               // Security: prevent path traversal
               if (relPath.startsWith("..")) {
                 return {
-                  content: [
-                    { type: "text", text: `Invalid ref path: ${args.ref}` },
-                  ],
+                  content: [{
+                    type: "text",
+                    text: `Invalid path: ${args.ref}`,
+                  }],
                   isError: true,
                 };
               }
 
-              // Only allow references/ directory
-              if (
-                !relPath.startsWith("references/") &&
-                !relPath.startsWith("references\\")
-              ) {
+              // scripts/ and assets/ return path only to avoid polluting context
+              const dir = relPath.split(/[/\\]/)[0];
+              if (dir === "scripts" || dir === "assets") {
                 return {
-                  content: [
-                    {
-                      type: "text",
-                      text: `Only references/ directory is supported. Got: ${args.ref}`,
-                    },
-                  ],
-                  isError: true,
+                  content: [{ type: "text", text: `Path: ${refPath}` }],
                 };
               }
 
-              // Read reference file
               try {
                 const content = await readFile(refPath, "utf-8");
                 return { content: [{ type: "text", text: content }] };
               } catch {
                 return {
-                  content: [
-                    { type: "text", text: `File not found: ${args.ref}` },
-                  ],
+                  content: [{
+                    type: "text",
+                    text: `File not found: ${args.ref}`,
+                  }],
                   isError: true,
                 };
               }
@@ -257,7 +229,10 @@ export function createSkillsPlugin(options: SkillsPluginOptions): ToolPlugin {
 
             // Load SKILL.md body
             try {
-              const content = await readFile(meta.filePath, "utf-8");
+              const content = await readFile(
+                join(meta.basePath, "SKILL.md"),
+                "utf-8",
+              );
               const body = extractBody(content);
               return { content: [{ type: "text", text: body }] };
             } catch {

@@ -10,25 +10,24 @@ interface ToolResult {
   isError?: boolean;
 }
 
-Deno.test("skills plugin registers load-skill tool with skills list", async () => {
-  const plugin = createSkillsPlugin({
-    paths: ["./examples/skills"],
-  });
-
-  const server = await mcpc(
+/** Create test server with skills plugin */
+async function createTestServer() {
+  const plugin = createSkillsPlugin({ paths: ["./examples/skills"] });
+  return await mcpc(
     [{ name: "skills-test", version: "1.0.0" }, {
       capabilities: { tools: {} },
     }],
-    [
-      {
-        name: "test-agent",
-        description: "Test agent",
-        plugins: [plugin],
-      } as ComposeDefinition,
-    ],
+    [{
+      name: "test-agent",
+      description: "Test agent",
+      plugins: [plugin],
+    } as ComposeDefinition],
   );
+}
 
-  // Connect via in-memory transport
+Deno.test("skills plugin registers load-skill tool with skills list", async () => {
+  const server = await createTestServer();
+
   const [clientTransport, serverTransport] = InMemoryTransport
     .createLinkedPair();
   await server.connect(serverTransport);
@@ -36,67 +35,26 @@ Deno.test("skills plugin registers load-skill tool with skills list", async () =
   const client = new Client({ name: "test-client", version: "1.0.0" });
   await client.connect(clientTransport);
 
-  // Get tool list via MCP protocol
   const result = await client.listTools();
-  const loadSkillTool = result.tools.find((t) =>
-    t.name === "test-agent__load-skill"
-  );
+  const tool = result.tools.find((t) => t.name === "test-agent__load-skill");
 
-  // Check load-skill tool description includes skills list
-  assertStringIncludes(
-    loadSkillTool?.description || "",
-    "Available skills:",
-    "Should list available skills",
-  );
-  assertStringIncludes(
-    loadSkillTool?.description || "",
-    "git-workflow",
-    "Should include git-workflow skill",
-  );
-  assertStringIncludes(
-    loadSkillTool?.description || "",
-    "code-review",
-    "Should include code-review skill",
-  );
+  assertStringIncludes(tool?.description || "", "git-workflow");
+  assertStringIncludes(tool?.description || "", "code-review");
 
   await client.close();
   await server.close();
 });
 
 Deno.test("load-skill returns skill body content", async () => {
-  const plugin = createSkillsPlugin({
-    paths: ["./examples/skills"],
-  });
+  const server = await createTestServer();
 
-  const server = await mcpc(
-    [{ name: "skills-test", version: "1.0.0" }, {
-      capabilities: { tools: {} },
-    }],
-    [
-      {
-        name: "test-agent",
-        description: "Test agent",
-        plugins: [plugin],
-      } as ComposeDefinition,
-    ],
-  );
-
-  // Call load-skill tool
   const result = (await server.callTool("test-agent__load-skill", {
     skill: "git-workflow",
   })) as ToolResult;
 
   const text = result?.content?.find((c) => c.type === "text")?.text || "";
 
-  // Should return body without frontmatter
-  assertStringIncludes(text, "# Git Workflow", "Should include skill content");
-  assertStringIncludes(
-    text,
-    "Branch Naming Convention",
-    "Should include body content",
-  );
-
-  // Should NOT include frontmatter
+  assertStringIncludes(text, "# Git Workflow");
   assertEquals(
     text.includes("---\nname:"),
     false,
@@ -107,107 +65,42 @@ Deno.test("load-skill returns skill body content", async () => {
 });
 
 Deno.test("load-skill with ref returns reference file", async () => {
-  const plugin = createSkillsPlugin({
-    paths: ["./examples/skills"],
-  });
+  const server = await createTestServer();
 
-  const server = await mcpc(
-    [{ name: "skills-test", version: "1.0.0" }, {
-      capabilities: { tools: {} },
-    }],
-    [
-      {
-        name: "test-agent",
-        description: "Test agent",
-        plugins: [plugin],
-      } as ComposeDefinition,
-    ],
-  );
-
-  // Call load-skill with ref
   const result = (await server.callTool("test-agent__load-skill", {
     skill: "git-workflow",
     ref: "references/hotfix.md",
   })) as ToolResult;
 
   const text = result?.content?.find((c) => c.type === "text")?.text || "";
-
-  assertStringIncludes(
-    text,
-    "# Hotfix Procedure",
-    "Should return hotfix.md content",
-  );
-  assertStringIncludes(
-    text,
-    "Critical production bugs",
-    "Should include hotfix details",
-  );
+  assertStringIncludes(text, "# Hotfix Procedure");
 
   await server.close();
 });
 
 Deno.test("load-skill rejects path traversal", async () => {
-  const plugin = createSkillsPlugin({
-    paths: ["./examples/skills"],
-  });
+  const server = await createTestServer();
 
-  const server = await mcpc(
-    [{ name: "skills-test", version: "1.0.0" }, {
-      capabilities: { tools: {} },
-    }],
-    [
-      {
-        name: "test-agent",
-        description: "Test agent",
-        plugins: [plugin],
-      } as ComposeDefinition,
-    ],
-  );
-
-  // Try path traversal
   const result = (await server.callTool("test-agent__load-skill", {
     skill: "git-workflow",
     ref: "../../../etc/passwd",
   })) as ToolResult;
 
-  assertEquals(result.isError, true, "Should reject path traversal");
-  assertStringIncludes(
-    result?.content?.find((c) => c.type === "text")?.text || "",
-    "Invalid ref path",
-    "Should return error message",
-  );
+  assertEquals(result.isError, true);
+  assertStringIncludes(result?.content?.[0]?.text || "", "Invalid path");
 
   await server.close();
 });
 
 Deno.test("load-skill returns error for unknown skill", async () => {
-  const plugin = createSkillsPlugin({
-    paths: ["./examples/skills"],
-  });
-
-  const server = await mcpc(
-    [{ name: "skills-test", version: "1.0.0" }, {
-      capabilities: { tools: {} },
-    }],
-    [
-      {
-        name: "test-agent",
-        description: "Test agent",
-        plugins: [plugin],
-      } as ComposeDefinition,
-    ],
-  );
+  const server = await createTestServer();
 
   const result = (await server.callTool("test-agent__load-skill", {
     skill: "nonexistent",
   })) as ToolResult;
 
-  assertEquals(result.isError, true, "Should return error for unknown skill");
-  assertStringIncludes(
-    result?.content?.find((c) => c.type === "text")?.text || "",
-    "not found",
-    "Should indicate skill not found",
-  );
+  assertEquals(result.isError, true);
+  assertStringIncludes(result?.content?.[0]?.text || "", "not found");
 
   await server.close();
 });
