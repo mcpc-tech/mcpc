@@ -111,8 +111,8 @@ deps: {
 ### Execution Modes
 
 - **`agentic`** (default): Fully autonomous agent without structured workflow
-- **`agentic_workflow`**: Structured workflow with predefined or
-  runtime-generated steps
+- **`ai_sampling`**: Autonomous AI SDK execution
+- **`ai_acp`**: AI SDK ACP mode for coding agents
 
 ### Plugins
 
@@ -151,8 +151,8 @@ Find complete examples in the [`examples/`](./examples/) directory:
 
 - `01-basic-composition.ts` - Basic agent composition
 - `02-plugin-usage.ts` - Using plugins
-- `03-agentic-workflow.ts` - Workflow mode with steps
-- `04-sampling-mode.ts` - Autonomous execution with sampling
+- `13-ai-sampling-mode.ts` - AI SDK sampling mode
+- `15-ai-acp-mode.ts` - AI SDK ACP mode
 
 ## Documentation
 

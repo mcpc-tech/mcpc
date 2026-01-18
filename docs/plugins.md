@@ -207,7 +207,7 @@ Access helpful information in hooks:
 ```typescript
 transformTool: ((tool, context) => {
   console.log(context.toolName); // Current tool name
-  console.log(context.mode); // "agentic" | "agentic_workflow"
+  console.log(context.mode); // "agentic" | "ai_sampling" | "ai_acp"
   console.log(context.originalTool); // Tool before any transforms
   console.log(context.transformationIndex); // How many transforms applied
   // context.server - Full server instance
@@ -569,9 +569,8 @@ These plugins are automatically included:
 Execution mode plugins activate automatically based on your `mode` option:
 
 - **mode-agentic** - Interactive step-by-step execution (default)
-- **mode-agentic-workflow** - Structured workflow with steps
-- **mode-agentic-sampling** - Autonomous execution with internal LLM
-- **mode-agentic-workflow-sampling** - Autonomous workflow execution
+- **mode-ai-sampling** - AI SDK autonomous execution
+- **mode-ai-acp** - AI SDK ACP mode for coding agents
 - **mode-code-execution** - Secure JavaScript sandbox (requires separate
   package)
 

@@ -34,9 +34,8 @@ can use it to:
   [Agent Skills specification](https://agentskills.io) - deploy to production,
   share via MCP, and declare tool dependencies
 - **Flexible execution modes**: Multiple specialized modes to fit different
-  scenarios - interactive agent (`agentic`), structured workflow
-  (`agentic_workflow`), autonomous sampling (`agentic_sampling`), workflow
-  sampling (`agentic_workflow_sampling`), and secure code execution
+  scenarios - interactive agent (`agentic`), AI SDK sampling (`ai_sampling`), AI
+  ACP mode (`ai_acp`), and secure code execution
   ([`code_execution`](packages/plugin-code-execution/)) - each with dedicated
   implementations
 
@@ -175,13 +174,12 @@ Three simple steps:
 
 MCPC provides multiple flexible execution modes to fit different scenarios:
 
-| Mode                        | Description                                       | Use Case                      |
-| --------------------------- | ------------------------------------------------- | ----------------------------- |
-| `agentic`                   | Interactive step-by-step execution                | Standard agent interactions   |
-| `agentic_workflow`          | Structured workflow with predefined/dynamic steps | Multi-step processes          |
-| `agentic_sampling`          | Autonomous execution with internal LLM loop       | Fully autonomous agents       |
-| `agentic_workflow_sampling` | Autonomous workflow execution                     | Complex autonomous workflows  |
-| `code_execution`            | Secure JavaScript sandbox with tool access        | Code generation and execution |
+| Mode             | Description                                | Use Case                      |
+| ---------------- | ------------------------------------------ | ----------------------------- |
+| `agentic`        | Interactive step-by-step execution         | Standard agent interactions   |
+| `ai_sampling`    | AI SDK sampling mode                       | Autonomous AI SDK execution   |
+| `ai_acp`         | AI SDK ACP mode                            | Coding agents (Claude Code)   |
+| `code_execution` | Secure JavaScript sandbox with tool access | Code generation and execution |
 
 ### Quick Example
 
@@ -190,7 +188,7 @@ MCPC provides multiple flexible execution modes to fit different scenarios:
 { options: { mode: "agentic" } }
 
 // Autonomous agent
-{ options: { mode: "agentic_sampling", samplingConfig: { maxIterations: 10 } } }
+{ options: { mode: "ai_sampling", samplingConfig: { maxIterations: 10 } } }
 
 // Code execution with sandbox
 import { createCodeExecutionPlugin } from "@mcpc/plugin-code-execution/plugin";

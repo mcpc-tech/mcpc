@@ -19,21 +19,10 @@ export interface ToolDefinition {
 }
 
 /**
- * Workflow step definition
- */
-export interface WorkflowStep {
-  description: string;
-  actions: string[];
-}
-
-/**
  * Execution mode types
  */
 export type ExecutionMode =
   | "agentic"
-  | "agentic_workflow"
-  | "agentic_sampling"
-  | "agentic_workflow_sampling"
   | "ai_sampling"
   | "ai_acp"
   | (string & Record<never, never>);
@@ -77,15 +66,4 @@ export interface ToolResponse {
     text: string;
   }>;
   isError?: boolean;
-}
-
-/**
- * Workflow state information
- */
-export interface WorkflowStateInfo {
-  isInitialized: boolean;
-  currentStep?: WorkflowStep;
-  stepIndex: number;
-  totalSteps: number;
-  hasNextStep: boolean;
 }

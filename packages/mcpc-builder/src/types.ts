@@ -118,7 +118,7 @@ export interface MCPCConfig {
       mcpServers: Record<string, MCPServerConfig>;
     };
     options?: {
-      mode?: "agentic" | "agentic_workflow";
+      mode?: "agentic" | "ai_sampling" | "ai_acp";
       sampling?: boolean;
     };
   }>;

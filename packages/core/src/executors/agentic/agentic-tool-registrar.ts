@@ -6,6 +6,13 @@ import { CompiledPrompts } from "../../prompts/index.ts";
 import { AgenticExecutor } from "./agentic-executor.ts";
 import { createArgsDefFactory } from "../../factories/args-def-factory.ts";
 
+/**
+ * Register an agentic tool using simplified Unix-style interface
+ *
+ * Schema design:
+ * - `tool`: which tool to execute (or "man" to get schemas)
+ * - `args`: parameters for the tool
+ */
 export function registerAgenticTool(
   server: ComposableMCPServer,
   {
@@ -32,15 +39,14 @@ export function registerAgenticTool(
     server,
   );
 
+  // Use simplified prompt
   description = CompiledPrompts.autonomousExecution({
     toolName: name,
     description,
   });
 
-  const agenticArgsDef = createArgsDef.forAgentic(
-    toolNameToDetailList,
-    false, // not sampling mode
-  );
+  // Use simplified schema with `tool` + `args`
+  const agenticArgsDef = createArgsDef.forAgentic(allToolNames);
   const argsDef: Schema<Record<PropertyKey, never>>["jsonSchema"] =
     agenticArgsDef;
   const schema = allToolNames.length > 0

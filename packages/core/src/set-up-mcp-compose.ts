@@ -1,5 +1,4 @@
 import { ComposableMCPServer } from "../mod.ts";
-import type { MCPCStep } from "./utils/state.ts";
 import type { MCPSetting } from "./service/tools.ts";
 import type { SamplingConfig } from "./types.ts";
 import type { ToolPlugin } from "./plugin-types.ts";
@@ -35,10 +34,7 @@ export interface ComposeDefinition {
   options?: {
     /**
      * Execution mode for the agent
-     * - "agentic": Fully autonomous agent mode without any workflow structure
-     * - "agentic_workflow": Agent workflow mode that can either generate steps at runtime or use predefined steps
-     * - "agentic_sampling": Autonomous sampling mode for agentic execution
-     * - "agentic_workflow_sampling": Autonomous sampling mode for workflow execution
+     * - "agentic": Fully autonomous agent mode (default)
      * - "ai_sampling": AI SDK sampling mode using streamText with MCP sampling provider
      * - "ai_acp": AI SDK ACP mode for coding agents (Claude Code, etc.)
      * @default "agentic"
@@ -47,7 +43,6 @@ export interface ComposeDefinition {
 
     /**
      * Configuration for sampling mode execution
-     * Only applies when mode is "agentic_sampling" or "agentic_workflow_sampling"
      */
     samplingConfig?: SamplingConfig;
 
@@ -99,22 +94,6 @@ export interface ComposeDefinition {
      * @default false
      */
     tracingEnabled?: boolean;
-
-    /**
-     * Optional predefined workflow steps for agentic_workflow mode
-     * - If provided: Uses these predefined steps in agentic_workflow mode
-     * - If empty/undefined: Generates workflow steps dynamically at runtime in agentic_workflow mode
-     * - Ignored when mode is "agentic"
-     */
-    steps?: MCPCStep[];
-
-    /**
-     * Actions that must be included at least once in any workflow
-     * Validation will fail if these actions are not present in the workflow steps
-     * - Only applies to agentic_workflow mode
-     * - Ignored when mode is "agentic"
-     */
-    ensureStepActions?: string[];
 
     /**
      * Default references for the dependent mcps
@@ -179,7 +158,7 @@ export function parseMcpcConfigs(
  *       }
  *     },
  *     plugins: [createLargeResultPlugin({ maxSize: 8000 })],
- *     options: { mode: "agentic_sampling" }
+ *     options: { mode: "ai_sampling" }
  *   }]
  * );
  * await server.connect(new StdioServerTransport());
@@ -194,7 +173,7 @@ export function parseMcpcConfigs(
  *   - description: Agent purpose with XML-like tool references (e.g., `<tool name="server.tool"/>`)
  *   - deps: MCP server dependencies with transport configurations (stdio, sse, streamable-http)
  *   - plugins: Global plugins to transform/extend tool behavior (objects or file paths)
- *   - options: Execution mode settings (agentic, agentic_workflow, sampling)
+ *   - options: Execution mode settings (agentic, ai_sampling, ai_acp)
  *
  * @param setupCallback - Optional callback to register custom tools or perform additional setup
  *   before composition. Useful for adding internal tools or custom configurations.

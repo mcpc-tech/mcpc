@@ -1,12 +1,12 @@
 /**
- * Test for Agentic Executor with new useTool parameter
+ * Test for Agentic Executor with tool + args schema
  */
 
 import { assertEquals, assertExists } from "@std/assert";
 import { mcpc } from "../../mod.ts";
 
 Deno.test(
-  "Agentic mode - uses useTool parameter instead of action",
+  "Agentic mode - executes tool with tool + args format",
   async () => {
     const server = await mcpc(
       [
@@ -49,11 +49,10 @@ Deno.test(
     );
 
     try {
-      // Test tool execution with new useTool parameter
+      // Test tool execution with new tool + args format
       const result: any = await server.callTool("test-agent", {
-        useTool: "test-tool1",
-        "test-tool1": {},
-        hasDefinitions: ["test-tool1"],
+        tool: "test-tool1",
+        args: {},
       });
 
       assertEquals(result.isError, undefined);
@@ -69,7 +68,7 @@ Deno.test(
 );
 
 Deno.test(
-  "Agentic mode - provides tool schemas when requested",
+  "Agentic mode - provides tool schemas via man command",
   async () => {
     const server = await mcpc(
       [
@@ -121,12 +120,10 @@ Deno.test(
     );
 
     try {
-      // Request tool schemas
+      // Request tool schemas via man command - args is now directly an array
       const result: any = await server.callTool("schema-agent", {
-        useTool: "tool-alpha",
-        "tool-alpha": { param1: "test" },
-        definitionsOf: ["tool-beta"],
-        hasDefinitions: ["tool-alpha"],
+        tool: "man",
+        args: ["tool-alpha", "tool-beta"],
       });
 
       assertEquals(result.isError, undefined);
@@ -134,12 +131,10 @@ Deno.test(
 
       const contentText = result.content.map((c: any) => c.text).join("\n");
 
-      // Should execute the selected tool
-      assertEquals(contentText.includes("Alpha executed"), true);
-
-      // Should provide schema for requested tool
+      // Should provide schemas for requested tools
+      assertEquals(contentText.includes("tool-alpha"), true);
       assertEquals(contentText.includes("tool-beta"), true);
-      assertEquals(contentText.includes("tool_definition"), true);
+      assertEquals(contentText.includes("param1"), true);
       assertEquals(contentText.includes("param2"), true);
     } finally {
       await server.close?.();
@@ -148,18 +143,18 @@ Deno.test(
 );
 
 Deno.test(
-  "Agentic mode - does not duplicate schemas for hasDefinitions",
+  "Agentic mode - executes tool with parameters",
   async () => {
     const server = await mcpc(
       [
-        { name: "test-no-duplicate", version: "1.0.0" },
+        { name: "test-params", version: "1.0.0" },
         {
           capabilities: { tools: {} },
         },
       ],
       [
         {
-          name: "no-dup-agent",
+          name: "params-agent",
           description: `Agent test.
 <tool name="tool-gamma"/>`,
           deps: { mcpServers: {} },
@@ -172,27 +167,30 @@ Deno.test(
         server.tool(
           "tool-gamma",
           "Gamma tool",
-          { type: "object", properties: {} },
-          () => ({
-            content: [{ type: "text", text: "Gamma executed" }],
+          {
+            type: "object",
+            properties: {
+              message: { type: "string" },
+            },
+          },
+          (params: { message?: string }) => ({
+            content: [{ type: "text", text: `Gamma: ${params.message}` }],
           }),
         );
       },
     );
 
     try {
-      const result: any = await server.callTool("no-dup-agent", {
-        useTool: "tool-gamma",
-        "tool-gamma": {},
-        definitionsOf: ["tool-gamma"],
-        hasDefinitions: ["tool-gamma"], // Already have this schema
+      const result: any = await server.callTool("params-agent", {
+        tool: "tool-gamma",
+        args: { message: "Hello World" },
       });
 
       assertEquals(result.isError, undefined);
       const contentText = result.content.map((c: any) => c.text).join("\n");
 
-      // Should NOT include schema section since it's already available
-      assertEquals(contentText.includes("Tool Schemas"), false);
+      // Should include the parameter value in output
+      assertEquals(contentText.includes("Gamma: Hello World"), true);
     } finally {
       await server.close?.();
     }

@@ -77,9 +77,9 @@ export const toolDefinitions = [
         },
         mode: {
           type: "string",
-          enum: ["agentic", "agentic_workflow"],
+          enum: ["agentic", "ai_sampling", "ai_acp"],
           description:
-            "Agent execution mode: 'agentic' for interactive step-by-step execution (recommended for most use cases), 'agentic_workflow' for structured workflow-based execution (useful for complex multi-step processes).",
+            "Agent execution mode: 'agentic' for interactive step-by-step execution (recommended for most use cases), 'ai_sampling' for autonomous AI SDK execution, 'ai_acp' for coding agents like Claude Code.",
           default: "agentic",
         },
         enableSampling: {

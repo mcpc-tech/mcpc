@@ -89,3 +89,56 @@ export const createModelCompatibleJSONSchema = (
 
   return cleanRecursively(cleanSchema) as Record<string, unknown>;
 };
+
+/**
+ * Internal/metadata keys that should not be exposed in tool definitions
+ */
+const INTERNAL_SCHEMA_KEYS = new Set([
+  "$schema", // JSON Schema meta
+  "_originalName", // MCPC internal - original tool name before mapping
+  "_type", // TypeScript phantom type
+  "annotations", // MCP tool annotations (title, readOnlyHint, etc.)
+]);
+
+/**
+ * Cleans a tool schema for display, removing internal/metadata fields
+ * Use this when returning tool definitions to users/models
+ *
+ * Also unwraps schema wrapper objects (jsonSchema property) to expose actual schema
+ */
+export const cleanToolSchema = (
+  schema: Record<string, unknown>,
+): Record<string, unknown> => {
+  const cleanRecursively = (obj: unknown): unknown => {
+    if (Array.isArray(obj)) {
+      return obj.map(cleanRecursively);
+    }
+
+    if (obj && typeof obj === "object") {
+      const record = obj as Record<string, unknown>;
+
+      // Unwrap schema wrapper: { jsonSchema: {...} } -> {...}
+      if (
+        "jsonSchema" in record &&
+        typeof record.jsonSchema === "object" &&
+        record.jsonSchema !== null
+      ) {
+        return cleanRecursively(record.jsonSchema);
+      }
+
+      const result: Record<string, unknown> = {};
+
+      for (const [key, value] of Object.entries(record)) {
+        if (!INTERNAL_SCHEMA_KEYS.has(key)) {
+          result[key] = cleanRecursively(value);
+        }
+      }
+
+      return result;
+    }
+
+    return obj;
+  };
+
+  return cleanRecursively(schema) as Record<string, unknown>;
+};

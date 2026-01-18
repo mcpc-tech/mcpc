@@ -1,5 +1,3 @@
-import type { MCPCStep, WorkflowState } from "./utils/state.ts";
-
 export type JSONSchema = Record<string, unknown>;
 
 export type ToolCallback = (args: unknown, extra?: unknown) => unknown;
@@ -19,42 +17,6 @@ export interface RegisterToolParams {
   allToolNames: string[];
   depGroups: Record<string, unknown>;
   toolNameToDetailList: [string, unknown][];
-}
-
-export interface RegisterWorkflowToolParams extends RegisterToolParams {
-  predefinedSteps?: MCPCStep[];
-  ensureStepActions?: string[];
-  toolNameToIdMapping?: Map<string, string>;
-}
-
-export interface ArgsDefCreator {
-  common: (
-    extra: { [n: string]: JSONSchema },
-    optionalFields?: string[],
-  ) => JSONSchema;
-  steps: () => JSONSchema;
-  init: () => JSONSchema;
-  decision: () => JSONSchema;
-  action: () => JSONSchema;
-  forTool: () => JSONSchema;
-  forCurrentState: (
-    state: WorkflowState,
-  ) => JSONSchema;
-  forNextState: (state: WorkflowState) => JSONSchema;
-  forSampling: () => JSONSchema;
-  forAgentic: (
-    toolNameToDetailList: [string, unknown][],
-    sampling?: boolean,
-    USE_TOOL_KEY?: string,
-  ) => JSONSchema;
-  forToolDescription: (
-    description: string,
-    state: WorkflowState,
-  ) => string;
-  forInitialStepDescription: (
-    steps: MCPCStep[],
-    state: WorkflowState,
-  ) => string;
 }
 
 /**

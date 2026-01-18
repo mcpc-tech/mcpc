@@ -3,24 +3,36 @@ import type { ComposableMCPServer } from "../../compose.ts";
 import { CompiledPrompts } from "../../prompts/index.ts";
 import { createLogger, type MCPLogger } from "../../utils/logger.ts";
 import { validateSchema } from "../../utils/schema-validator.ts";
+import { cleanToolSchema } from "../../utils/common/provider.ts";
+import { extractJsonSchema } from "../../utils/schema.ts";
 import type { Span } from "@opentelemetry/api";
 import { endSpan, initializeTracing, startSpan } from "../../utils/tracing.ts";
 import process from "node:process";
 
+/**
+ * AgenticExecutor - Simplified agentic executor using Unix-style `man` command
+ *
+ * Key features:
+ * - Uses `tool` + `args` for a clean, consistent interface
+ * - `man` command for fetching tool schemas (like Unix manual)
+ * - No `hasDefinitions` - trusts model's context memory
+ * - Runtime validation of tool args using each tool's inputSchema
+ */
 export class AgenticExecutor {
   private logger: MCPLogger;
   private tracingEnabled: boolean = false;
+  private toolSchemaMap: Map<string, unknown>;
 
   constructor(
     private name: string,
     private allToolNames: string[],
     private toolNameToDetailList: [string, unknown][],
     private server: ComposableMCPServer,
-    private USE_TOOL_KEY: string = "useTool",
   ) {
     this.logger = createLogger(`mcpc.agentic.${name}`, server);
+    this.toolSchemaMap = new Map(toolNameToDetailList);
 
-    // Initialize tracing for agentic workflows (only once globally)
+    // Initialize tracing
     try {
       this.tracingEnabled = process.env.MCPC_TRACING_ENABLED === "true";
       if (this.tracingEnabled) {
@@ -45,13 +57,12 @@ export class AgenticExecutor {
     schema: Record<string, unknown>,
     parentSpan?: Span | null,
   ): Promise<CallToolResult> {
-    // Create a span for this execute call
     const executeSpan: Span | null = this.tracingEnabled
       ? startSpan(
         "mcpc.agentic_execute",
         {
           agent: this.name,
-          selectTool: String(args[this.USE_TOOL_KEY] ?? "unknown"),
+          tool: String(args.tool ?? "unknown"),
           args: JSON.stringify(args),
         },
         parentSpan ?? undefined,
@@ -59,6 +70,7 @@ export class AgenticExecutor {
       : null;
 
     try {
+      // Validate top-level schema (tool enum, args object)
       const validationResult = this.validate(args, schema);
       if (!validationResult.valid) {
         if (executeSpan) {
@@ -71,7 +83,7 @@ export class AgenticExecutor {
 
         this.logger.warning({
           message: "Validation failed",
-          selectTool: args[this.USE_TOOL_KEY],
+          tool: args.tool,
           error: validationResult.error,
         });
 
@@ -88,172 +100,49 @@ export class AgenticExecutor {
         };
       }
 
-      const useTool = args[this.USE_TOOL_KEY] as string;
-      const definitionsOf = (args.definitionsOf as string[]) || [];
-      const hasDefinitions = (args.hasDefinitions as string[]) || [];
+      const tool = args.tool as string;
 
-      // If no tool selected, just return schema definitions if requested
-      if (!useTool) {
-        if (executeSpan) {
-          executeSpan.setAttributes({
-            toolType: "none",
-            completion: true,
-          });
-          endSpan(executeSpan);
-        }
+      // Handle `man` command - return tool schemas
+      // For `man`, args is directly an array of tool names: ["tool1", "tool2"]
+      if (tool === "man") {
+        const manSchema = {
+          type: "array",
+          items: {
+            type: "string",
+            enum: this.allToolNames,
+            errorMessage: {
+              enum: `Invalid tool name. Available: ${
+                this.allToolNames.join(", ")
+              }`,
+            },
+          },
+          minItems: 1,
+          errorMessage: {
+            type: 'Expected an array of tool names, e.g. ["tool1", "tool2"]',
+            minItems: "At least one tool name is required",
+          },
+        };
 
-        const result: CallToolResult = { content: [] };
-        this.appendToolSchemas(result, definitionsOf, hasDefinitions);
-
-        // If no schemas were added (all requested tools already in hasDefinitions), give feedback
-        if (result.content.length === 0 && definitionsOf.length > 0) {
-          result.content.push({
-            type: "text",
-            text:
-              `All requested tool schemas are already in hasDefinitions. You can now call a tool using "${this.USE_TOOL_KEY}".`,
-          });
-        }
-
-        return result;
-      }
-
-      // Update span name to include selected tool
-      if (executeSpan) {
-        try {
-          const safeTool = String(useTool).replace(/\s+/g, "_");
-          if (typeof (executeSpan as any).updateName === "function") {
-            (executeSpan as any).updateName(`mcpc.agentic_execute.${safeTool}`);
-          }
-        } catch {
-          // Ignore errors while updating span name
-        }
-      }
-
-      // First check external tools
-      const currentTool = this.toolNameToDetailList.find(
-        ([name, _detail]: [string, unknown]) => name === useTool,
-      )?.[1] as
-        | { execute: (args: unknown) => Promise<CallToolResult> }
-        | undefined;
-
-      if (currentTool) {
-        // Execute external tool
-        if (executeSpan) {
-          executeSpan.setAttributes({
-            toolType: "external",
-            selectedTool: useTool,
-          });
-        }
-
-        this.logger.debug({
-          message: "Executing external tool",
-          selectTool: useTool,
-        });
-
-        const currentResult = await currentTool.execute({
-          ...(args[useTool] as Record<string, unknown>),
-        });
-
-        // Provide tool schemas if requested
-        this.appendToolSchemas(currentResult, definitionsOf, hasDefinitions);
-
-        if (executeSpan) {
-          executeSpan.setAttributes({
-            success: true,
-            isError: !!currentResult.isError,
-            resultContentLength: currentResult.content?.length || 0,
-            toolResult: JSON.stringify(currentResult),
-          });
-          endSpan(executeSpan);
-        }
-
-        return currentResult;
-      }
-
-      // If not found in external tools, check internal tools
-      if (this.allToolNames.includes(useTool)) {
-        if (executeSpan) {
-          executeSpan.setAttributes({
-            toolType: "internal",
-            selectedTool: useTool,
-          });
-        }
-
-        this.logger.debug({
-          message: "Executing internal tool",
-          selectTool: useTool,
-        });
-
-        try {
-          const result = await this.server.callTool(
-            useTool,
-            args[useTool] as Record<string, unknown>,
-          );
-
-          const callToolResult = (result as CallToolResult) ?? { content: [] };
-
-          // Provide tool schemas if requested
-          this.appendToolSchemas(callToolResult, definitionsOf, hasDefinitions);
-
-          if (executeSpan) {
-            executeSpan.setAttributes({
-              success: true,
-              isError: !!callToolResult.isError,
-              resultContentLength: callToolResult.content?.length || 0,
-              toolResult: JSON.stringify(callToolResult),
-            });
-            endSpan(executeSpan);
-          }
-
-          return callToolResult;
-        } catch (error) {
-          if (executeSpan) {
-            endSpan(executeSpan, error as Error);
-          }
-
-          this.logger.error({
-            message: "Error executing internal tool",
-            useTool,
-            error: String(error),
-          });
-
+        const manValidation = validateSchema(args.args ?? [], manSchema);
+        if (!manValidation.valid) {
           return {
             content: [
               {
                 type: "text",
-                text: `Error executing internal tool ${useTool}: ${
-                  error instanceof Error ? error.message : String(error)
-                }`,
+                text: `Invalid args for "man": ${manValidation.error}`,
               },
             ],
             isError: true,
           };
         }
+
+        return this.handleManCommand(args.args as string[], executeSpan);
       }
 
-      // Tool not found - this should not happen if schema validation is working
-      // but keep as a fallback for safety
-      if (executeSpan) {
-        executeSpan.setAttributes({
-          toolType: "not_found",
-          useTool: useTool,
-        });
-        endSpan(executeSpan);
-      }
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Tool "${useTool}" not found. Available tools: ${
-              this.allToolNames.join(", ")
-            }.`,
-          },
-        ],
-        isError: true,
-      };
+      // Execute the selected tool
+      const toolArgs = (args.args as Record<string, unknown>) || {};
+      return await this.executeTool(tool, toolArgs, executeSpan);
     } catch (error) {
-      // Catch any unexpected errors
       if (executeSpan) {
         endSpan(executeSpan, error as Error);
       }
@@ -277,53 +166,212 @@ export class AgenticExecutor {
     }
   }
 
-  // Append tool schemas to result if requested
-  private appendToolSchemas(
-    result: CallToolResult,
-    definitionsOf: string[],
-    hasDefinitions: string[],
-  ): void {
-    // Filter out tools that are already available
-    const schemasToProvide = definitionsOf.filter(
-      (toolName) => !hasDefinitions.includes(toolName),
-    );
-
-    if (schemasToProvide.length === 0) {
-      return;
+  /**
+   * Handle `man` command - return schemas for requested tools
+   * @param requestedTools - Array of tool names (already validated via JSON Schema)
+   */
+  private handleManCommand(
+    requestedTools: string[],
+    executeSpan: Span | null,
+  ): CallToolResult {
+    if (executeSpan) {
+      executeSpan.setAttributes({
+        toolType: "man",
+        requestedTools: requestedTools.join(","),
+      });
     }
 
-    const definitionTexts: string[] = [];
+    // Return schemas
+    const schemas = requestedTools
+      .map((toolName) => {
+        const toolDetail = this.toolSchemaMap.get(toolName);
+        if (toolDetail) {
+          // Clean internal fields before returning
+          const cleanedSchema = cleanToolSchema(
+            toolDetail as Record<string, unknown>,
+          );
+          return `<tool_definition name="${toolName}">\n${
+            JSON.stringify(cleanedSchema, null, 2)
+          }\n</tool_definition>`;
+        }
+        return null;
+      })
+      .filter(Boolean);
 
-    for (const toolName of schemasToProvide) {
-      const toolDetail = this.toolNameToDetailList.find(
-        ([name]) => name === toolName,
-      );
+    if (executeSpan) {
+      executeSpan.setAttributes({
+        schemasReturned: schemas.length,
+        success: true,
+      });
+      endSpan(executeSpan);
+    }
 
-      if (toolDetail) {
-        const [name, schema] = toolDetail;
-        const schemaJson = JSON.stringify(schema, null, 2);
-        definitionTexts.push(
-          `<tool_definition name="${name}">\n${schemaJson}\n</tool_definition>`,
-        );
+    return {
+      content: [
+        {
+          type: "text",
+          text: schemas.length > 0
+            ? schemas.join("\n\n")
+            : "No schemas found for requested tools.",
+        },
+      ],
+    };
+  }
+
+  /**
+   * Execute a tool with runtime validation
+   */
+  private async executeTool(
+    tool: string,
+    toolArgs: Record<string, unknown>,
+    executeSpan: Span | null,
+  ): Promise<CallToolResult> {
+    // First check external tools (from toolNameToDetailList)
+    const externalTool = this.toolNameToDetailList.find(
+      ([name]) => name === tool,
+    );
+
+    if (externalTool) {
+      const [, toolDetail] = externalTool as [
+        string,
+        {
+          inputSchema?: Record<string, unknown>;
+          execute: (args: unknown) => Promise<CallToolResult>;
+        },
+      ];
+
+      if (executeSpan) {
+        executeSpan.setAttributes({
+          toolType: "external",
+          selectedTool: tool,
+        });
+      }
+
+      // Runtime validation using tool's inputSchema
+      if (toolDetail.inputSchema) {
+        // Extract raw JSON Schema from wrapped schema format
+        const rawSchema = extractJsonSchema(toolDetail.inputSchema as any);
+        const validation = validateSchema(toolArgs, rawSchema);
+        if (!validation.valid) {
+          if (executeSpan) {
+            executeSpan.setAttributes({
+              validationError: true,
+              errorMessage: validation.error,
+            });
+            endSpan(executeSpan);
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text:
+                  `Parameter validation failed for "${tool}": ${validation.error}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+
+      this.logger.debug({
+        message: "Executing external tool",
+        tool,
+      });
+
+      const result = await toolDetail.execute(toolArgs);
+
+      if (executeSpan) {
+        executeSpan.setAttributes({
+          success: true,
+          isError: !!result.isError,
+          resultContentLength: result.content?.length || 0,
+        });
+        endSpan(executeSpan);
+      }
+
+      return result;
+    }
+
+    // Check internal tools (from server)
+    if (this.allToolNames.includes(tool)) {
+      if (executeSpan) {
+        executeSpan.setAttributes({
+          toolType: "internal",
+          selectedTool: tool,
+        });
+      }
+
+      this.logger.debug({
+        message: "Executing internal tool",
+        tool,
+      });
+
+      try {
+        const result = await this.server.callTool(tool, toolArgs);
+        const callToolResult = (result as CallToolResult) ?? { content: [] };
+
+        if (executeSpan) {
+          executeSpan.setAttributes({
+            success: true,
+            isError: !!callToolResult.isError,
+            resultContentLength: callToolResult.content?.length || 0,
+          });
+          endSpan(executeSpan);
+        }
+
+        return callToolResult;
+      } catch (error) {
+        if (executeSpan) {
+          endSpan(executeSpan, error as Error);
+        }
+
+        this.logger.error({
+          message: "Error executing internal tool",
+          tool,
+          error: String(error),
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error executing tool "${tool}": ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            },
+          ],
+          isError: true,
+        };
       }
     }
 
-    if (definitionTexts.length > 0) {
-      result.content.push({
-        type: "text",
-        text: `${definitionTexts.join("\n\n")}`,
+    // Tool not found
+    if (executeSpan) {
+      executeSpan.setAttributes({
+        toolType: "not_found",
+        tool,
       });
+      endSpan(executeSpan);
     }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Tool "${tool}" not found. Available tools: ${
+            this.allToolNames.join(", ")
+          }`,
+        },
+      ],
+      isError: true,
+    };
   }
 
-  // Validate arguments using JSON schema
   validate(
     args: Record<string, unknown>,
     schema: Record<string, unknown>,
-  ): {
-    valid: boolean;
-    error?: string;
-  } {
+  ): { valid: boolean; error?: string } {
     return validateSchema(args, schema);
   }
 }

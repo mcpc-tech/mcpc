@@ -137,7 +137,7 @@ Generate an MCPC (agentic) configuration.
 - `toolName` (string, required) - Name for the agent tool
 - `description` (string, required) - What the agent does
 - `serverDeps` (string[], required) - MCP servers to compose
-- `mode` (string, optional) - "agentic" or "agentic_workflow" (default:
+- `mode` (string, optional) - "agentic", "ai_sampling", or "ai_acp" (default:
   "agentic")
 - `enableSampling` (boolean, optional) - Enable autonomous mode (default: false)
 - `userConfigs` (object, optional) - Environment variables per server

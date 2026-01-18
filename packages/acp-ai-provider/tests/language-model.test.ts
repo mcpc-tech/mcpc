@@ -21,16 +21,16 @@ function createProviderSettings(
   };
 }
 
-Deno.test("ACPLanguageModel - implements LanguageModelV2 interface", () => {
+Deno.test("ACPLanguageModel - implements LanguageModelV3 interface", () => {
   const model = new ACPLanguageModel(
     "test-agent",
     undefined,
     createProviderSettings(),
   );
 
-  // Check required LanguageModelV2 properties
+  // Check required LanguageModelV3 properties
   assertEquals(model.modelId, "test-agent");
-  assertEquals(model.specificationVersion, "v2");
+  assertEquals(model.specificationVersion, "v3");
   assertEquals(model.provider, "acp");
   assertEquals(typeof model.doGenerate, "function");
   assertEquals(typeof model.doStream, "function");
@@ -140,5 +140,5 @@ Deno.test("ACPLanguageModel - model properties are consistent", () => {
   assertEquals(model.modelId, modelId);
   assertEquals(model.modelId, "my-model-123");
   assertEquals(model.provider, "acp");
-  assertEquals(model.specificationVersion, "v2");
+  assertEquals(model.specificationVersion, "v3");
 });

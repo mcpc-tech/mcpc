@@ -281,9 +281,8 @@ OPTIONS:
     --mode <mode>           Set execution mode for all agents
                            Supported modes:
                            - agentic: Fully autonomous agent mode (default)
-                           - agentic_workflow: Agent workflow mode with dynamic or predefined steps
-                           - agentic_sampling: Autonomous sampling mode for agentic execution
-                           - agentic_workflow_sampling: Autonomous sampling mode for workflow execution
+                           - ai_sampling: AI SDK sampling mode for autonomous execution
+                           - ai_acp: AI SDK ACP mode for coding agents
                            - code_execution: Code execution mode for most efficient token usage
     --add                   Add MCP servers to ~/.mcpc/config.json and exit
                            Then run 'mcpc' to start the server with saved config
@@ -339,7 +338,7 @@ EXAMPLES:
     mcpc --config-file ./my-config.json
 
     # Override execution mode for all agents
-    mcpc --config-file ./my-config.json --mode agentic_workflow
+    mcpc --config-file ./my-config.json --mode ai_sampling
 
     # Using environment variable
     export MCPC_CONFIG='[{"name":"agent","description":"..."}]'
