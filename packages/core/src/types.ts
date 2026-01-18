@@ -42,11 +42,7 @@ export interface ArgsDefCreator {
   ) => JSONSchema;
   forNextState: (state: WorkflowState) => JSONSchema;
   forSampling: () => JSONSchema;
-  forAgentic: (
-    toolNameToDetailList: [string, unknown][],
-    sampling?: boolean,
-    USE_TOOL_KEY?: string,
-  ) => JSONSchema;
+  forAgentic: (allToolNames: string[]) => JSONSchema;
   forToolDescription: (
     description: string,
     state: WorkflowState,

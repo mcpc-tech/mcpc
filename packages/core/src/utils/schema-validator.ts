@@ -7,17 +7,18 @@ import { AggregateAjvError } from "@segment/ajv-human-errors";
 const ajv = new Ajv({
   allErrors: true,
   verbose: true,
+  strict: false, // Disable strict mode to allow non-standard keywords
 });
 
 addFormats.default(ajv);
 ajvErrors.default(ajv);
 
 export function validateSchema(
-  args: Record<string, unknown>,
+  data: unknown,
   schema: Record<string, unknown>,
 ): { valid: boolean; error?: string } {
   const validate = ajv.compile(schema);
-  if (!validate(args)) {
+  if (!validate(data)) {
     const errors = validate.errors!;
 
     // If there are custom errorMessage errors, use only those

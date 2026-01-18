@@ -1,6 +1,10 @@
 /**
  * Agentic Mode Plugin
  * Implements the "agentic" execution mode as a built-in plugin
+ *
+ * Uses simplified Unix-style interface:
+ * - `tool`: which tool to execute (or "man" to get schemas)
+ * - `args`: parameters for the tool
  */
 
 import type { ToolPlugin } from "../../plugin-types.ts";
@@ -8,7 +12,7 @@ import { registerAgenticTool } from "../../executors/agentic/agentic-tool-regist
 
 export const createAgenticModePlugin = (): ToolPlugin => ({
   name: "mode-agentic",
-  version: "1.0.0",
+  version: "2.0.0",
 
   // Only apply to agentic mode
   apply: "agentic",

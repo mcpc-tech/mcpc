@@ -15,6 +15,9 @@ function createMockServer(options: {
     getClientCapabilities: () => ({
       sampling: options.supportsTools ? { tools: true } : {},
     }),
+    sendLoggingMessage: (_msg: unknown) => {
+      // Mock logging - do nothing
+    },
     createMessage: (params: any) => {
       // Return mock response based on whether tools were passed
       if (params.tools && params.tools.length > 0) {

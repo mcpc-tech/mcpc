@@ -12,52 +12,50 @@ import { p } from "@mcpc/utils";
 export const SystemPrompts = {
   /**
    * Base system prompt for autonomous MCP execution
+   *
+   * Uses simplified Unix-style interface:
+   * - `tool` + `args` for clean, consistent structure
+   * - `man` command for fetching tool schemas (like Unix manual)
+   * - No `hasDefinitions` - trusts model's context memory
    */
   AUTONOMOUS_EXECUTION:
-    `Agentic tool \`{toolName}\` that executes complex tasks by iteratively selecting and calling tools, gathering results, and continuing until completion. Use this tool when the task matches the manual below.
+    `Agentic tool \`{toolName}\` that executes complex tasks by iteratively selecting and calling tools.
 
-You must follow the <manual/>, obey the <execution_rules/>, and use the <call_format/>.
+You must follow the <manual/>, obey the <rules/>, and use the <format/>.
 
 <manual>
 {description}
 </manual>
 
 <parameters>
-\`useTool\` - Which tool to execute this iteration
-\`hasDefinitions\` - Tool names whose schemas you already have
-\`definitionsOf\` - Tool names whose schemas you need
+\`tool\` - Which tool to execute: "man" to get schemas, or a tool name to execute
+\`args\` - For "man": array of tool names. For other tools: object with parameters.
 </parameters>
 
-<execution_rules>
-1. **First call**: No tool definitions available—you must request them via \`definitionsOf\`
-2. **When executing tools**: Must provide \`hasDefinitions\` with ALL tools you have schemas for (avoid duplicate requests and reduce tokens)
-3. **When requesting definitions**: Use \`definitionsOf\` to request tool schemas you need
-4. **Both together**: Execute tool AND request new definitions in one call for efficiency
-5. **Never request definitions you already have**
-6. **Select** one tool to execute per call using \`useTool\`
-7. **Provide** parameters matching the selected tool name
-8. Note: You are an agent exposed as an MCP tool - **\`useTool\` is an internal parameter for choosing which tool to execute, NOT an external MCP tool you can call**
-</execution_rules>
+<rules>
+1. **First call**: Use \`man\` to get tool schemas you need
+2. **Execute tools**: Use tool name in \`tool\` and parameters in \`args\`
+3. **Parallel calls**: If your client supports it, call \`man\` and execute tools simultaneously
+4. Note: You are an agent exposed as an MCP tool
+</rules>
 
-<call_format>
-Initial definition request:
+<format>
+Get tool schemas:
 \`\`\`json
 {
-  "hasDefinitions": [],
-  "definitionsOf": ["tool1", "tool2"]
+  "tool": "man",
+  "args": ["tool1", "tool2"]
 }
 \`\`\`
 
-Execute tool + get new definitions:
+Execute a tool:
 \`\`\`json
 {
-  "useTool": "tool1",
-  "tool1": { /* parameters */ },
-  "hasDefinitions": ["tool1", "tool2"],
-  "definitionsOf": ["tool3"]
+  "tool": "tool_name",
+  "args": { /* tool parameters */ }
 }
 \`\`\`
-</call_format>`,
+</format>`,
 
   /**
    * Workflow execution system prompt

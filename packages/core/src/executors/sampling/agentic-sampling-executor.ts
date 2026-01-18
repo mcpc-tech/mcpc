@@ -40,31 +40,6 @@ export class SamplingExecutor extends BaseSamplingExecutor {
     );
   }
 
-  private buildDepGroups(): Record<string, unknown> {
-    const depGroups: Record<string, unknown> = {};
-
-    this.toolNameToDetailList.forEach(([toolName, tool]) => {
-      if (tool?.inputSchema) {
-        depGroups[toolName] = {
-          type: "object",
-          description: tool.description || `Tool: ${toolName}`,
-          ...tool.inputSchema,
-        };
-      } else {
-        // Check if it's a hidden tool
-        const toolSchema = this.server.getHiddenToolSchema(toolName);
-        if (toolSchema) {
-          depGroups[toolName] = {
-            ...toolSchema.schema,
-            description: toolSchema.description,
-          };
-        }
-      }
-    });
-
-    return depGroups;
-  }
-
   executeSampling(
     args: Record<string, unknown>,
     schema: Record<string, unknown>,
@@ -87,15 +62,13 @@ export class SamplingExecutor extends BaseSamplingExecutor {
     const createArgsDef = createArgsDefFactory(
       this.name,
       this.allToolNames,
-      this.buildDepGroups(),
+      {},
       undefined,
       undefined,
     );
 
-    const agenticSchema = createArgsDef.forAgentic(
-      this.toolNameToDetailList as [string, unknown][],
-      true,
-    );
+    // Use simplified schema with `tool` + `args`
+    const agenticSchema = createArgsDef.forAgentic(this.allToolNames);
 
     const systemPrompt = this.buildSystemPrompt(
       args.userRequest as string,
@@ -113,18 +86,19 @@ export class SamplingExecutor extends BaseSamplingExecutor {
     _state?: unknown,
     parentSpan?: Span | null,
   ): Promise<CallToolResult> {
-    const toolCallData = parsedData;
+    // New schema: { tool: string, args: object }
+    const tool = parsedData.tool as string | undefined;
 
-    if (toolCallData.decision === "complete") {
-      return await this.createCompletionResult("Task completed", parentSpan);
+    if (!tool) {
+      return {
+        content: [{ type: "text", text: "Error: Missing 'tool' field" }],
+        isError: true,
+      };
     }
 
     try {
-      const { action: _action, decision: _decision, ..._toolArgs } =
-        toolCallData;
-
       const toolResult = await this.agenticExecutor.execute(
-        toolCallData,
+        parsedData,
         schema,
         parentSpan,
       );
@@ -194,7 +168,8 @@ export class SamplingExecutor extends BaseSamplingExecutor {
 ## Current Task
 You will now use agentic sampling to complete the following task: "${userRequest}"${contextInfo}
 
-When you need to use a tool, specify the tool name in 'useTool' and provide tool-specific parameters as additional properties.`;
+When you need to use a tool, use the format: { "tool": "tool_name", "args": { ...parameters } }
+To get tool schemas first, use: { "tool": "man", "args": ["tool1", "tool2"] }`;
 
     return this.formatPromptForMode({
       prompt: basePrompt + taskPrompt,

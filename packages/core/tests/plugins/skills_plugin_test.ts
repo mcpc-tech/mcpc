@@ -4,15 +4,21 @@ import { mcpc } from "../../mod.ts";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import type { ComposeDefinition } from "../../src/set-up-mcp-compose.ts";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 interface ToolResult {
   content?: { type: string; text: string }[];
   isError?: boolean;
 }
 
+// Get the absolute path to the examples/skills directory
+const testDir = dirname(fileURLToPath(import.meta.url));
+const skillsPath = join(testDir, "../../examples/skills");
+
 /** Create test server with skills plugin */
 async function createTestServer() {
-  const plugin = createSkillsPlugin({ paths: ["./examples/skills"] });
+  const plugin = createSkillsPlugin({ paths: [skillsPath] });
   return await mcpc(
     [{ name: "skills-test", version: "1.0.0" }, {
       capabilities: { tools: {} },

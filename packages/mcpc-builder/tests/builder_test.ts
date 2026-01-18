@@ -12,7 +12,29 @@ import { configBuilder } from "../src/config-builder.ts";
 // Use a real server name from the registry
 const TEST_SERVER = "io.github.wonderwhy-er/desktop-commander";
 
+// Helper to check if network is available
+async function isNetworkAvailable(): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const resp = await fetch("https://mcpc.tech/health", {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    // Consume the response body to avoid leaks
+    await resp.text();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 Deno.test("Registry Client - Search servers", async () => {
+  if (!(await isNetworkAvailable())) {
+    console.log("Skipping test: network unavailable");
+    return;
+  }
+
   const result = await registryClient.searchServers("file", "read", 5);
 
   assertExists(result);
@@ -22,6 +44,11 @@ Deno.test("Registry Client - Search servers", async () => {
 });
 
 Deno.test("Registry Client - Get server details", async () => {
+  if (!(await isNetworkAvailable())) {
+    console.log("Skipping test: network unavailable");
+    return;
+  }
+
   const result = await registryClient.getServerDetails(TEST_SERVER);
 
   assertExists(result);
@@ -30,6 +57,11 @@ Deno.test("Registry Client - Get server details", async () => {
 });
 
 Deno.test("Registry Client - Get server capabilities", async () => {
+  if (!(await isNetworkAvailable())) {
+    console.log("Skipping test: network unavailable");
+    return;
+  }
+
   const result = await registryClient.getServerCapabilities(TEST_SERVER);
 
   assertExists(result);
@@ -41,6 +73,11 @@ Deno.test("Registry Client - Get server capabilities", async () => {
 });
 
 Deno.test("Config Builder - Compose simple MCP config", async () => {
+  if (!(await isNetworkAvailable())) {
+    console.log("Skipping test: network unavailable");
+    return;
+  }
+
   const result = await configBuilder.composeSimpleMCPConfig(
     [TEST_SERVER],
   );
@@ -55,6 +92,11 @@ Deno.test("Config Builder - Compose simple MCP config", async () => {
 });
 
 Deno.test("Config Builder - Compose MCPC config", async () => {
+  if (!(await isNetworkAvailable())) {
+    console.log("Skipping test: network unavailable");
+    return;
+  }
+
   const { config: result, requiredVars } = await configBuilder
     .composeMCPCConfig(
       "test-agent",

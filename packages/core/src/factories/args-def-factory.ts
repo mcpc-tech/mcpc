@@ -181,107 +181,37 @@ Workflow step definitions - provide ONLY on initial call.
       };
     },
 
-    forAgentic: function (
-      toolNameToDetailList: [string, unknown][],
-      _sampling: boolean = false,
-      USE_TOOL_KEY: string = "useTool",
-    ): JSONSchema {
-      const allOf = [
-        // When a specific tool is selected, its parameters must be provided
-        ...toolNameToDetailList.map(
-          ([toolName, _toolDetail]: [string, unknown]) => {
-            return {
-              if: {
-                properties: { [USE_TOOL_KEY]: { const: toolName } },
-                required: [USE_TOOL_KEY],
-              },
-              then: {
-                required: [toolName],
-                errorMessage: {
-                  required: {
-                    [toolName]:
-                      `Tool "${toolName}" is selected but its parameters are missing. Please provide "${toolName}": { ...parameters }.`,
-                  },
-                },
-              },
-            };
-          },
-        ),
-      ];
+    /**
+     * Agentic schema - simplified Unix-style interface
+     *
+     * Only two fields:
+     * - `tool`: which tool to execute (enum includes "man" + all tool names)
+     * - `args`: parameters for the tool (array for "man", object for others)
+     */
+    forAgentic: function (allToolNames: string[]): JSONSchema {
+      // "man" is a built-in command for getting tool schemas
+      const toolEnum = ["man", ...allToolNames];
 
-      const useToolDescription =
-        `Specifies which tool to execute from the available options. **When setting \`useTool: "example_tool"\`, you MUST also provide \`"example_tool": { ...parameters }\` with that tool's parameters**`;
-
-      const toolItems = allToolNames.length > 0
-        ? { type: "string", enum: allToolNames }
-        : { type: "string" };
-
-      const baseProperties = {
-        [USE_TOOL_KEY]: {
-          type: "string",
-          enum: allToolNames,
-          description: useToolDescription,
-          errorMessage: {
-            enum: `Invalid tool name. Available tools: ${
-              allToolNames.join(", ")
-            }.`,
-          },
-        },
-        hasDefinitions: {
-          type: "array",
-          items: toolItems,
-          description:
-            "Tool names whose schemas you already have. List all tools you have schemas for to avoid duplicate schema requests and reduce token usage.",
-        },
-        definitionsOf: {
-          type: "array",
-          items: toolItems,
-          description:
-            "Tool names whose schemas you need. Request tool schemas before calling them to understand their parameters.",
-        },
-        // ...depGroups,
-      };
-
-      const requiredFields: Array<string> = [];
-
-      const schema: JSONSchema = {
-        additionalProperties: true,
+      return {
         type: "object",
-        properties: baseProperties,
-        required: requiredFields,
-      };
-
-      // Only add allOf if there are items to avoid schema validation error
-      if (allOf.length > 0) {
-        schema.allOf = allOf;
-      }
-
-      // Add conditional validation: if definitionsOf is empty/missing, useTool is required
-      if (allToolNames.length > 0) {
-        const thenClause = {
-          required: [USE_TOOL_KEY],
-          errorMessage: {
-            required: {
-              [USE_TOOL_KEY]:
-                `No tool selected. Please specify "${USE_TOOL_KEY}" to select one of: ${
-                  allToolNames.join(", ")
-                }. Or use "definitionsOf" with tool names to get their schemas first.`,
+        properties: {
+          tool: {
+            type: "string",
+            enum: toolEnum,
+            description:
+              'Which tool to execute. Use "man" to get tool schemas, or a tool name to execute.',
+            errorMessage: {
+              enum: `Invalid tool. Available: ${toolEnum.join(", ")}`,
             },
           },
-        };
-        Object.assign(schema, {
-          if: {
-            // definitionsOf is not provided OR is empty array
-            anyOf: [
-              { not: { required: ["definitionsOf"] } },
-              { properties: { definitionsOf: { type: "array", maxItems: 0 } } },
-            ],
+          args: {
+            description:
+              'For "man": array of tool names ["tool1", "tool2"]. For other tools: object with parameters.',
           },
-          then: thenClause,
-        });
-      }
-
-      return schema;
+        },
+        required: ["tool"],
+        additionalProperties: false,
+      };
     },
 
     forNextState: function (state: WorkflowState): JSONSchema {
