@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/core",
-  "version": "0.3.18",
+  "version": "0.3.19",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -38,6 +38,6 @@
     "ai": "npm:ai@^5.0.60",
     "@ai-sdk/provider": "npm:@ai-sdk/provider@^2.0.0",
     "@ai-sdk/provider-utils": "npm:@ai-sdk/provider-utils@^2.2.8",
-    "@mcpc/mcp-sampling-ai-provider": "jsr:@mcpc/mcp-sampling-ai-provider@^0.1.19"
+    "@mcpc/mcp-sampling-ai-provider": "jsr:@mcpc/mcp-sampling-ai-provider@^0.1.20"
   }
 }

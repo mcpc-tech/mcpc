@@ -1445,7 +1445,7 @@
       },
       "packages/core": {
         "dependencies": [
-          "jsr:@mcpc/mcp-sampling-ai-provider@~0.1.19",
+          "jsr:@mcpc/mcp-sampling-ai-provider@~0.1.20",
           "jsr:@mcpc/utils@~0.2.5",
           "jsr:@std/assert@1",
           "npm:@ai-sdk/provider-utils@^2.2.8",
