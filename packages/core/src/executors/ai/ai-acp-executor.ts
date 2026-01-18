@@ -52,17 +52,6 @@ export class AIACPExecutor extends BaseAIExecutor {
     return "acp";
   }
 
-  protected override getToolListDescription(): string {
-    if (this.tools.length === 0) {
-      return "Tools will be provided by ACP agent";
-    }
-    return this.tools
-      .map(([name, detail]) =>
-        `- ${name}: ${detail.description || "No description"}`
-      )
-      .join("\n");
-  }
-
   protected buildTools(): Record<string, Tool<any, any>> {
     const aiTools: Record<string, Tool<any, any>> = {};
     for (const [name, detail] of this.tools) {

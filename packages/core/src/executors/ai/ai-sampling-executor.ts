@@ -21,12 +21,18 @@ export interface AISamplingExecutorConfig extends AIExecutorConfig {
   server: Server | ComposableMCPServer;
   tools: [string, ExternalTool][];
   providerOptions?: MCPSamplingProviderOptions;
+  /**
+   * Default max tokens for sampling requests
+   * @default 128_000
+   */
+  maxTokens?: number;
 }
 
 export class AISamplingExecutor extends BaseAIExecutor {
   private server: Server | ComposableMCPServer;
   private tools: [string, ExternalTool][];
   private providerOptions?: MCPSamplingProviderOptions;
+  private maxTokens?: number;
   private model: LanguageModelV2 | null = null;
 
   constructor(config: AISamplingExecutorConfig) {
@@ -39,11 +45,15 @@ export class AISamplingExecutor extends BaseAIExecutor {
     this.server = config.server;
     this.tools = config.tools;
     this.providerOptions = config.providerOptions;
+    this.maxTokens = config.maxTokens;
   }
 
   private initProvider(): LanguageModelV2 {
     if (!this.model) {
-      const provider = new MCPSamplingProvider({ server: this.server });
+      const provider = new MCPSamplingProvider({
+        server: this.server,
+        maxTokens: this.maxTokens,
+      });
       this.model = provider.languageModel(this.providerOptions);
     }
     return this.model;
@@ -56,14 +66,6 @@ export class AISamplingExecutor extends BaseAIExecutor {
 
   protected getExecutorType(): "mcp" {
     return "mcp";
-  }
-
-  protected override getToolListDescription(): string {
-    return this.tools
-      .map(([name, detail]) =>
-        `- ${name}: ${detail.description || "No description"}`
-      )
-      .join("\n");
   }
 
   protected buildTools(): Record<string, Tool<any, any>> {

@@ -25,6 +25,7 @@ export const createAISamplingModePlugin = (): ToolPlugin => ({
       providerOptions: opts.providerOptions,
       maxSteps: opts.maxSteps,
       tracingEnabled: opts.tracingEnabled,
+      maxTokens: opts.maxTokens,
     });
   },
 });

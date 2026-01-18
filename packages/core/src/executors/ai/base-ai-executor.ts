@@ -11,6 +11,7 @@ import type { Tool } from "ai";
 import { createLogger, type MCPLogger } from "../../utils/logger.ts";
 import type { ComposableMCPServer } from "../../compose.ts";
 import { cleanToolSchema } from "../../utils/common/provider.ts";
+import { CompiledPrompts } from "../../prompts/index.ts";
 
 export interface ExternalTool {
   inputSchema?: Record<string, unknown>;
@@ -139,19 +140,12 @@ export abstract class BaseAIExecutor {
   }
 
   protected buildSystemPrompt(args: ExecuteArgs): string {
-    return `Agent \`${this.config.name}\` that completes tasks by calling tools.
-
-<manual>
-${this.config.description}
-</manual>
-
-<rules>
-${this.getRules()}
-</rules>
-
-<tools>
-${this.getToolListDescription()}
-</tools>${args.context ? this.formatContext(args.context) : ""}`;
+    return CompiledPrompts.aiLoopSystem({
+      toolName: this.config.name,
+      description: this.config.description,
+      rules: this.getRules(),
+      context: this.formatContext(args.context),
+    });
   }
 
   protected getRules(): string {
@@ -162,12 +156,11 @@ ${this.getToolListDescription()}
 5. When complete, provide a summary WITHOUT calling more tools`;
   }
 
-  protected getToolListDescription(): string {
-    // Override in subclasses to provide specific tool list
-    return "Tools will be provided by AI SDK";
-  }
-
-  protected formatContext(context: Record<string, unknown>): string {
+  protected formatContext(context?: Record<string, unknown>): string {
+    // Skip empty or undefined context
+    if (!context || Object.keys(context).length === 0) {
+      return "";
+    }
     return `
 
 <context>

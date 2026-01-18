@@ -58,84 +58,6 @@ Execute a tool:
 </format>`,
 
   /**
-   * Tool-based execution system prompt for autonomous sampling mode with native tools
-   *
-   * Note: Used when client supports sampling.tools capability
-   */
-  SAMPLING_EXECUTION_TOOLS:
-    `Agent \`{toolName}\` that completes tasks by calling tools.
-
-<manual>
-{description}
-</manual>
-
-<rules>
-1. Execute one action per iteration
-2. Adapt based on results from previous actions
-3. Continue until task is complete
-</rules>
-
-<tools>
-{toolList}
-</tools>`,
-
-  /**
-   * JSON-only execution system prompt for autonomous sampling mode
-   *
-   * Note: Sampling mode runs an internal LLM loop that autonomously calls tools until complete.
-   */
-  SAMPLING_EXECUTION:
-    `Agent \`{toolName}\` that completes tasks by calling tools in an autonomous loop.
-
-<manual>
-{description}
-</manual>
-
-<rules>
-1. **YOUR ENTIRE RESPONSE MUST BE A SINGLE JSON OBJECT** - no text before or after
-2. Execute one tool per iteration  
-3. Specify which tool to use with \`useTool\`
-4. Adapt based on results from previous actions
-5. Continue until task is complete
-</rules>
-
-<format>
-CORRECT:
-\`\`\`json
-{"useTool": "tool_name", "decision": "proceed", "tool_name": {...}}
-\`\`\`
-
-WRONG - No explanations:
-\`\`\`
-I will list the directory
-{"useTool": "list_directory", ...}
-\`\`\`
-
-During execution:
-\`\`\`json
-{
-  "useTool": "tool_name",
-  "decision": "proceed",
-  "tool_name": { /* tool parameters */ }
-}
-\`\`\`
-
-When complete:
-\`\`\`json
-{ "decision": "complete" }
-\`\`\`
-
-Decisions:
-- \`proceed\` = action succeeded, continue
-- \`retry\` = action failed, try again  
-- \`complete\` = task finished
-</format>
-
-<tools>
-{toolList}
-</tools>`,
-
-  /**
    * Tool description for sampling tools (shown in MCP tools list)
    * Explains how to use prompt and context parameters
    */
@@ -158,6 +80,21 @@ You must follow the <manual/>, obey the <rules/>, and use the <format/>.
 2. \`prompt\` must be a clear, actionable description
 3. \`context\` must include relevant environment info (e.g., working directory)
 </rules>`,
+
+  /**
+   * System prompt for AI sampling loop (ai_sampling/ai_acp modes)
+   * Used inside the execution loop when AI calls native tools.
+   * Note: Tool schemas are passed via AI SDK native tool calling, not in prompt.
+   */
+  AI_LOOP_SYSTEM: `Agent \`{toolName}\` that completes tasks by calling tools.
+
+<manual>
+{description}
+</manual>
+
+<rules>
+{rules}
+</rules>{context}`,
 };
 
 /**
@@ -225,9 +162,8 @@ Standards: {qualityStandards}`,
  */
 export const CompiledPrompts = {
   autonomousExecution: p(SystemPrompts.AUTONOMOUS_EXECUTION),
-  samplingExecution: p(SystemPrompts.SAMPLING_EXECUTION),
-  samplingExecutionTools: p(SystemPrompts.SAMPLING_EXECUTION_TOOLS),
   samplingToolDescription: p(SystemPrompts.SAMPLING_TOOL_DESCRIPTION),
+  aiLoopSystem: p(SystemPrompts.AI_LOOP_SYSTEM),
   actionSuccess: p(ResponseTemplates.ACTION_SUCCESS),
   planningPrompt: p(ResponseTemplates.PLANNING_PROMPT),
   errorResponse: p(ResponseTemplates.ERROR_RESPONSE),

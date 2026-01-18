@@ -36,6 +36,7 @@ export type {
   MCPSamplingProviderConfig,
   MCPSamplingProviderOptions,
 } from "./src/provider.ts";
+export { DEFAULT_MAX_TOKENS } from "./src/language-model.ts";
 
 // Custom sampling handler for clients without native support
 export {

@@ -21,6 +21,11 @@ export interface RegisterAISamplingToolParams {
   providerOptions?: MCPSamplingProviderOptions;
   maxSteps?: number;
   tracingEnabled?: boolean;
+  /**
+   * Default max tokens for sampling requests
+   * @default 128_000
+   */
+  maxTokens?: number;
 }
 
 export function registerAISamplingTool(
@@ -36,6 +41,7 @@ export function registerAISamplingTool(
     providerOptions,
     maxSteps = 50,
     tracingEnabled = false,
+    maxTokens,
   } = params;
 
   const createArgsDef = createArgsDefFactory(
@@ -53,6 +59,7 @@ export function registerAISamplingTool(
     providerOptions,
     maxSteps,
     tracingEnabled,
+    maxTokens,
   });
 
   const toolDescription = CompiledPrompts.samplingToolDescription({

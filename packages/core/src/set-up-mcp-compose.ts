@@ -89,6 +89,13 @@ export interface ComposeDefinition {
     maxSteps?: number;
 
     /**
+     * Maximum tokens for sampling requests
+     * Applies to ai_sampling mode
+     * @default 128_000
+     */
+    maxTokens?: number;
+
+    /**
      * Enable OpenTelemetry tracing
      * Applies to ai_sampling and ai_acp modes
      * @default false

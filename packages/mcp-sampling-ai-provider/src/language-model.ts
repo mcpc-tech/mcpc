@@ -30,11 +30,21 @@ import {
 } from "./utils.ts";
 
 /**
+ * Default max tokens for sampling requests (128k)
+ */
+export const DEFAULT_MAX_TOKENS = 128_000;
+
+/**
  * Configuration for MCP Language Model
  */
 export interface MCPSamplingLanguageModelConfig {
   server: Server;
   modelPreferences?: ModelPreferences;
+  /**
+   * Default max tokens when not specified in call options
+   * @default 128_000
+   */
+  maxTokens?: number;
 }
 
 /**
@@ -51,12 +61,14 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
 
   private server: Server;
   private modelPreferences?: ModelPreferences;
+  private maxTokens: number;
 
   constructor(config: MCPSamplingLanguageModelConfig) {
     this.server = config.server;
     this.modelId = "";
     this.provider = "mcp-client";
     this.modelPreferences = config.modelPreferences;
+    this.maxTokens = config.maxTokens ?? DEFAULT_MAX_TOKENS;
   }
 
   /**
@@ -128,7 +140,7 @@ export class MCPSamplingLanguageModel implements LanguageModelV2 {
     const createMessageParams: CreateMessageRequestParams = {
       systemPrompt,
       messages,
-      maxTokens: options.maxOutputTokens ?? 55_000,
+      maxTokens: options.maxOutputTokens ?? this.maxTokens,
       modelPreferences: this.modelPreferences,
     };
 

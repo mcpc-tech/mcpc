@@ -20,6 +20,11 @@ export interface MCPSamplingProviderConfig {
    * MCP server instance with sampling capability
    */
   server: Server;
+  /**
+   * Default max tokens when not specified in call options
+   * @default 128_000
+   */
+  maxTokens?: number;
 }
 
 /**
@@ -57,6 +62,7 @@ export class MCPSamplingProvider {
     return new MCPSamplingLanguageModel({
       server: this.config.server,
       modelPreferences: options?.modelPreferences,
+      maxTokens: this.config.maxTokens,
     });
   }
 
