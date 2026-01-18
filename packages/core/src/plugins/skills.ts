@@ -130,7 +130,7 @@ function generateToolDescription(
 
   const toolName = `${agentName}__load-skill`;
 
-  return `Load a skill's detailed instructions or reference files for the "${agentName}" agent.
+  return `Load a skill's detailed instructions or bundled files for the "${agentName}" agent.
 
 Available skills:
 ${skillsList}
@@ -138,8 +138,10 @@ ${skillsList}
 Usage:
 - ${toolName}({ skill: "skill-name" }) - Load main SKILL.md content
 - ${toolName}({ skill: "skill-name", ref: "references/file.md" }) - Load reference documentation
+- ${toolName}({ skill: "skill-name", ref: "scripts/run.sh" }) - Load script content
+- ${toolName}({ skill: "skill-name", ref: "assets/config.json" }) - Load asset file
 
-Note: For scripts/ and assets/ directories, this tool returns the file path for use with other tools`;
+Note: Binary files are returned as base64 (up to 1MB).`;
 }
 
 /**
@@ -240,41 +242,55 @@ export function createSkillsPlugin(options: SkillsPluginOptions): ToolPlugin {
                 };
               }
 
-              // scripts/ - return path hint for execution
-              if (
-                relPath.startsWith("scripts/") ||
-                relPath.startsWith("scripts\\")
-              ) {
-                return {
-                  content: [
-                    {
-                      type: "text",
-                      text:
-                        `Script file path: ${refPath}\n\nUse an execution tool (e.g., bash) to run this script.`,
-                    },
-                  ],
-                };
-              }
-
-              // assets/ - return path hint for binary/resource files
-              if (
-                relPath.startsWith("assets/") || relPath.startsWith("assets\\")
-              ) {
-                return {
-                  content: [
-                    {
-                      type: "text",
-                      text:
-                        `Asset file path: ${refPath}\n\nUse appropriate tools to read or process this file.`,
-                    },
-                  ],
-                };
-              }
-
-              // references/ and other text files - return content
+              // Read file content
               try {
-                const content = await readFile(refPath, "utf-8");
-                return { content: [{ type: "text", text: content }] };
+                const buffer = await readFile(refPath);
+                // Try to decode as UTF-8 text
+                const decoder = new TextDecoder("utf-8", { fatal: true });
+                try {
+                  const text = decoder.decode(buffer);
+                  // scripts/ - include execution hint
+                  if (
+                    relPath.startsWith("scripts/") ||
+                    relPath.startsWith("scripts\\")
+                  ) {
+                    return {
+                      content: [
+                        {
+                          type: "text",
+                          text: `# Script: ${args.ref}\n\n\`\`\`\n${text}\`\`\`\n\nTo execute this script, use an appropriate execution tool.`,
+                        },
+                      ],
+                    };
+                  }
+                  return { content: [{ type: "text", text }] };
+                } catch {
+                  // Binary file - return base64 for small files, hint for large
+                  const size = buffer.byteLength;
+                  if (size > 1024 * 1024) {
+                    // > 1MB
+                    return {
+                      content: [
+                        {
+                          type: "text",
+                          text: `Binary file: ${args.ref} (${(size / 1024 / 1024).toFixed(2)} MB)\n\nFile too large to return inline.`,
+                        },
+                      ],
+                    };
+                  }
+                  // Return base64 for smaller binary files
+                  const base64 = btoa(
+                    String.fromCharCode(...new Uint8Array(buffer)),
+                  );
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: `Binary file: ${args.ref} (${size} bytes)\n\nBase64 content:\n${base64}`,
+                      },
+                    ],
+                  };
+                }
               } catch {
                 return {
                   content: [
