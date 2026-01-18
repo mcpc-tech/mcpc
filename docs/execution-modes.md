@@ -290,13 +290,13 @@ for detailed information.
 
 ## Choosing the Right Mode
 
-| Scenario                          | Recommended Mode |
-| --------------------------------- | ---------------- |
-| Simple interactive agent          | `agentic`        |
-| Autonomous AI SDK execution       | `ai_sampling`    |
-| Coding agent integration          | `ai_acp`         |
-| Code generation and execution     | `code_execution` |
-| Data processing with tool access  | `code_execution` |
+| Scenario                         | Recommended Mode |
+| -------------------------------- | ---------------- |
+| Simple interactive agent         | `agentic`        |
+| Autonomous AI SDK execution      | `ai_sampling`    |
+| Coding agent integration         | `ai_acp`         |
+| Code generation and execution    | `code_execution` |
+| Data processing with tool access | `code_execution` |
 
 ## Configuration Reference
 

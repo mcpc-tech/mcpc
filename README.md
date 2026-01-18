@@ -34,8 +34,8 @@ can use it to:
   [Agent Skills specification](https://agentskills.io) - deploy to production,
   share via MCP, and declare tool dependencies
 - **Flexible execution modes**: Multiple specialized modes to fit different
-  scenarios - interactive agent (`agentic`), AI SDK sampling (`ai_sampling`),
-  AI ACP mode (`ai_acp`), and secure code execution
+  scenarios - interactive agent (`agentic`), AI SDK sampling (`ai_sampling`), AI
+  ACP mode (`ai_acp`), and secure code execution
   ([`code_execution`](packages/plugin-code-execution/)) - each with dedicated
   implementations
 

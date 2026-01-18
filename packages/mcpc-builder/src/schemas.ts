@@ -34,7 +34,9 @@ export const composeMCPCConfigSchema: z.ZodObject<any> = z.object({
   ).describe(
     "Tool selection for each server. Use '__ALL__' to include all tools from a server, or specify array of tool names.",
   ),
-  mode: z.enum(["agentic", "ai_sampling", "ai_acp"]).optional().default("agentic")
+  mode: z.enum(["agentic", "ai_sampling", "ai_acp"]).optional().default(
+    "agentic",
+  )
     .describe("Execution mode for the agent"),
   enableSampling: z.boolean().optional().default(false)
     .describe("Enable autonomous sampling mode"),
