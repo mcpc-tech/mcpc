@@ -10,6 +10,7 @@ import { jsonSchema, stepCountIs, streamText, tool } from "ai";
 import type { Tool } from "ai";
 import { createLogger, type MCPLogger } from "../../utils/logger.ts";
 import type { ComposableMCPServer } from "../../compose.ts";
+import { cleanToolSchema } from "../../utils/common/provider.ts";
 
 export interface ExternalTool {
   inputSchema?: Record<string, unknown>;
@@ -179,11 +180,14 @@ ${JSON.stringify(context, null, 2)}
     toolDetail: ExternalTool,
     execute: (input: Record<string, unknown>) => Promise<unknown>,
   ): Tool<any, any> {
+    // Clean the schema to remove internal/metadata fields like $schema
+    const cleanedSchema = toolDetail.inputSchema
+      ? cleanToolSchema(toolDetail.inputSchema)
+      : { type: "object" };
+
     return tool({
       description: toolDetail.description || `Tool: ${name}`,
-      inputSchema: jsonSchema(
-        (toolDetail.inputSchema as any) || { type: "object" },
-      ),
+      inputSchema: jsonSchema(cleanedSchema as any),
       execute,
     });
   }

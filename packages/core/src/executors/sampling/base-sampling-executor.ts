@@ -15,7 +15,10 @@ import { createLogger, type MCPLogger } from "../../utils/logger.ts";
 import { validateSchema } from "../../utils/schema-validator.ts";
 import type { Span } from "@opentelemetry/api";
 import { endSpan, initializeTracing, startSpan } from "../../utils/tracing.ts";
-import { createModelCompatibleJSONSchema } from "../../utils/common/provider.ts";
+import {
+  cleanToolSchema,
+  createModelCompatibleJSONSchema,
+} from "../../utils/common/provider.ts";
 
 export interface ExternalTool {
   inputSchema?: Record<string, unknown>;
@@ -78,7 +81,8 @@ export abstract class BaseSamplingExecutor {
       description: detail.description || `Tool: ${name}`,
       inputSchema: {
         type: "object" as const,
-        ...detail.inputSchema,
+        // Clean the schema to remove internal/metadata fields like $schema
+        ...cleanToolSchema(detail.inputSchema || {}),
       },
     }));
   }
