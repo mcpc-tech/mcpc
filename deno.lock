@@ -2,6 +2,7 @@
   "version": "5",
   "specifiers": {
     "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.41.0",
+    "jsr:@mcpc/acp-ai-provider@~0.1.50": "0.1.50",
     "jsr:@std/assert@1": "1.0.14",
     "jsr:@std/assert@^1.0.14": "1.0.14",
     "jsr:@std/cli@^1.0.21": "1.0.21",
@@ -21,7 +22,6 @@
     "npm:@ai-sdk/provider@2": "2.0.0",
     "npm:@ai-sdk/provider@3": "3.0.0",
     "npm:@hono/zod-openapi@~0.19.2": "0.19.10_hono@4.9.10_zod@3.25.76",
-    "npm:@mcpc-tech/acp-ai-provider@~0.1.47": "0.1.47_zod@3.25.76",
     "npm:@mcpc-tech/handle-sandbox@^0.0.8": "0.0.8",
     "npm:@mcpc-tech/plugin-code-execution@^0.0.8": "0.0.8_zod@3.25.76_@opentelemetry+api@1.9.0_ajv@8.17.1_hono@4.9.10",
     "npm:@mcpc-tech/ripgrep-napi@^0.0.4": "0.0.4",
@@ -53,6 +53,16 @@
   "jsr": {
     "@es-toolkit/es-toolkit@1.41.0": {
       "integrity": "4df54a18e80b869880cee8a8a9ff7a5e1c424a9fd0916dccd38d34686f110071"
+    },
+    "@mcpc/acp-ai-provider@0.1.50": {
+      "integrity": "b4f3e79b7c305c3a69e1f27f22ffac04e9a6d21310e8753aa1e32e7db8d3ecd9",
+      "dependencies": [
+        "npm:@agentclientprotocol/sdk",
+        "npm:@ai-sdk/provider@2",
+        "npm:@modelcontextprotocol/sdk@^1.8.0",
+        "npm:ai@^5.0.60",
+        "npm:zod@^3.24.2"
+      ]
     },
     "@std/assert@1.0.14": {
       "integrity": "68d0d4a43b365abc927f45a9b85c639ea18a9fab96ad92281e493e4ed84abaa4",
@@ -267,15 +277,6 @@
       "integrity": "sha512-q7qL4Mgjs1vByCaTnDFcBnV9HS7GVPJX5vyVoCgZHNSC9rjwIlmbXG5sUuorR5ndfHAIlJ8pVStxvjXHbNvtUg==",
       "dependencies": [
         "jsep"
-      ]
-    },
-    "@mcpc-tech/acp-ai-provider@0.1.47_zod@3.25.76": {
-      "integrity": "sha512-v0TnaoZ6D94jdfYsAU1w4NlSCL9sJeS7KkpaSNTUzI3KzXD9NU6zXL+ktwhwKgk7Mpk3Q/8F7t0SCW0TZjfHog==",
-      "dependencies": [
-        "@agentclientprotocol/sdk",
-        "@ai-sdk/provider@2.0.0",
-        "ai@5.0.116_zod@3.25.76",
-        "zod"
       ]
     },
     "@mcpc-tech/handle-sandbox@0.0.8": {
@@ -1375,7 +1376,8 @@
       "integrity": "sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==",
       "dependencies": [
         "iconv-lite@0.6.3"
-      ]
+      ],
+      "deprecated": true
     },
     "whatwg-mimetype@4.0.0": {
       "integrity": "sha512-QaKxh0eNIi2mE9p2vEdzfagOKHCcj1pJ56EEHGQOVxp8r9/iszLUUV7v89x9O1p/T+NlTM5W7jW6+cz4Fq1YVg=="
@@ -1440,12 +1442,12 @@
       },
       "packages/core": {
         "dependencies": [
-          "jsr:@mcpc/mcp-sampling-ai-provider@~0.1.18",
+          "jsr:@mcpc/acp-ai-provider@~0.1.50",
+          "jsr:@mcpc/mcp-sampling-ai-provider@~0.1.19",
           "jsr:@mcpc/utils@~0.2.5",
           "jsr:@std/assert@1",
           "npm:@ai-sdk/provider-utils@^2.2.8",
           "npm:@ai-sdk/provider@2",
-          "npm:@mcpc-tech/acp-ai-provider@~0.1.47",
           "npm:@mcpc-tech/ripgrep-napi@^0.0.4",
           "npm:@modelcontextprotocol/sdk@^1.25.1",
           "npm:@opentelemetry/api@^1.9.0",

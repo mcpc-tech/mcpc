@@ -9,7 +9,7 @@ import {
   type ACPProviderSettings,
   acpTools,
   createACPProvider,
-} from "@mcpc-tech/acp-ai-provider";
+} from "@mcpc/acp-ai-provider";
 import {
   type AIExecutorConfig,
   BaseAIExecutor,
