@@ -27,15 +27,11 @@ export const toolDefinitions: ComposeDefinition[] = [
 
 Available tools:
 <tool name="@modelcontextprotocol/server-everything.echo"/>
-<tool name="@modelcontextprotocol/server-everything.add"/>
-<tool name="@modelcontextprotocol/server-everything.longRunningOperation"/>
-<tool name="@modelcontextprotocol/server-everything.sampleLLM"/>
+<tool name="@modelcontextprotocol/server-everything.get-sum"/>
 
 I can help with:
 1. Echo messages back
-2. Perform arithmetic operations
-3. Execute long-running operations with progress
-4. Sample from an LLM`,
+2. Perform arithmetic operations`,
 
     deps: {
       mcpServers: {
