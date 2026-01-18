@@ -130,14 +130,16 @@ function generateToolDescription(
 
   const toolName = `${agentName}__load-skill`;
 
-  return `Load a skill's detailed instructions or reference files for the "${agentName}" agent.
+  return `Load a skill's detailed instructions or bundled files for the "${agentName}" agent.
 
 Available skills:
 ${skillsList}
 
 Usage:
 - ${toolName}({ skill: "skill-name" }) - Load main SKILL.md content
-- ${toolName}({ skill: "skill-name", ref: "references/file.md" }) - Load reference file`;
+- ${toolName}({ skill: "skill-name", ref: "references/file.md" }) - Load reference documentation
+- ${toolName}({ skill: "skill-name", ref: "scripts/script.py" }) - Load script content
+- ${toolName}({ skill: "skill-name", ref: "assets/template.json" }) - Load asset file`;
 }
 
 /**
@@ -195,7 +197,7 @@ export function createSkillsPlugin(options: SkillsPluginOptions): ToolPlugin {
               ref: {
                 type: "string",
                 description:
-                  "Optional: relative path to a reference file within the skill directory",
+                  "Optional: relative path to a file within the skill directory (references/, scripts/, or assets/)",
               },
             },
             required: ["skill"],
