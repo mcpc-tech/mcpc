@@ -3,7 +3,7 @@
  * Follows Agent Skills specification: https://agentskills.io/specification
  */
 
-import { readdir, readFile, stat } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
 import type { ComposeStartContext, ToolPlugin } from "../plugin-types.ts";
 import type { ComposableMCPServer } from "../compose.ts";
@@ -91,7 +91,6 @@ async function scanSkills(basePath: string): Promise<SkillMeta[]> {
       const skillFile = join(skillDir, "SKILL.md");
 
       try {
-        await stat(skillFile);
         const content = await readFile(skillFile, "utf-8");
         const frontmatter = parseFrontmatter(content);
 
@@ -130,18 +129,14 @@ function generateToolDescription(
 
   const toolName = `${agentName}__load-skill`;
 
-  return `Load a skill's detailed instructions or bundled files for the "${agentName}" agent.
+  return `Load a skill's detailed instructions or reference files for the "${agentName}" agent.
 
 Available skills:
 ${skillsList}
 
 Usage:
 - ${toolName}({ skill: "skill-name" }) - Load main SKILL.md content
-- ${toolName}({ skill: "skill-name", ref: "references/file.md" }) - Load reference documentation
-- ${toolName}({ skill: "skill-name", ref: "scripts/run.sh" }) - Load script content
-- ${toolName}({ skill: "skill-name", ref: "assets/config.json" }) - Load asset file
-
-Note: Binary files are returned as base64 (up to 1MB).`;
+- ${toolName}({ skill: "skill-name", ref: "references/file.md" }) - Load reference documentation`;
 }
 
 /**
@@ -230,71 +225,30 @@ export function createSkillsPlugin(options: SkillsPluginOptions): ToolPlugin {
                 };
               }
 
-              // Check if file exists
-              try {
-                await stat(refPath);
-              } catch {
+              // Only allow references/ directory
+              if (
+                !relPath.startsWith("references/") &&
+                !relPath.startsWith("references\\")
+              ) {
                 return {
                   content: [
-                    { type: "text", text: `File not found: ${args.ref}` },
+                    {
+                      type: "text",
+                      text: `Only references/ directory is supported. Got: ${args.ref}`,
+                    },
                   ],
                   isError: true,
                 };
               }
 
-              // Read file content
+              // Read reference file
               try {
-                const buffer = await readFile(refPath);
-                // Try to decode as UTF-8 text
-                const decoder = new TextDecoder("utf-8", { fatal: true });
-                try {
-                  const text = decoder.decode(buffer);
-                  // scripts/ - include execution hint
-                  if (
-                    relPath.startsWith("scripts/") ||
-                    relPath.startsWith("scripts\\")
-                  ) {
-                    return {
-                      content: [
-                        {
-                          type: "text",
-                          text: `# Script: ${args.ref}\n\n\`\`\`\n${text}\`\`\`\n\nTo execute this script, use an appropriate execution tool.`,
-                        },
-                      ],
-                    };
-                  }
-                  return { content: [{ type: "text", text }] };
-                } catch {
-                  // Binary file - return base64 for small files, hint for large
-                  const size = buffer.byteLength;
-                  if (size > 1024 * 1024) {
-                    // > 1MB
-                    return {
-                      content: [
-                        {
-                          type: "text",
-                          text: `Binary file: ${args.ref} (${(size / 1024 / 1024).toFixed(2)} MB)\n\nFile too large to return inline.`,
-                        },
-                      ],
-                    };
-                  }
-                  // Return base64 for smaller binary files
-                  const base64 = btoa(
-                    String.fromCharCode(...new Uint8Array(buffer)),
-                  );
-                  return {
-                    content: [
-                      {
-                        type: "text",
-                        text: `Binary file: ${args.ref} (${size} bytes)\n\nBase64 content:\n${base64}`,
-                      },
-                    ],
-                  };
-                }
+                const content = await readFile(refPath, "utf-8");
+                return { content: [{ type: "text", text: content }] };
               } catch {
                 return {
                   content: [
-                    { type: "text", text: `Failed to read file: ${args.ref}` },
+                    { type: "text", text: `File not found: ${args.ref}` },
                   ],
                   isError: true,
                 };
