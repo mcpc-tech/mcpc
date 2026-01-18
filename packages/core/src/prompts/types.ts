@@ -32,7 +32,6 @@ export interface WorkflowStep {
 export type ExecutionMode =
   | "agentic"
   | "agentic_workflow"
-  | "agentic_sampling"
   | "agentic_workflow_sampling"
   | "ai_sampling"
   | "ai_acp"

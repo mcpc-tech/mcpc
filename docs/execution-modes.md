@@ -7,13 +7,13 @@ is powered by dedicated executor implementations in
 
 ## Mode Overview
 
-| Mode                        | Description                                 | Use Case                                       | Requires Sampling |
-| --------------------------- | ------------------------------------------- | ---------------------------------------------- | ----------------- |
-| `agentic`                   | Interactive step-by-step execution          | Standard agent interactions                    | No                |
-| `agentic_workflow`          | Structured workflow with steps              | Multi-step processes with defined structure    | No                |
-| `agentic_sampling`          | Autonomous execution with internal LLM loop | Fully autonomous agents                        | Yes               |
-| `agentic_workflow_sampling` | Autonomous workflow execution               | Complex autonomous workflows                   | Yes               |
-| `code_execution`            | Secure JavaScript sandbox execution         | Code generation and execution with tool access | No                |
+| Mode                        | Description                         | Use Case                                       | Requires Sampling |
+| --------------------------- | ----------------------------------- | ---------------------------------------------- | ----------------- |
+| `agentic`                   | Interactive step-by-step execution  | Standard agent interactions                    | No                |
+| `agentic_workflow`          | Structured workflow with steps      | Multi-step processes with defined structure    | No                |
+| `agentic_workflow_sampling` | Autonomous workflow execution       | Complex autonomous workflows                   | Yes               |
+| `ai_sampling`               | AI SDK sampling mode                | Autonomous execution with AI SDK               | Yes               |
+| `code_execution`            | Secure JavaScript sandbox execution | Code generation and execution with tool access | No                |
 
 ## 1. Agentic Mode (default)
 
@@ -169,86 +169,7 @@ const server = await mcpc(
 
 ---
 
-## 3. Agentic Sampling Mode
-
-Autonomous execution using MCP's sampling capability. Runs an internal LLM loop
-without user interaction until the task is complete or max iterations is
-reached.
-
-### Configuration
-
-```typescript
-{
-  options: { 
-    mode: "agentic_sampling",
-    samplingConfig: {
-      maxIterations: 10,      // Max LLM calls (default: 10)
-      summarize: true         // Summarize results (default: true)
-    }
-  }
-}
-```
-
-⚠️ **Requires**: `capabilities: { sampling: {} }` in client
-
-### Implementation
-
-**Executor**:
-[`executors/sampling/agentic-sampling-executor.ts`](../packages/core/src/executors/sampling/agentic-sampling-executor.ts)
-
-### How It Works
-
-1. Client invokes the sampling tool
-2. Server starts internal LLM loop
-3. LLM autonomously calls tools and processes results
-4. Loop continues until task complete or max iterations
-5. Final result (or summary) returned to client
-
-### Example
-
-```typescript
-const server = await mcpc(
-  [
-    { name: "autonomous-agent", version: "1.0.0" },
-    { capabilities: { tools: {} } },
-  ],
-  [{
-    name: "autonomous-agent",
-    description: `
-      Fully autonomous agent that can work independently.
-      <tool name="filesystem.__ALL__"/>
-      <tool name="terminal.execute_command"/>
-    `,
-    deps: {/* ... */},
-    options: {
-      mode: "agentic_sampling",
-      samplingConfig: {
-        maxIterations: 20,
-        summarize: true,
-      },
-    },
-  }],
-);
-```
-
-### When to Use
-
-- Long-running autonomous tasks
-- When you want the agent to work independently
-- Background processing scenarios
-- Supported by MCP clients like VS Code, Cline, etc.
-
-### Client Support
-
-Sampling mode requires client support. Compatible clients include:
-
-- VS Code with MCP extension
-- Cline
-- Other clients implementing MCP sampling protocol
-
----
-
-## 4. Agentic Workflow Sampling Mode
+## 3. Agentic Workflow Sampling Mode
 
 Combines the structure of workflow mode with the autonomy of sampling mode.
 Executes a predefined or dynamic workflow autonomously.
@@ -309,7 +230,7 @@ const server = await mcpc(
 
 ---
 
-## 5. Code Execution Mode
+## 4. Code Execution Mode
 
 Secure JavaScript code execution in a Deno sandbox with bidirectional JSON-RPC
 communication for MCP tool access. Features progressive tool disclosure to
@@ -462,8 +383,8 @@ for detailed information.
 | --------------------------------------- | --------------------------- |
 | Simple interactive agent                | `agentic`                   |
 | Multi-step process with clear structure | `agentic_workflow`          |
-| Long-running autonomous task            | `agentic_sampling`          |
 | Autonomous structured workflow          | `agentic_workflow_sampling` |
+| AI SDK autonomous execution             | `ai_sampling`               |
 | Code generation and execution           | `code_execution`            |
 | Data processing with tool access        | `code_execution`            |
 
@@ -503,8 +424,8 @@ Each execution mode is implemented as a built-in plugin. You can find them in:
 
 - `packages/core/src/plugins/built-in/mode-agentic-plugin.ts`
 - `packages/core/src/plugins/built-in/mode-workflow-plugin.ts`
-- `packages/core/src/plugins/built-in/mode-agentic-sampling-plugin.ts`
 - `packages/core/src/plugins/built-in/mode-workflow-sampling-plugin.ts`
+- `packages/core/src/plugins/built-in/mode-ai-sampling-plugin.ts`
 
 The code execution mode is a separate plugin package that can be installed and
 used independently.

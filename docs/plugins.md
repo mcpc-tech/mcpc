@@ -570,8 +570,8 @@ Execution mode plugins activate automatically based on your `mode` option:
 
 - **mode-agentic** - Interactive step-by-step execution (default)
 - **mode-agentic-workflow** - Structured workflow with steps
-- **mode-agentic-sampling** - Autonomous execution with internal LLM
-- **mode-agentic-workflow-sampling** - Autonomous workflow execution
+- **mode-workflow-sampling** - Autonomous workflow execution
+- **mode-ai-sampling** - AI SDK autonomous execution
 - **mode-code-execution** - Secure JavaScript sandbox (requires separate
   package)
 

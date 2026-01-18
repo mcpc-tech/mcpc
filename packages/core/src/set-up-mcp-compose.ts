@@ -37,7 +37,6 @@ export interface ComposeDefinition {
      * Execution mode for the agent
      * - "agentic": Fully autonomous agent mode without any workflow structure
      * - "agentic_workflow": Agent workflow mode that can either generate steps at runtime or use predefined steps
-     * - "agentic_sampling": Autonomous sampling mode for agentic execution
      * - "agentic_workflow_sampling": Autonomous sampling mode for workflow execution
      * - "ai_sampling": AI SDK sampling mode using streamText with MCP sampling provider
      * - "ai_acp": AI SDK ACP mode for coding agents (Claude Code, etc.)
@@ -47,7 +46,7 @@ export interface ComposeDefinition {
 
     /**
      * Configuration for sampling mode execution
-     * Only applies when mode is "agentic_sampling" or "agentic_workflow_sampling"
+     * Only applies when mode is "agentic_workflow_sampling"
      */
     samplingConfig?: SamplingConfig;
 
@@ -179,7 +178,7 @@ export function parseMcpcConfigs(
  *       }
  *     },
  *     plugins: [createLargeResultPlugin({ maxSize: 8000 })],
- *     options: { mode: "agentic_sampling" }
+ *     options: { mode: "ai_sampling" }
  *   }]
  * );
  * await server.connect(new StdioServerTransport());
