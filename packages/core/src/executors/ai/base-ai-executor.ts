@@ -26,7 +26,7 @@ export interface AIExecutorConfig {
 }
 
 export interface ExecuteArgs {
-  userRequest: string;
+  prompt: string;
   context?: Record<string, unknown>;
 }
 
@@ -90,7 +90,7 @@ export abstract class BaseAIExecutor {
       const result = streamText({
         model: this.getModel(),
         system: this.buildSystemPrompt(args),
-        messages: [{ role: "user", content: args.userRequest }],
+        messages: [{ role: "user", content: args.prompt }],
         tools: this.buildTools(),
         stopWhen: stepCountIs(this.config.maxSteps),
         experimental_telemetry: this.config.tracingEnabled

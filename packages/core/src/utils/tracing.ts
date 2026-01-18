@@ -1,7 +1,7 @@
 /**
  * OpenTelemetry Tracing Utility
  *
- * Provides tracing capabilities for sampling workflows using OpenTelemetry.
+ * Provides tracing capabilities for sampling executions using OpenTelemetry.
  * Traces can be exported to console, OTLP endpoint, or disabled entirely.
  */
 

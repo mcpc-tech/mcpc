@@ -50,7 +50,7 @@ export abstract class BaseSamplingExecutor {
     // Create logger for this sampling executor
     this.logger = createLogger(`mcpc.sampling.${name}`, server);
 
-    // Initialize tracing for sampling workflows
+    // Initialize tracing for sampling executions
     try {
       const tracingConfig = {
         enabled: process.env.MCPC_TRACING_ENABLED === "true",

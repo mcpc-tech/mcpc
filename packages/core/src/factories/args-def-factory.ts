@@ -16,27 +16,27 @@ export function createArgsDefFactory(
     forSampling: function (): JSONSchema {
       return {
         type: "object",
-        description: "Provide user request for autonomous tool execution",
+        description: "Provide prompt for autonomous tool execution",
         properties: {
-          userRequest: {
+          prompt: {
             type: "string",
             description:
-              "The task or request that should be completed autonomously by the agentic system using available tools",
+              "The task to be completed autonomously by the agentic system using available tools",
           },
           context: {
             type: "object",
             description:
-              "Necessary context for the request, e.g., the absolute path of the current working directory. This is just an example; any relevant context fields are allowed.",
+              "Execution context, e.g., { cwd: '/path/to/dir' }. Any relevant fields allowed.",
             additionalProperties: true,
           },
         },
-        required: ["userRequest", "context"],
+        required: ["prompt", "context"],
         errorMessage: {
           required: {
-            userRequest:
-              "Missing required field 'userRequest'. Please provide a clear task description.",
+            prompt:
+              "Missing required field 'prompt'. Please provide a clear task description.",
             context:
-              "Missing required field 'context'. Please provide relevant context (e.g., current working directory).",
+              "Missing required field 'context'. Please provide relevant context (e.g., { cwd: '...' }).",
           },
         },
       };

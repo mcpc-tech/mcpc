@@ -9,6 +9,7 @@ import { CompiledPrompts } from "../../prompts/index.ts";
 import { type ACPProviderSettings, AIACPExecutor } from "./ai-acp-executor.ts";
 import type { ExternalTool } from "./base-ai-executor.ts";
 import { createArgsDefFactory } from "../../factories/args-def-factory.ts";
+import { validateSchema } from "../../utils/schema-validator.ts";
 
 export interface RegisterAIACPToolParams {
   description: string;
@@ -72,11 +73,30 @@ export function registerAIACPTool(
       createModelCompatibleJSONSchema(schema as Record<string, unknown>),
     ),
     (args: Record<string, unknown>) => {
-      const userRequest = typeof args.userRequest === "string"
-        ? args.userRequest
+      // Validate args against schema before execution
+      const validationResult = validateSchema(
+        args,
+        schema as Record<string, unknown>,
+      );
+      if (!validationResult.valid) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: CompiledPrompts.errorResponse({
+                errorMessage: validationResult.error || "Validation failed",
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const prompt = typeof args.prompt === "string"
+        ? args.prompt
         : JSON.stringify(args);
       return executor.execute({
-        userRequest,
+        prompt,
         context: args.context as Record<string, unknown>,
       });
     },
