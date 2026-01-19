@@ -150,7 +150,8 @@ export class ComposableMCPServer extends Server {
     description: string,
     paramsSchema: Schema<T> | JSONSchema,
     cb: (args: T, extra?: unknown) => unknown,
-    options: { internal?: boolean; plugins?: ToolPlugin[] } = {},
+    options: { internal?: boolean; hidden?: boolean; plugins?: ToolPlugin[] } =
+      {},
   ) {
     // Extract JSON Schema from wrapped or unwrapped format
     const jsonSchemaObj = extractJsonSchema(paramsSchema as Schema<T>);
@@ -547,22 +548,24 @@ export class ComposableMCPServer extends Server {
     const publicToolNames = this.getPublicToolNames();
     const hiddenToolNames = this.getHiddenToolNames();
 
-    // Tools visible in agent context = all tools except hidden ones
+    // Tools visible in agent context = all tools except hidden ones AND public ones
+    // Public tools are exposed to MCP clients directly, so they shouldn't be in agent's enum
+    // Hidden tools are explicitly excluded from agent context
     const contextToolNames = toolNameToDetailList
       .map(([name]) => name)
-      .filter((n) => !hiddenToolNames.includes(n));
+      .filter((n) =>
+        !hiddenToolNames.includes(n) && !publicToolNames.includes(n)
+      );
 
     // Add public tools to server (these are exposed to MCP clients)
+    // Only register if the tool is in allTools (composed tools)
+    // Tools registered via server.tool() in setupCallback are already registered
     publicToolNames.forEach((toolId) => {
       const tool = allTools[toolId];
       if (!tool) {
-        throw new Error(
-          `Public tool ${toolId} not found in registry, available: ${
-            Object.keys(
-              allTools,
-            ).join(", ")
-          }`,
-        );
+        // Tool was registered via server.tool() directly, not through compose
+        // It's already registered, skip re-registration
+        return;
       }
       // Register tool and mark as public
       this.tool(

@@ -59,7 +59,7 @@ plugins: [
 1. Monitors tool result sizes
 2. When too large: saves full content to temp file
 3. Returns preview + file path
-4. Adds `search-tool-result` tool to query saved files
+4. Adds `{agentName}__grep` tool to query saved files (internal tool only)
 
 **Example output:**
 
@@ -73,7 +73,7 @@ Preview (4000 chars):
 ...preview content...
 
 To read/understand the full content:
-- Use search-tool-result {"pattern": "your-search-term"}
+- Use {agentName}__grep {"pattern": "your-search-term"}
 ```
 
 **Implementation**: The plugin wraps tool execution and automatically saves
@@ -98,7 +98,8 @@ plugins: [
 ];
 ```
 
-Adds a `search-tool-result` tool that supports:
+Adds a `mcpc__grep` tool (or `{agentName}__grep` when used with agents) that
+supports:
 
 - Literal text search
 - Regular expressions
@@ -599,7 +600,7 @@ import {
 
 **Search Plugin:**
 
-- Adds `{agentName}__search-tool-result` tool
+- Adds `{agentName}__grep` tool
 - Supports regex patterns
 - Configurable timeout and result limits
 

@@ -39,7 +39,7 @@ export class ToolManager {
     description: string,
     schema: JSONSchema | undefined,
     callback: ToolCallback,
-    options: { internal?: boolean } = {},
+    options: { internal?: boolean; hidden?: boolean } = {},
   ): void {
     this.toolRegistry.set(name, {
       callback,
@@ -48,8 +48,9 @@ export class ToolManager {
     });
 
     // Set visibility config based on options
-    if (options.internal) {
-      // Backward compatibility: internal option maps to hidden
+    // - internal: not exposed to MCP clients (not added to publicTools)
+    // - hidden: excluded from agent context (not visible in tool enum)
+    if (options.hidden) {
       this.toolConfigs.set(name, { visibility: { hidden: true } });
     }
     // Note: Tools are NOT automatically added to publicTools here
@@ -72,6 +73,8 @@ export class ToolManager {
         inputSchema: schema as Tool["inputSchema"],
       });
     }
+    // Mark as public in toolConfigs for getPublicToolNames()
+    this.toolConfigs.set(name, { visibility: { public: true } });
   }
 
   /**

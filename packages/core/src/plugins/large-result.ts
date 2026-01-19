@@ -33,10 +33,10 @@ export function createLargeResultPlugin(
   let agentName: string | null = null;
 
   const defaultSearchDescription =
-    `Search within large tool result files that were saved due to size limits. ` +
-    `Use when: a tool result was saved to file because it exceeded the context limit. ` +
-    `Do NOT use this tool before calling the actual tool first. ` +
-    `Provide specific keywords or patterns related to the content you're looking for.`;
+    `Grep/search within large tool result files that were saved due to size limits. ` +
+    `**IMPORTANT**: You MUST execute the actual tool first and get a "Result too large, saved to file" response before using this grep tool. ` +
+    `This tool is ONLY for searching within previously saved large results, not for general file search. ` +
+    `Provide specific keywords or regex patterns related to the content you're looking for.`;
 
   return {
     name: "plugin-large-result-handler",
@@ -50,14 +50,14 @@ export function createLargeResultPlugin(
     composeStart: async (context: ComposeStartContext) => {
       agentName = context.serverName;
 
-      // Add search plugin with agent name prefix
+      // Add search plugin with agent name prefix - set global: false to keep it internal
       if (serverRef) {
         const searchConfig: SearchOptions = {
           maxResults: options.search?.maxResults || 15,
           maxOutputSize: options.search?.maxOutputSize || 4000,
           toolDescription: options.search?.toolDescription ||
             defaultSearchDescription,
-          global: true,
+          global: false, // Internal tool only - not exposed externally
           agentName: agentName,
         };
         const searchPlugin = createSearchPlugin(searchConfig);
@@ -67,9 +67,7 @@ export function createLargeResultPlugin(
 
     transformTool: (tool, context) => {
       const originalExecute = tool.execute;
-      const searchToolName = agentName
-        ? `${agentName}__search-tool-result`
-        : "search-tool-result";
+      const searchToolName = agentName ? `${agentName}__grep` : "mcpc__grep";
 
       tool.execute = async (args: unknown) => {
         try {

@@ -90,12 +90,13 @@ Deno.test("ToolManager - internal tool visibility", async () => {
   const result = await server.callTool("internal-tool", {}) as any;
   assertEquals(result.content[0].text, "internal");
 
-  // Get tool lists - internal tools are now hidden
+  // Get tool lists - internal tools are NOT hidden, they are just not public
+  // They are visible in agent context but not exposed to MCP clients
   const hiddenTools = server.getHiddenToolNames();
   const publicTools = server.getPublicToolNames();
 
-  assertEquals(hiddenTools.includes("internal-tool"), true);
-  assertEquals(publicTools.includes("internal-tool"), false);
+  assertEquals(hiddenTools.includes("internal-tool"), false); // internal != hidden
+  assertEquals(publicTools.includes("internal-tool"), false); // internal tools are not public
 
   // Verify that tools registered in setup hooks are processed by plugins
   assertEquals(transformedTools.includes("internal-tool"), true);
@@ -180,20 +181,31 @@ Deno.test("ToolManager - context tools (not public, not hidden)", async () => {
     [{ name: "test-server", version: "1.0.0" }, {}],
     [],
     (server) => {
+      // Tool without internal: true is public by default
+      server.tool(
+        "public-tool",
+        "Public tool",
+        jsonSchema({ type: "object", properties: {} }),
+        () => ({ content: [{ type: "text", text: "public" }] }),
+      );
+
+      // Tool with internal: true is visible in agent context only
       server.tool(
         "context-tool",
         "Context tool",
         jsonSchema({ type: "object", properties: {} }),
         () => ({ content: [{ type: "text", text: "context" }] }),
+        { internal: true },
       );
     },
   );
 
-  // Context tools are not public and not hidden - visible in agent context only
+  // Public tools are in publicTools, internal tools are not
   const publicTools = server.getPublicToolNames();
   const hiddenTools = server.getHiddenToolNames();
+  assertEquals(publicTools.includes("public-tool"), true);
   assertEquals(publicTools.includes("context-tool"), false);
-  assertEquals(hiddenTools.includes("context-tool"), false);
+  assertEquals(hiddenTools.includes("context-tool"), false); // internal != hidden
 });
 
 Deno.test("ToolManager - check tool existence", async () => {

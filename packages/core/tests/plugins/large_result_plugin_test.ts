@@ -64,7 +64,7 @@ Deno.test("large-result plugin truncates and enables search", async () => {
   }
 
   // Search for the sentinel in the saved file
-  const search = (await server.callTool("agent__search-tool-result", {
+  const search = (await server.callTool("agent__grep", {
     pattern: "SENTINEL",
     path: filePath,
   })) as ToolResult;

@@ -29,7 +29,7 @@ export interface SearchOptions {
   timeoutMs?: number;
   /** Custom description for the search tool (overrides default) */
   toolDescription?: string;
-  /** Agent name prefix for tool naming (e.g., "my-agent" -> "my-agent__search-tool-result") */
+  /** Agent name prefix for tool naming (e.g., "my-agent" -> "my-agent__grep") */
   agentName?: string;
 }
 
@@ -45,9 +45,7 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
   const agentName = options.agentName;
 
   // Tool name with optional agent prefix
-  const toolName = agentName
-    ? `${agentName}__search-tool-result`
-    : "search-tool-result";
+  const toolName = agentName ? `${agentName}__grep` : "mcpc__grep";
 
   // Track active timeouts for cleanup
   const activeTimeouts = new Set<ReturnType<typeof setTimeout>>();
@@ -58,10 +56,16 @@ export function createSearchPlugin(options: SearchOptions = {}): ToolPlugin {
 
     configureServer: (server) => {
       const defaultDescription = agentName
-        ? `Search for text patterns in files for the "${agentName}" agent. Use this to find specific content within large tool results. Provide a simple literal string or a regular expression.
-Only search within the allowed directory: ${allowedSearchDir}`
-        : `Search for text patterns in files and directories. Use this to find specific content, code, or information within files. Provide a simple literal string or a regular expression. If your pattern is a regex, ensure it's valid; otherwise use quotes or escape special characters to treat it as a literal string.
-Only search within the allowed directory: ${allowedSearchDir}`;
+        ? `Grep/search for text patterns within large tool result files for the "${agentName}" agent. ` +
+          `**IMPORTANT**: You MUST execute the actual tool first and get a "Result too large, saved to file" response before using this grep tool. ` +
+          `This tool searches within previously saved large results only. ` +
+          `Provide a simple literal string or a regular expression. ` +
+          `Only search within the allowed directory: ${allowedSearchDir}`
+        : `Grep/search for text patterns within large tool result files. ` +
+          `**IMPORTANT**: You MUST execute the actual tool first and get a "Result too large, saved to file" response before using this grep tool. ` +
+          `This tool searches within previously saved large results only. ` +
+          `Provide a simple literal string or a regular expression. If your pattern is a regex, ensure it's valid. ` +
+          `Only search within the allowed directory: ${allowedSearchDir}`;
       const toolDescription = options.toolDescription || defaultDescription;
 
       // Register the search tool once during plugin initialization
