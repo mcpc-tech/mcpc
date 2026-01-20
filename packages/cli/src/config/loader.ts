@@ -49,6 +49,10 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
+import {
+  isMarkdownAgentFile,
+  loadMarkdownAgentFile,
+} from "@mcpc/plugin-markdown-loader";
 
 export interface MCPCConfig {
   /**
@@ -274,6 +278,7 @@ OPTIONS:
     --config <json>         Inline JSON configuration string
     --config-url <url>      Fetch configuration from URL
     --config-file <path>    Load configuration from file path
+                           Supports .json and .md (Markdown with YAML front matter)
     --request-headers <header>, -H <header>
                            Add custom HTTP header for URL fetching
                            Format: "Key: Value" or "Key=Value"
@@ -350,12 +355,36 @@ EXAMPLES:
 CONFIGURATION:
     Configuration files support environment variable substitution using $VAR_NAME syntax.
     
+    Supported formats:
+    - JSON (.json): Standard JSON configuration
+    - Markdown (.md): Agent definition with YAML front matter
+    
+    Markdown agent file format:
+    \`\`\`markdown
+    ---
+    name: my-agent
+    mode: agentic
+    deps:
+      mcpServers:
+        server-name:
+          command: npx
+          args: ["-y", "package-name"]
+          transportType: stdio
+    ---
+    
+    # Agent Description
+    
+    Your agent description in Markdown.
+    Use <tool name="server.tool_name"/> to reference tools.
+    \`\`\`
+    
     Priority order:
     1. --config (inline JSON)
     2. MCPC_CONFIG environment variable
     3. --config-url or MCPC_CONFIG_URL
     4. --config-file or MCPC_CONFIG_FILE
-    5. ./mcpc.config.json (default)
+    5. ~/.mcpc/config.json (user config)
+    6. ./mcpc.config.json or ./mcpc.config.md (local config)
 
 For more information, visit: https://github.com/mcpc-tech/mcpc
 `);
@@ -532,9 +561,8 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
   const configFile = args.configFile || process.env.MCPC_CONFIG_FILE;
   if (configFile) {
     try {
-      const content = await readFile(configFile, "utf-8");
-      const parsed = JSON.parse(content);
-      return applyModeOverride(normalizeConfig(parsed), args.mode);
+      const config = await loadConfigFromFile(configFile);
+      return applyModeOverride(config, args.mode);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
         console.error(`Config file not found: ${configFile}`);
@@ -549,9 +577,8 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
   // Priority 5: ~/.mcpc/config.json (user config directory)
   const userConfigPath = getUserConfigPath();
   try {
-    const content = await readFile(userConfigPath, "utf-8");
-    const parsed = JSON.parse(content);
-    return applyModeOverride(normalizeConfig(parsed), args.mode);
+    const config = await loadConfigFromFile(userConfigPath);
+    return applyModeOverride(config, args.mode);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
       console.error(`Failed to load config from ${userConfigPath}:`, error);
@@ -560,18 +587,37 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
     // File doesn't exist, continue to next option
   }
 
-  // Priority 6: ./mcpc.config.json in current directory
-  const defaultConfigPath = resolve(process.cwd(), "mcpc.config.json");
+  // Priority 6: ./mcpc.config.json or ./mcpc.config.md in current directory
+  const defaultJsonConfigPath = resolve(process.cwd(), "mcpc.config.json");
+  const defaultMdConfigPath = resolve(process.cwd(), "mcpc.config.md");
+
+  // Try JSON config first
   try {
-    const content = await readFile(defaultConfigPath, "utf-8");
-    const parsed = JSON.parse(content);
-    return applyModeOverride(normalizeConfig(parsed), args.mode);
+    const config = await loadConfigFromFile(defaultJsonConfigPath);
+    return applyModeOverride(config, args.mode);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.error(
+        `Failed to load config from ${defaultJsonConfigPath}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  // Try Markdown config
+  try {
+    const config = await loadConfigFromFile(defaultMdConfigPath);
+    return applyModeOverride(config, args.mode);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       // No config file found, this is okay
       return null;
     } else {
-      console.error(`Failed to load config from ${defaultConfigPath}:`, error);
+      console.error(
+        `Failed to load config from ${defaultMdConfigPath}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -585,6 +631,30 @@ function replaceEnvVars(str: string): string {
   return str.replace(/\$([A-Z_][A-Z0-9_]*)/g, (_match, varName) => {
     return process.env[varName] || "";
   });
+}
+
+/**
+ * Load configuration from a file, supporting both JSON and Markdown formats
+ * @param filePath Path to the configuration file
+ * @returns Normalized MCPCConfig
+ */
+async function loadConfigFromFile(filePath: string): Promise<MCPCConfig> {
+  if (isMarkdownAgentFile(filePath)) {
+    // Load Markdown agent file
+    const agent = await loadMarkdownAgentFile(filePath);
+    const config: MCPCConfig = {
+      name: "mcpc-server",
+      version: "0.1.0",
+      agents: [agent],
+    };
+    // Apply environment variable replacement
+    return normalizeConfig(config);
+  } else {
+    // Load JSON config file
+    const content = await readFile(filePath, "utf-8");
+    const parsed = JSON.parse(content);
+    return normalizeConfig(parsed);
+  }
 }
 
 /**
