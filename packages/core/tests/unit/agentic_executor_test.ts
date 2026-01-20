@@ -120,10 +120,10 @@ Deno.test(
     );
 
     try {
-      // Request tool schemas via man command - args is now directly an array
+      // Request tool schemas via man command - args should be { tools: [...] }
       const result: any = await server.callTool("schema-agent", {
         tool: "man",
-        args: ["tool-alpha", "tool-beta"],
+        args: { tools: ["tool-alpha", "tool-beta"] },
       });
 
       assertEquals(result.isError, undefined);
