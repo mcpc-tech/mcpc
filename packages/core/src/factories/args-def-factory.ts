@@ -48,7 +48,7 @@ export function createArgsDefFactory(
      *
      * Only two fields:
      * - `tool`: which tool to execute (enum includes "man" + all tool names)
-     * - `args`: For "man": ["tool1", "tool2"] or { tools: [...] }. For others: tool parameters.
+     * - `args`: object with parameters. For "man": { tools: ["a", "b"] }. For others: tool parameters.
      */
     forAgentic: function (allToolNames: string[]): JSONSchema {
       // "man" is a built-in command for getting tool schemas
@@ -69,7 +69,7 @@ export function createArgsDefFactory(
           args: {
             type: "object",
             description:
-              'For "man": ["tool1", "tool2"]. For other tools: tool parameters that strictly adhere to the tool\'s JSON schema.',
+              'For "man": { tools: ["tool1", "tool2"] }. For other tools: tool parameters that strictly adhere to the tool\'s JSON schema.',
           },
         },
         required: ["tool"],
@@ -78,22 +78,36 @@ export function createArgsDefFactory(
     },
 
     /**
-     * Schema for "man" command args validation (array format)
-     * Expected format: ["tool1", "tool2"]
+     * Schema for "man" command args validation
+     * Expected format: { tools: ["tool1", "tool2"] }
      */
     forMan: function (allToolNames: string[]): JSONSchema {
       return {
-        type: "array",
-        items: {
-          type: "string",
-          enum: allToolNames,
-          errorMessage: {
-            enum: `Invalid tool name. Available: ${allToolNames.join(", ")}`,
+        type: "object",
+        properties: {
+          tools: {
+            type: "array",
+            items: {
+              type: "string",
+              enum: allToolNames,
+              errorMessage: {
+                enum: `Invalid tool name. Available: ${
+                  allToolNames.join(", ")
+                }`,
+              },
+            },
+            minItems: 1,
+            errorMessage: {
+              minItems: "At least one tool name is required",
+            },
           },
         },
-        minItems: 1,
+        required: ["tools"],
         errorMessage: {
-          minItems: "At least one tool name is required",
+          required: {
+            tools:
+              'Missing "tools" field. Expected: { tools: ["tool1", "tool2"] }',
+          },
         },
       };
     },
