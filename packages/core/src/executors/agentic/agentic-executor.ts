@@ -104,8 +104,14 @@ export class AgenticExecutor {
       const tool = args.tool as string;
 
       // Handle `man` command - return tool schemas
-      // For `man`, args.args should be { tools: ["tool1", "tool2"] }
+      // Accepts both formats for compatibility:
+      // - ["tool1", "tool2"]: Some models may output array directly despite schema specifying object
+      // - { tools: ["tool1", "tool2"] }: Standard object format
       if (tool === "man") {
+        const toolsArray = Array.isArray(args.args)
+          ? args.args
+          : (args.args as { tools?: string[] })?.tools;
+
         const createArgsDef = createArgsDefFactory(
           this.name,
           this.allToolNames,
@@ -113,7 +119,7 @@ export class AgenticExecutor {
         );
         const manSchema = createArgsDef.forMan(this.allToolNames);
 
-        const manValidation = validateSchema(args.args ?? {}, manSchema);
+        const manValidation = validateSchema(toolsArray ?? [], manSchema);
         if (!manValidation.valid) {
           return {
             content: [
@@ -126,8 +132,7 @@ export class AgenticExecutor {
           };
         }
 
-        const argsObj = args.args as { tools: string[] };
-        return this.handleManCommand(argsObj.tools, executeSpan);
+        return this.handleManCommand(toolsArray as string[], executeSpan);
       }
 
       // Execute the selected tool
