@@ -10,6 +10,7 @@
 import { type ComposeDefinition, mcpc } from "@mcpc/core";
 import { markdownLoaderPlugin } from "@mcpc/plugin-markdown-loader";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { fileURLToPath } from "node:url";
 
 const inlineAgent: ComposeDefinition = {
   name: "simple-file-reader",
@@ -33,10 +34,12 @@ const server = await mcpc(
   }],
   [
     inlineAgent,
-    new URL(
-      "../../plugin-markdown-loader/examples/codex-fork.md",
-      import.meta.url,
-    ).pathname,
+    fileURLToPath(
+      new URL(
+        "../../plugin-markdown-loader/examples/codex-fork.md",
+        import.meta.url,
+      ),
+    ),
   ],
   { plugins: [markdownLoaderPlugin()] },
 );

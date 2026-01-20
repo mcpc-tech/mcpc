@@ -43,10 +43,10 @@ export { isMarkdownFile, isMarkdownFile as isMarkdownAgentFile };
 
 /**
  * Replace environment variable references in a string.
- * Supports $VAR_NAME syntax.
+ * Supports $VAR_NAME syntax (case-insensitive).
  */
 function replaceEnvVars(str: string): string {
-  return str.replace(/\$([A-Z_][A-Z0-9_]*)/g, (_match, varName) => {
+  return str.replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (_match, varName) => {
     return process.env[varName] || "";
   });
 }

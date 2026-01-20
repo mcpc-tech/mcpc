@@ -140,17 +140,17 @@ export interface ComposibleMCPConfig {
 
 /**
  * Markdown agent file loader function type.
- * This is injected by @mcpc/cli to avoid circular dependencies.
+ * This is registered by markdownLoaderPlugin() to avoid circular dependencies.
  */
 export type MarkdownAgentLoader = (
   filePath: string,
 ) => Promise<ComposeDefinition>;
 
-// Global loader reference - set by @mcpc/cli
+// Global loader reference - set by markdownLoaderPlugin()
 let markdownAgentLoader: MarkdownAgentLoader | null = null;
 
 /**
- * Register the Markdown agent loader (called by @mcpc/cli)
+ * Register the Markdown agent loader (called by markdownLoaderPlugin())
  */
 export function setMarkdownAgentLoader(loader: MarkdownAgentLoader): void {
   markdownAgentLoader = loader;
@@ -184,7 +184,7 @@ async function resolveComposeInput(
   if (!markdownAgentLoader) {
     throw new Error(
       `Cannot load Markdown agent file "${input}": Markdown loader not available. ` +
-        `Import from "@mcpc/cli" to enable Markdown file support, or use inline ComposeDefinition objects.`,
+        `Use markdownLoaderPlugin() from "@mcpc/plugin-markdown-loader", or use inline ComposeDefinition objects.`,
     );
   }
 

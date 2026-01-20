@@ -10,17 +10,18 @@
 import { mcpc } from "@mcpc/core";
 import { markdownLoaderPlugin } from "@mcpc/plugin-markdown-loader";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { fileURLToPath } from "node:url";
 
 const server = await mcpc(
   [{ name: "mcpc-markdown-example", version: "1.0.0" }, {
     capabilities: { tools: {} },
   }],
-  [
+  [fileURLToPath(
     new URL(
       "../../plugin-markdown-loader/examples/codex-fork.md",
       import.meta.url,
-    ).pathname,
-  ],
+    ),
+  )],
   { plugins: [markdownLoaderPlugin()] },
 );
 
