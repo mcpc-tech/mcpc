@@ -54,6 +54,13 @@
       "packageJson": {
         "name": "@mcpc-tech/plugin-code-execution"
       }
+    },
+    {
+      "name": "mcpc/plugin-markdown-loader",
+      "version": "latest",
+      "packageJson": {
+        "name": "@mcpc-tech/plugin-markdown-loader"
+      }
     }
   ]
 }
