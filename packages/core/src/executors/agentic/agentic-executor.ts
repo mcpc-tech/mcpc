@@ -1,5 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ComposableMCPServer } from "../../compose.ts";
+import { createArgsDefFactory } from "../../factories/args-def-factory.ts";
 import { CompiledPrompts } from "../../prompts/index.ts";
 import { createLogger, type MCPLogger } from "../../utils/logger.ts";
 import { validateSchema } from "../../utils/schema-validator.ts";
@@ -103,27 +104,16 @@ export class AgenticExecutor {
       const tool = args.tool as string;
 
       // Handle `man` command - return tool schemas
-      // For `man`, args is directly an array of tool names: ["tool1", "tool2"]
+      // For `man`, args.args should be { tools: ["tool1", "tool2"] }
       if (tool === "man") {
-        const manSchema = {
-          type: "array",
-          items: {
-            type: "string",
-            enum: this.allToolNames,
-            errorMessage: {
-              enum: `Invalid tool name. Available: ${
-                this.allToolNames.join(", ")
-              }`,
-            },
-          },
-          minItems: 1,
-          errorMessage: {
-            type: 'Expected an array of tool names, e.g. ["tool1", "tool2"]',
-            minItems: "At least one tool name is required",
-          },
-        };
+        const createArgsDef = createArgsDefFactory(
+          this.name,
+          this.allToolNames,
+          {},
+        );
+        const manSchema = createArgsDef.forMan(this.allToolNames);
 
-        const manValidation = validateSchema(args.args ?? [], manSchema);
+        const manValidation = validateSchema(args.args ?? {}, manSchema);
         if (!manValidation.valid) {
           return {
             content: [
@@ -136,7 +126,8 @@ export class AgenticExecutor {
           };
         }
 
-        return this.handleManCommand(args.args as string[], executeSpan);
+        const argsObj = args.args as { tools: string[] };
+        return this.handleManCommand(argsObj.tools, executeSpan);
       }
 
       // Execute the selected tool

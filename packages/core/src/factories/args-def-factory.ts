@@ -3,6 +3,7 @@ import type { JSONSchema } from "../types.ts";
 export interface SimpleArgsDefCreator {
   forSampling: () => JSONSchema;
   forAgentic: (allToolNames: string[]) => JSONSchema;
+  forMan: (allToolNames: string[]) => JSONSchema;
 }
 
 export function createArgsDefFactory(
@@ -47,7 +48,7 @@ export function createArgsDefFactory(
      *
      * Only two fields:
      * - `tool`: which tool to execute (enum includes "man" + all tool names)
-     * - `args`: parameters for the tool (array for "man", object for others)
+     * - `args`: object with parameters. For "man": { tools: ["a", "b"] }. For others: tool parameters.
      */
     forAgentic: function (allToolNames: string[]): JSONSchema {
       // "man" is a built-in command for getting tool schemas
@@ -66,12 +67,48 @@ export function createArgsDefFactory(
             },
           },
           args: {
+            type: "object",
             description:
-              'For "man": array of tool names ["tool1", "tool2"]. For other tools: object with parameters.',
+              'For "man": { tools: ["tool1", "tool2"] }. For other tools: tool parameters that strictly adhere to the tool\'s JSON schema.',
           },
         },
         required: ["tool"],
         additionalProperties: false,
+      };
+    },
+
+    /**
+     * Schema for "man" command args validation
+     * Expected format: { tools: ["tool1", "tool2"] }
+     */
+    forMan: function (allToolNames: string[]): JSONSchema {
+      return {
+        type: "object",
+        properties: {
+          tools: {
+            type: "array",
+            items: {
+              type: "string",
+              enum: allToolNames,
+              errorMessage: {
+                enum: `Invalid tool name. Available: ${
+                  allToolNames.join(", ")
+                }`,
+              },
+            },
+            minItems: 1,
+            errorMessage: {
+              minItems: "At least one tool name is required",
+            },
+          },
+        },
+        required: ["tools"],
+        errorMessage: {
+          required: {
+            tools:
+              'Missing "tools" field. Expected: { tools: ["tool1", "tool2"] }',
+          },
+        },
       };
     },
   };

@@ -29,7 +29,7 @@ You must follow the <manual/>, obey the <rules/>, and use the <format/>.
 
 <parameters>
 \`tool\` - Which tool to execute: "man" to get schemas, or a tool name to execute
-\`args\` - For "man": array of tool names. For other tools: object with parameters.
+\`args\` - For "man": { tools: ["tool1", "tool2"] }. For other tools: tool parameters that strictly adhere to the tool's JSON schema.
 </parameters>
 
 <rules>
@@ -44,7 +44,7 @@ Get tool schemas:
 \`\`\`json
 {
   "tool": "man",
-  "args": ["tool1", "tool2"]
+  "args": { "tools": ["tool1", "tool2"] }
 }
 \`\`\`
 
