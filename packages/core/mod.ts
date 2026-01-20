@@ -50,6 +50,18 @@
 
 export * from "./src/compose.ts";
 
+// Service types
+export type {
+  McpServerConfig,
+  MCPSetting,
+  SseServerConfig,
+  StdioServerConfig,
+  StreamableHTTPServerConfig,
+} from "./src/service/tools.ts";
+
+// Core types
+export type { SamplingConfig, ToolRefXml } from "./src/types.ts";
+
 // Plugin system
 export type {
   AgentToolRegistrationContext,
@@ -66,7 +78,17 @@ export * from "./src/utils/common/env.ts";
 export * from "./src/utils/common/json.ts";
 export * from "./src/utils/common/mcp.ts";
 
-export * from "./src/set-up-mcp-compose.ts";
+export {
+  type ComposeDefinition,
+  type ComposeInput,
+  type ComposibleMCPConfig,
+  isMarkdownFile,
+  type MarkdownAgentLoader,
+  mcpc,
+  type McpcOptions,
+  parseMcpcConfigs,
+  setMarkdownAgentLoader,
+} from "./src/set-up-mcp-compose.ts";
 
 // Schema utilities (replaces AI SDK dependency)
 export {

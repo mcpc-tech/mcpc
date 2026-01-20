@@ -270,63 +270,6 @@ server.tool(
   },
 );
 
-// Connect the server
-const transport = new StdioServerTransport();
-await server.connect(transport);
-
-/**
- * Key Tool Management Features:
- *
- * 1. **Tool Overrides:**
- *    - <tool name="..." description="..."/> customizes descriptions
- *    - <tool name="..." hide/> hides tools from public interface
- *    - Enhanced descriptions provide better user guidance
- *
- * 2. **Internal Tools:**
- *    - Created with server.tool(..., { internal: true })
- *    - Not visible in list_tools responses
- *    - Available for internal operations only
- *    - Perfect for security, logging, and validation
- *
- * 3. **Internal Tool Invocation:**
- *    - server.callTool() calls any tool (public or internal)
- *    - Enables complex internal workflows
- *    - Maintains clean public interfaces
- *
- * 4. **Wildcard Selection:**
- *    - __ALL__ selects all tools from an MCP server
- *    - Simplifies tool inclusion
- *    - Automatic namespace management
- *
- * 5. **Security Benefits:**
- *    - Hide dangerous operations behind safe wrappers
- *    - Implement audit trails and validation
- *    - Provide user-friendly interfaces for complex operations
- *
- * Example Usage:
- *
- * User: "Delete the file /tmp/test.txt"
- *
- * Internal workflow:
- * 1. Validates security permissions
- * 2. Logs deletion attempt
- * 3. Creates backup copy
- * 4. Performs deletion
- * 5. Logs completion
- *
- * Result: Secure deletion with full audit trail
- *
- * Claude Desktop Configuration:
- * ```json
- * {
- *   "mcpServers": {
- *     "secure-file-manager": {
- *       "command": "deno",
- *       "args": ["run", "--allow-all", "05-tool-override-manager.ts"]
- *     }
- *   }
- * }
- * ```
- */
+await server.connect(new StdioServerTransport());
 
 export { server };

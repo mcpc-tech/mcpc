@@ -14,7 +14,8 @@
     "./packages/mcp-sampling-ai-provider",
     "./packages/acp-ai-provider",
     "./packages/mcpc-builder",
-    "./packages/plugin-code-execution"
+    "./packages/plugin-code-execution",
+    "./packages/plugin-markdown-loader"
   ],
   "imports": {
     "@mcpc/utils": "./packages/utils/mod.ts",
@@ -24,6 +25,7 @@
     "@mcpc/mcp-sampling-ai-provider": "./packages/mcp-sampling-ai-provider/mod.ts",
     "@mcpc/builder": "./packages/mcpc-builder/mod.ts",
     "@mcpc/plugin-code-execution": "./packages/plugin-code-execution/mod.ts",
+    "@mcpc/plugin-markdown-loader": "./packages/plugin-markdown-loader/mod.ts",
     "@es-toolkit/es-toolkit": "jsr:@es-toolkit/es-toolkit@^1.37.2",
     "json-schema-faker": "npm:json-schema-faker@^0.5.9",
     "json-schema-traverse": "npm:json-schema-traverse@^1.0.0",

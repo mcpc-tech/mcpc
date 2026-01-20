@@ -116,16 +116,106 @@ export interface ComposeDefinition {
   };
 }
 
+/**
+ * Input type for mcpc() that supports both inline definitions and file paths.
+ * - ComposeDefinition: Inline agent definition object
+ * - string: Path to a Markdown agent file (.md)
+ *
+ * @example
+ * ```typescript
+ * // Mix of inline and file-based definitions
+ * await mcpc(serverConf, [
+ *   './agents/coding-agent.md',           // Load from file
+ *   { name: 'inline-agent', description: '...' }  // Inline definition
+ * ]);
+ * ```
+ */
+export type ComposeInput = ComposeDefinition | string;
+
 // ToolRefXml is defined in ./types.ts
 
 export interface ComposibleMCPConfig {
   [key: string]: ComposeDefinition[];
 }
 
+/**
+ * Markdown agent file loader function type.
+ * This is injected by @mcpc/cli to avoid circular dependencies.
+ */
+export type MarkdownAgentLoader = (
+  filePath: string,
+) => Promise<ComposeDefinition>;
+
+// Global loader reference - set by @mcpc/cli
+let markdownAgentLoader: MarkdownAgentLoader | null = null;
+
+/**
+ * Register the Markdown agent loader (called by @mcpc/cli)
+ */
+export function setMarkdownAgentLoader(loader: MarkdownAgentLoader): void {
+  markdownAgentLoader = loader;
+}
+
+/**
+ * Check if a path is a Markdown file (.md or .markdown)
+ */
+export function isMarkdownFile(path: string): boolean {
+  return path.endsWith(".md") || path.endsWith(".markdown");
+}
+
+/**
+ * Resolve ComposeInput to ComposeDefinition
+ * Supports both inline definitions and file paths
+ */
+async function resolveComposeInput(
+  input: ComposeInput,
+): Promise<ComposeDefinition> {
+  if (typeof input !== "string") {
+    return input;
+  }
+
+  if (!isMarkdownFile(input)) {
+    throw new Error(
+      `Invalid compose input: "${input}". ` +
+        `Expected a Markdown file path (.md) or a ComposeDefinition object.`,
+    );
+  }
+
+  if (!markdownAgentLoader) {
+    throw new Error(
+      `Cannot load Markdown agent file "${input}": Markdown loader not available. ` +
+        `Import from "@mcpc/cli" to enable Markdown file support, or use inline ComposeDefinition objects.`,
+    );
+  }
+
+  return await markdownAgentLoader(input);
+}
+
 export function parseMcpcConfigs(
   conf?: ComposeDefinition[],
 ): ComposeDefinition[] {
   return conf ?? [];
+}
+
+/**
+ * Options for mcpc() function
+ */
+export interface McpcOptions {
+  /**
+   * Loader plugins to load BEFORE resolving compose inputs.
+   * These plugins register file loaders (e.g., markdown-loader) that are needed
+   * to parse file paths in composeConf.
+   *
+   * Note: This is different from ComposeDefinition.plugins which are runtime plugins
+   * that transform tool descriptions and results AFTER composition.
+   */
+  plugins?: ToolPlugin[];
+
+  /**
+   * Callback to register custom tools or perform additional setup before composition.
+   * Useful for adding internal tools or custom configurations.
+   */
+  setup?: (server: ComposableMCPServer) => void | Promise<void>;
 }
 
 /**
@@ -139,6 +229,7 @@ export function parseMcpcConfigs(
  *
  * @example
  * ```typescript
+ * // Using inline definitions
  * const server = await mcpc(
  *   [
  *     { name: "coding-agent", version: "1.0.0" },
@@ -168,6 +259,16 @@ export function parseMcpcConfigs(
  *     options: { mode: "ai_sampling" }
  *   }]
  * );
+ *
+ * // Using Markdown file paths with plugin
+ * import { markdownLoaderPlugin } from "@mcpc/plugin-markdown-loader";
+ *
+ * const server = await mcpc(
+ *   [{ name: "my-server", version: "1.0.0" }, { capabilities: { tools: {} } }],
+ *   ["./agents/coding-agent.md"],
+ *   { plugins: [markdownLoaderPlugin()] }
+ * );
+ *
  * await server.connect(new StdioServerTransport());
  * ```
  *
@@ -175,15 +276,12 @@ export function parseMcpcConfigs(
  *   - First element: Server metadata (name, version)
  *   - Second element: Server capabilities (tools, sampling, etc.)
  *
- * @param composeConf - Array of agent composition definitions. Each definition includes:
- *   - name: Agent name (set to null for composition-only mode)
- *   - description: Agent purpose with XML-like tool references (e.g., `<tool name="server.tool"/>`)
- *   - deps: MCP server dependencies with transport configurations (stdio, sse, streamable-http)
- *   - plugins: Global plugins to transform/extend tool behavior (objects or file paths)
- *   - options: Execution mode settings (agentic, ai_sampling, ai_acp)
+ * @param composeConf - Array of agent composition definitions or Markdown file paths.
+ *   - ComposeDefinition: Inline agent definition object
+ *   - string: Path to a Markdown agent file (.md) - requires markdown-loader plugin
  *
- * @param setupCallback - Optional callback to register custom tools or perform additional setup
- *   before composition. Useful for adding internal tools or custom configurations.
+ * @param options - Optional configuration for mcpc()
+ *   - plugins: Plugins to load before resolving compose inputs (e.g., markdown-loader)
  *
  * @returns A configured MCP Server instance ready to connect to a transport
  *
@@ -193,17 +291,38 @@ export function parseMcpcConfigs(
  */
 export async function mcpc(
   serverConf: ConstructorParameters<typeof ComposableMCPServer>,
-  composeConf?: ComposeDefinition[],
-  setupCallback?: (server: ComposableMCPServer) => void | Promise<void>,
+  composeConf?: ComposeInput[],
+  optionsOrSetup?:
+    | McpcOptions
+    | ((server: ComposableMCPServer) => void | Promise<void>),
 ): Promise<InstanceType<typeof ComposableMCPServer>> {
   const server = new ComposableMCPServer(...serverConf);
-  const parsed = parseMcpcConfigs(composeConf);
+
+  // Normalize options (support both callback and options object for backwards compatibility)
+  const options: McpcOptions = typeof optionsOrSetup === "function"
+    ? { setup: optionsOrSetup }
+    : (optionsOrSetup ?? {});
+
+  // Load loader plugins first (before resolving compose inputs)
+  // These plugins register file loaders (e.g., markdown-loader) needed to parse file paths
+  // Note: Runtime plugins in ComposeDefinition.plugins are loaded later, after composition
+  if (options.plugins) {
+    for (const plugin of options.plugins) {
+      await server.addPlugin(plugin);
+    }
+  }
+
+  // Resolve all compose inputs (file paths and inline definitions) in parallel
+  const resolvedConfigs = composeConf
+    ? await Promise.all(composeConf.map(resolveComposeInput))
+    : [];
+  const parsed = parseMcpcConfigs(resolvedConfigs);
 
   // Initialize built-in plugins first (e.g., large result handler, search plugin)
   await server.initBuiltInPlugins();
 
-  // Load global plugins before composition
-  // Plugins can transform tool descriptions, results, and behavior
+  // Load runtime plugins from compose definitions (ComposeDefinition.plugins)
+  // These plugins transform tool descriptions, results, and behavior at runtime
   for (const mcpcConfig of parsed) {
     if (mcpcConfig.plugins) {
       for (const plugin of mcpcConfig.plugins) {
@@ -219,9 +338,8 @@ export async function mcpc(
   }
 
   // Allow user to register custom tools or perform additional setup before composing
-  // Useful for adding internal tools or configuring server-specific behavior
-  if (setupCallback) {
-    await setupCallback(server);
+  if (options.setup) {
+    await options.setup(server);
   }
 
   // Compose each agent by connecting to MCP dependencies and creating the agentic tool

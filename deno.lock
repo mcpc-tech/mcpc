@@ -15,6 +15,7 @@
     "jsr:@std/net@^1.0.4": "1.0.5",
     "jsr:@std/path@^1.1.1": "1.1.2",
     "jsr:@std/streams@^1.0.10": "1.0.11",
+    "jsr:@std/yaml@^1.0.5": "1.0.11",
     "npm:@agentclientprotocol/sdk@~0.4.8": "0.4.9",
     "npm:@ai-sdk/provider-utils@4": "4.0.1_zod@3.25.76",
     "npm:@ai-sdk/provider-utils@^2.2.8": "2.2.8_zod@3.25.76",
@@ -106,6 +107,9 @@
     },
     "@std/streams@1.0.11": {
       "integrity": "db583d27e28d133f389f1eec318cffdf4998305e5134c1d4b1c56b361cee6018"
+    },
+    "@std/yaml@1.0.11": {
+      "integrity": "bd139ce77f2d06cbed3713c8b26d301d2a2e12ecc7986130a268107e212143ee"
     }
   },
   "npm": {
@@ -1492,6 +1496,13 @@
           "jsr:@std/assert@1",
           "npm:@mcpc-tech/handle-sandbox@^0.0.8",
           "npm:@modelcontextprotocol/sdk@^1.8.0"
+        ]
+      },
+      "packages/plugin-markdown-loader": {
+        "dependencies": [
+          "jsr:@mcpc/core@~0.3.21",
+          "jsr:@std/assert@1",
+          "jsr:@std/yaml@^1.0.5"
         ]
       },
       "packages/utils": {
