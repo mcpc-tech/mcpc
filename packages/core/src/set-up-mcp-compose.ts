@@ -206,10 +206,12 @@ export interface McpcOptions {
    * These plugins register file loaders (e.g., markdown-loader) that are needed
    * to parse file paths in composeConf.
    *
+   * Supports both plugin objects and string paths (e.g., "@mcpc/plugin-markdown-loader").
+   *
    * Note: This is different from ComposeDefinition.plugins which are runtime plugins
    * that transform tool descriptions and results AFTER composition.
    */
-  plugins?: ToolPlugin[];
+  plugins?: (ToolPlugin | string)[];
 
   /**
    * Callback to register custom tools or perform additional setup before composition.
@@ -308,7 +310,11 @@ export async function mcpc(
   // Note: Runtime plugins in ComposeDefinition.plugins are loaded later, after composition
   if (options.plugins) {
     for (const plugin of options.plugins) {
-      await server.addPlugin(plugin);
+      if (typeof plugin === "string") {
+        await server.loadPluginFromPath(plugin);
+      } else {
+        await server.addPlugin(plugin);
+      }
     }
   }
 

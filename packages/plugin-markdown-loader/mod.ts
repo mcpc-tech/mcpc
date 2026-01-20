@@ -6,9 +6,15 @@
  *
  * @example
  * ```typescript
- * import { mcpc } from "@mcpc/core";
- * import { markdownLoaderPlugin } from "@mcpc/plugin-markdown-loader";
+ * // Option 1: String path (recommended)
+ * const server = await mcpc(
+ *   [{ name: "server", version: "1.0.0" }, { capabilities: { tools: {} } }],
+ *   ["./agents/my-agent.md"],
+ *   { plugins: ["@mcpc/plugin-markdown-loader"] }
+ * );
  *
+ * // Option 2: Import directly
+ * import { markdownLoaderPlugin } from "@mcpc/plugin-markdown-loader";
  * const server = await mcpc(
  *   [{ name: "server", version: "1.0.0" }, { capabilities: { tools: {} } }],
  *   ["./agents/my-agent.md"],
@@ -39,18 +45,6 @@ export {
  *
  * This plugin registers the Markdown file loader, enabling you to use
  * Markdown file paths as compose inputs.
- *
- * @example
- * ```typescript
- * import { mcpc } from "@mcpc/core";
- * import { markdownLoaderPlugin } from "@mcpc/plugin-markdown-loader";
- *
- * const server = await mcpc(
- *   [{ name: "server", version: "1.0.0" }, { capabilities: { tools: {} } }],
- *   ["./agents/my-agent.md"],
- *   { plugins: [markdownLoaderPlugin()] }
- * );
- * ```
  */
 export function markdownLoaderPlugin(): ToolPlugin {
   return {
@@ -62,3 +56,10 @@ export function markdownLoaderPlugin(): ToolPlugin {
     },
   };
 }
+
+/** Factory function for string-based plugin loading */
+export const createPlugin = markdownLoaderPlugin;
+
+/** Default plugin instance for string-based plugin loading */
+const defaultPlugin: ToolPlugin = markdownLoaderPlugin();
+export default defaultPlugin;

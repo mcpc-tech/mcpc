@@ -8,7 +8,6 @@
  */
 
 import { mcpc } from "@mcpc/core";
-import { markdownLoaderPlugin } from "@mcpc/plugin-markdown-loader";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { fileURLToPath } from "node:url";
 
@@ -22,7 +21,7 @@ const server = await mcpc(
       import.meta.url,
     ),
   )],
-  { plugins: [markdownLoaderPlugin()] },
+  { plugins: ["@mcpc/plugin-markdown-loader"] }, // String-based plugin loading
 );
 
 await server.connect(new StdioServerTransport());
