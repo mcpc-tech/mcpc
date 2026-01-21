@@ -288,8 +288,8 @@ OPTIONS:
                            Add custom HTTP header for URL fetching
                            Format: "Key: Value" or "Key=Value"
                            Can be used multiple times
-    --mode <mode>           Set execution mode for inline agents (does not affect
-                           Markdown agent files which define mode in frontmatter)
+    --mode <mode>           Set execution mode for JSON/object agents (does not
+                           affect Markdown agent files which define mode in frontmatter)
                            Supported modes:
                            - agentic: Fully autonomous agent mode (default)
                            - ai_sampling: AI SDK sampling mode for autonomous execution

@@ -206,7 +206,7 @@ deno run -A jsr:@mcpc/cli/server --config-file ./my-config.json
 - `--mcp-sse <url>` - Add SSE MCP server
 - `--name <name>` - Custom agent name (default: auto-generated from server
   names)
-- `--mode <mode>` - Execution mode for inline agents (default: `agentic`).
+- `--mode <mode>` - Execution mode for JSON/object agents (default: `agentic`).
   Markdown agent files define their own mode in frontmatter.
 
 ### Execution Modes (`--mode`)
