@@ -2,6 +2,7 @@
   "version": "5",
   "specifiers": {
     "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.41.0",
+    "jsr:@mcpc/plugin-markdown-loader@^0.0.3": "0.0.3",
     "jsr:@std/assert@1": "1.0.14",
     "jsr:@std/assert@^1.0.14": "1.0.14",
     "jsr:@std/cli@^1.0.21": "1.0.21",
@@ -54,6 +55,12 @@
   "jsr": {
     "@es-toolkit/es-toolkit@1.41.0": {
       "integrity": "4df54a18e80b869880cee8a8a9ff7a5e1c424a9fd0916dccd38d34686f110071"
+    },
+    "@mcpc/plugin-markdown-loader@0.0.3": {
+      "integrity": "ef62d9f3bbc76af80ebda2c5cdc3eb34247f363f8213fe8a9ddd631b7642ffb4",
+      "dependencies": [
+        "jsr:@std/yaml"
+      ]
     },
     "@std/assert@1.0.14": {
       "integrity": "68d0d4a43b365abc927f45a9b85c639ea18a9fab96ad92281e493e4ed84abaa4",
@@ -1434,7 +1441,7 @@
       },
       "packages/cli": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.26",
+          "jsr:@mcpc/core@~0.3.27",
           "jsr:@mcpc/plugin-markdown-loader@^0.0.3",
           "jsr:@mcpc/utils@~0.2.5",
           "jsr:@std/assert@^1.0.14",
@@ -1485,7 +1492,7 @@
       },
       "packages/mcpc-builder": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.25",
+          "jsr:@mcpc/core@~0.3.27",
           "jsr:@std/assert@^1.0.14",
           "npm:@modelcontextprotocol/sdk@^1.8.0",
           "npm:zod@^3.24.2"
@@ -1493,7 +1500,7 @@
       },
       "packages/plugin-code-execution": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.26",
+          "jsr:@mcpc/core@~0.3.27",
           "jsr:@mcpc/utils@~0.2.11",
           "jsr:@std/assert@1",
           "npm:@mcpc-tech/handle-sandbox@^0.0.8",
@@ -1502,7 +1509,7 @@
       },
       "packages/plugin-markdown-loader": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.25",
+          "jsr:@mcpc/core@~0.3.27",
           "jsr:@std/assert@1",
           "jsr:@std/yaml@^1.0.5"
         ]
