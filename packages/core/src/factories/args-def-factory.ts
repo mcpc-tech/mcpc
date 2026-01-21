@@ -69,7 +69,7 @@ export function createArgsDefFactory(
           args: {
             type: "object",
             description:
-              'For "man": { tools: ["tool1", "tool2"] }. For other tools: tool parameters that strictly adhere to the tool\'s JSON schema.',
+              'For "man": { tools: ["tool1", "tool2"], manual?: true }. For other tools: tool parameters that strictly adhere to the tool\'s JSON schema.',
           },
         },
         required: ["tool"],
@@ -79,7 +79,10 @@ export function createArgsDefFactory(
 
     /**
      * Schema for "man" command args validation
-     * Expected format: { tools: ["tool1", "tool2"] }
+     * Expected format: { tools: ["tool1", "tool2"], manual?: true }
+     *
+     * - Always require `tools`
+     * - Allow empty tools only when `manual: true`
      */
     forMan: function (allToolNames: string[]): JSONSchema {
       return {
@@ -96,13 +99,37 @@ export function createArgsDefFactory(
                 }`,
               },
             },
-            minItems: 1,
-            errorMessage: {
-              minItems: "At least one tool name is required",
-            },
+          },
+          manual: {
+            type: "boolean",
+            description:
+              "Set to true to get the full manual for this agent (progressive disclosure).",
           },
         },
         required: ["tools"],
+        additionalProperties: false,
+        anyOf: [
+          // manual-only (tools can be empty)
+          {
+            properties: {
+              manual: { enum: [true] },
+              tools: { minItems: 0 },
+            },
+            required: ["tools", "manual"],
+          },
+          // tool schemas (require at least one tool)
+          {
+            properties: {
+              tools: {
+                minItems: 1,
+                errorMessage: {
+                  minItems: "At least one tool name is required",
+                },
+              },
+            },
+            required: ["tools"],
+          },
+        ],
         errorMessage: {
           required: {
             tools:

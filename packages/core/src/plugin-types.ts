@@ -148,6 +148,8 @@ export interface AgentToolRegistrationContext {
   server: ComposableMCPServer;
   name: string;
   description: string;
+  /** Optional manual for progressive disclosure */
+  manual?: string;
   mode: ExecutionMode | string;
   allToolNames: string[];
   toolNameToDetailList: [string, ComposedTool][];

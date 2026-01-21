@@ -29,6 +29,7 @@ export class AgenticExecutor {
     private allToolNames: string[],
     private toolNameToDetailList: [string, unknown][],
     private server: ComposableMCPServer,
+    private manual?: string,
   ) {
     this.logger = createLogger(`mcpc.agentic.${name}`, server);
     this.toolSchemaMap = new Map(toolNameToDetailList);
@@ -103,8 +104,11 @@ export class AgenticExecutor {
 
       const tool = args.tool as string;
 
-      // Handle `man` command - return tool schemas
-      // For `man`, args.args should be { tools: ["tool1", "tool2"] }
+      // Handle `man` command - return tool schemas and/or manual
+      // Keep the shape stable: args must include `tools`, and can optionally include `manual: true`.
+      // - { tools: ["tool1", "tool2"] } -> tool schemas
+      // - { tools: [], manual: true } -> manual only
+      // - { tools: ["tool1"], manual: true } -> tool schemas + manual
       if (tool === "man") {
         const createArgsDef = createArgsDefFactory(
           this.name,
@@ -126,8 +130,37 @@ export class AgenticExecutor {
           };
         }
 
-        const argsObj = args.args as { tools: string[] };
-        return this.handleManCommand(argsObj.tools, executeSpan);
+        const argsObj = args.args as { tools: string[]; manual?: boolean };
+        const tools = argsObj.tools ?? [];
+        const wantManual = argsObj.manual === true;
+        const wantTools = tools.length > 0;
+
+        if (wantTools && wantManual) {
+          const toolSchemas = this.handleManCommand(tools, null);
+          const manualResult = this.handleManualRequest(null);
+
+          if (executeSpan) {
+            executeSpan.setAttributes({
+              toolType: "man",
+              requestType: "tools+manual",
+            });
+            endSpan(executeSpan);
+          }
+
+          return {
+            content: [
+              ...toolSchemas.content,
+              { type: "text", text: "\n---\n" },
+              ...manualResult.content,
+            ],
+          };
+        }
+
+        if (wantManual) {
+          return this.handleManualRequest(executeSpan);
+        }
+
+        return this.handleManCommand(tools, executeSpan);
       }
 
       // Execute the selected tool
@@ -155,6 +188,49 @@ export class AgenticExecutor {
         isError: true,
       };
     }
+  }
+
+  /**
+   * Handle `man { manual: true }` - return full manual for progressive disclosure
+   */
+  private handleManualRequest(executeSpan: Span | null): CallToolResult {
+    if (executeSpan) {
+      executeSpan.setAttributes({
+        toolType: "man",
+        requestType: "manual",
+      });
+    }
+
+    if (!this.manual) {
+      if (executeSpan) {
+        endSpan(executeSpan);
+      }
+      return {
+        content: [
+          {
+            type: "text",
+            text: "No manual available for this agent.",
+          },
+        ],
+      };
+    }
+
+    if (executeSpan) {
+      executeSpan.setAttributes({
+        success: true,
+      });
+      endSpan(executeSpan);
+    }
+
+    // Return manual content directly (no wrapper template needed)
+    return {
+      content: [
+        {
+          type: "text",
+          text: this.manual,
+        },
+      ],
+    };
   }
 
   /**

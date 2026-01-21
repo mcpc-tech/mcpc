@@ -1,4 +1,4 @@
-import { jsonSchema, type Schema } from "../../utils/schema.ts";
+import { jsonSchema } from "../../utils/schema.ts";
 import type { RegisterToolParams } from "../../types.ts";
 import { createModelCompatibleJSONSchema } from "../../utils/common/provider.ts";
 import type { ComposableMCPServer } from "../../compose.ts";
@@ -21,6 +21,7 @@ export function registerAgenticTool(
     allToolNames,
     depGroups,
     toolNameToDetailList,
+    manual,
   }: RegisterToolParams,
 ) {
   const createArgsDef = createArgsDefFactory(
@@ -31,27 +32,30 @@ export function registerAgenticTool(
     undefined,
   );
 
-  // Create executor
+  // Create executor (pass manual for `man { manual: true }`)
   const agenticExecutor = new AgenticExecutor(
     name,
     allToolNames,
     toolNameToDetailList,
     server,
+    manual,
   );
 
-  // Use simplified prompt
-  description = CompiledPrompts.autonomousExecution({
-    toolName: name,
-    description,
-  });
+  // Use compact prompt if manual is provided, otherwise full prompt
+  description = manual
+    ? CompiledPrompts.autonomousExecutionCompact({
+      toolName: name,
+      description,
+    })
+    : CompiledPrompts.autonomousExecution({
+      toolName: name,
+      description,
+    });
 
   // Use simplified schema with `tool` + `args`
+  // Always include schema even if no tools (man command is always available)
   const agenticArgsDef = createArgsDef.forAgentic(allToolNames);
-  const argsDef: Schema<Record<PropertyKey, never>>["jsonSchema"] =
-    agenticArgsDef;
-  const schema = allToolNames.length > 0
-    ? argsDef
-    : { type: "object", properties: {} };
+  const schema = agenticArgsDef;
 
   server.tool(
     name,

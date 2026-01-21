@@ -25,6 +25,7 @@ export const createAgenticModePlugin = (): ToolPlugin => ({
       allToolNames: context.allToolNames,
       depGroups: context.depGroups,
       toolNameToDetailList: context.toolNameToDetailList,
+      manual: context.manual,
     });
   },
 });

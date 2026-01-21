@@ -58,6 +58,24 @@ Execute a tool:
 </format>`,
 
   /**
+   * Compact system prompt for autonomous MCP execution (when manual is provided)
+   *
+   * Uses simplified description with progressive disclosure:
+   * - Short description shown by default
+   * - Use `man { manual: true }` to get full manual
+   */
+  AUTONOMOUS_EXECUTION_COMPACT: `Agentic tool \`{toolName}\`: {description}
+
+Use \`man\` with \`{ tools: [], manual: true }\` to get the full manual, or \`{ tools: ["tool1"] }\` to get tool schemas.
+
+<format>
+Get full manual: \`{ "tool": "man", "args": { "tools": [], "manual": true } }\`
+Get tool schemas: \`{ "tool": "man", "args": { "tools": ["tool1", "tool2"] } }\`
+Get tool schemas + manual: \`{ "tool": "man", "args": { "tools": ["tool1"], "manual": true } }\`
+Execute a tool: \`{ "tool": "tool_name", "args": { /* parameters */ } }\`
+</format>`,
+
+  /**
    * Tool description for sampling tools (shown in MCP tools list)
    * Explains how to use prompt and context parameters
    */
@@ -162,6 +180,7 @@ Standards: {qualityStandards}`,
  */
 export const CompiledPrompts = {
   autonomousExecution: p(SystemPrompts.AUTONOMOUS_EXECUTION),
+  autonomousExecutionCompact: p(SystemPrompts.AUTONOMOUS_EXECUTION_COMPACT),
   samplingToolDescription: p(SystemPrompts.SAMPLING_TOOL_DESCRIPTION),
   aiLoopSystem: p(SystemPrompts.AI_LOOP_SYSTEM),
   actionSuccess: p(ResponseTemplates.ACTION_SUCCESS),

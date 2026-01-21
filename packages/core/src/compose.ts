@@ -602,9 +602,12 @@ export class ComposableMCPServer extends Server {
     description: string,
     depsConfig: MCPSetting = { mcpServers: {} },
     options: ComposeDefinition["options"] = { mode: "agentic" },
+    manual?: string,
   ) {
     const refDesc = options.refs?.join("") ?? "";
-    const { tagToResults } = parseTags(description + refDesc, ["tool", "fn"]);
+    // Parse tools from both description and manual (if provided)
+    const combinedSource = description + refDesc + (manual ?? "");
+    const { tagToResults } = parseTags(combinedSource, ["tool", "fn"]);
 
     // Trigger composeStart hooks before composition begins
     await this.pluginManager.triggerComposeStart({
@@ -854,6 +857,7 @@ export class ComposableMCPServer extends Server {
       server: this,
       name,
       description,
+      manual,
       mode,
       allToolNames,
       toolNameToDetailList,

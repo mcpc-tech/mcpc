@@ -17,6 +17,8 @@ export interface RegisterToolParams {
   allToolNames: string[];
   depGroups: Record<string, unknown>;
   toolNameToDetailList: [string, unknown][];
+  /** Optional manual for progressive disclosure. If provided, description will be short and manual fetched via `man { tools: [], manual: true }` */
+  manual?: string;
 }
 
 /**

@@ -85,6 +85,28 @@ Agent documentation is crucial for telling an LLM what the agent does, when to
 use it, and how to use it. Below is an example of a description of a coding
 agent.
 
+## Progressive Manual Disclosure (Optional)
+
+For complex agents with detailed instructions, you can split the documentation:
+
+- **`description`**: Short summary shown in tool listing (reduces token usage)
+- **`manual`**: Full documentation fetched on-demand via `man { manual: true }`
+
+```typescript
+{
+  name: "code-reviewer",
+  description: "AI code reviewer for code quality and security analysis.",
+  manual: `Detailed review guidelines...
+<tool name="filesystem.read_file"/>
+...`,
+  deps: {/* ... */},
+}
+```
+
+Both `description` and `manual` support `<tool>` tag references.
+
+## Tool Reference Syntax
+
 You might notice the xml-like tool syntax, it's designed for referencing
 dependent MCP tools inside agent docs, `<tool>` tag has following properties:
 
