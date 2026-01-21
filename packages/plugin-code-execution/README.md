@@ -72,7 +72,7 @@ const server = await mcpc(
 );
 ```
 
-### Tool Interface (v2.0)
+### Tool Interface
 
 The plugin exposes a Unix-style interface with `tool` and `args`:
 
