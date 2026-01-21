@@ -1,29 +1,25 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { registerAgent } from "./controllers/register.ts";
 import { mcpc } from "@mcpc/core";
-import { createLargeResultPlugin } from "@mcpc/core/plugins/large-result";
-import type { ComposableMCPServer, ComposeDefinition } from "@mcpc/core";
+import type { ComposableMCPServer } from "@mcpc/core";
 import type { MCPCConfig } from "./config/loader.ts";
-import { codeExecutionPlugin } from "@mcpc-tech/plugin-code-execution";
+import {
+  DEFAULT_SKILLS_PATHS,
+  getDefaultAgents,
+  getGlobalPlugins,
+} from "./defaults.ts";
 
 export const createServer = async (
   config?: MCPCConfig,
 ): Promise<ComposableMCPServer> => {
-  // Use provided config or fall back to default example config
   const serverConfig = config || {
     name: "mcpc-server",
     version: "0.1.0",
-    agents: [
-      {
-        name: null,
-        description: "",
-        plugins: [createLargeResultPlugin({}), codeExecutionPlugin],
-        options: {
-          mode: "code_execution",
-        },
-      },
-    ] as ComposeDefinition[],
+    skills: DEFAULT_SKILLS_PATHS,
+    agents: getDefaultAgents(),
   };
+
+  const skillsPaths = serverConfig.skills || DEFAULT_SKILLS_PATHS;
 
   return await mcpc(
     [
@@ -32,21 +28,16 @@ export const createServer = async (
         version: serverConfig.version || "0.1.0",
       },
       {
-        capabilities: (serverConfig?.capabilities || {
-          tools: {},
-          logging: {},
-        }),
+        capabilities: serverConfig.capabilities || { tools: {}, logging: {} },
       },
     ],
     serverConfig.agents,
+    { plugins: getGlobalPlugins(skillsPaths) },
   );
 };
 
 export const createApp = (config?: MCPCConfig): OpenAPIHono => {
   const app = new OpenAPIHono();
-
-  // Register routes with config
   registerAgent(app, config);
-
   return app;
 };

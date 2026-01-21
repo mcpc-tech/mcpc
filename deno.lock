@@ -1434,7 +1434,7 @@
       },
       "packages/cli": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.25",
+          "jsr:@mcpc/core@~0.3.26",
           "jsr:@mcpc/plugin-markdown-loader@^0.0.3",
           "jsr:@mcpc/utils@~0.2.5",
           "jsr:@std/assert@^1.0.14",

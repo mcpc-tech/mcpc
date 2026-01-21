@@ -3,7 +3,7 @@
 [![NPM Version](https://img.shields.io/npm/v/@mcpc-tech/cli)](https://www.npmjs.com/package/@mcpc-tech/cli)
 [![JSR](https://jsr.io/badges/@mcpc/cli)](https://jsr.io/@mcpc/cli)
 
-CLI server for MCPC with configuration support.
+CLI for running MCPC agentic servers with configuration support.
 
 > **Note:** Published as `@mcpc-tech/cli` on npm and `@mcpc/cli` on JSR.
 
@@ -13,72 +13,134 @@ CLI server for MCPC with configuration support.
 # Install globally (or use npx -y @mcpc-tech/cli instead of mcpc)
 npm install -g @mcpc-tech/cli
 
-# Wrap an existing MCP server and run it immediately
+# Quick wrap: wrap an existing MCP server and run immediately
 mcpc --wrap --name "file-manager" \
   --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
 
-# Add MCP servers to config, then run separately
-mcpc --add --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
-mcpc  # Loads ~/.mcpc/config.json automatically
+# Full config: load a complete agent configuration
+mcpc --config-file ./my-agent.json
+
+# Code execution mode (no MCP server required)
+mcpc  # Runs with built-in code_execution mode by default
 
 # Show help
 mcpc --help
 ```
 
-## Wrapping MCP Servers
+## Usage Modes
 
-The simplest way to use MCPC is to wrap existing MCP servers with custom
-execution modes:
+### 1. Quick Wrap Mode
 
-### One-time Run (no config saved)
+The simplest way to get started - wrap existing MCP servers:
 
 ```bash
-# Wrap and run a single MCP server
-mcpc --wrap --name "my-file-manager-agent" \
+# One-time run (no config saved)
+mcpc --wrap --name "my-agent" \
   --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
 
-# Wrap multiple servers with different protocols and execution mode
-mcpc --wrap --name "file-and-github-agent" --mode code_execution \
-  --mcp-stdio "npx -y @wonderwhy-er/desktop-commander" \
-  --mcp-http "https://api.github.com/mcp"
+# Save to config for reuse
+mcpc --add --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
+mcpc  # Loads ~/.mcpc/config.json
 ```
 
-### Persistent Config (save and reuse)
+### 2. Full Configuration Mode
+
+Load complete agent configurations with custom descriptions, tool references,
+and execution modes:
 
 ```bash
-# Step 1: Add servers to config
-mcpc --add --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
+# From JSON file
+mcpc --config-file ./agents/codex-fork.json
 
-# Step 2: (Optional) Edit ~/.mcpc/config.json to add headers, env vars, etc.
+# From Markdown agent file
+mcpc --config-file ./agents/coding-agent.md
 
-# Step 3: Run with saved config
-mcpc  # Automatically loads ~/.mcpc/config.json
+# From URL
+mcpc --config-url https://example.com/agent-config.json
 ```
 
-The config file lets you add custom headers, environment variables, and other
-settings:
+Example JSON configuration:
 
 ```json
 {
+  "name": "my-server",
+  "version": "1.0.0",
   "agents": [{
+    "name": "codex-fork",
+    "description": "A coding agent.\n\nAvailable tools:\n<tool name=\"desktop-commander.read_file\"/>\n<tool name=\"desktop-commander.write_file\"/>",
     "deps": {
       "mcpServers": {
-        "github": {
-          "command": "https://api.github.com/mcp",
-          "transportType": "streamable-http",
-          "headers": {
-            "Authorization": "Bearer YOUR_TOKEN"
-          }
+        "desktop-commander": {
+          "command": "npx",
+          "args": ["-y", "@wonderwhy-er/desktop-commander"],
+          "transportType": "stdio"
         }
       }
+    },
+    "options": {
+      "mode": "agentic"
     }
   }]
 }
 ```
 
+### 3. Standalone Mode (No External MCP Servers)
+
+Run with built-in capabilities only, using the `code_execution` mode:
+
+```bash
+# Default mode - code execution without external dependencies
+mcpc
+
+# Explicit standalone with code execution
+mcpc --config '[{"name":null,"options":{"mode":"code_execution"}}]'
+```
+
 ## Configuration Files
 
-Load config from different sources:
+### Supported Formats
+
+- **JSON** (`.json`): Standard configuration format
+- **Markdown** (`.md`): Agent definition with YAML front matter (via
+  `@mcpc/plugin-markdown-loader`)
+
+You can also use markdown file paths directly in the `agents` array:
+
+```json
+{
+  "name": "my-server",
+  "version": "1.0.0",
+  "agents": [
+    "./agents/coding-agent.md",
+    { "name": "inline-agent", "description": "..." }
+  ]
+}
+```
+
+### Markdown Agent File Format
+
+```markdown
+---
+name: coding-agent
+mode: agentic
+deps:
+  mcpServers:
+    desktop-commander:
+      command: npx
+      args: ["-y", "@wonderwhy-er/desktop-commander"]
+      transportType: stdio
+---
+
+# Coding Agent
+
+I am a coding assistant that can read and write files.
+
+Available tools:
+<tool name="desktop-commander.read_file"/>
+<tool name="desktop-commander.write_file"/>
+```
+
+### Loading Configuration
 
 ```bash
 # From a specific file
@@ -144,7 +206,8 @@ deno run -A jsr:@mcpc/cli/server --config-file ./my-config.json
 - `--mcp-sse <url>` - Add SSE MCP server
 - `--name <name>` - Custom agent name (default: auto-generated from server
   names)
-- `--mode <mode>` - Execution mode (default: `agentic`)
+- `--mode <mode>` - Execution mode for inline agents (default: `agentic`).
+  Markdown agent files define their own mode in frontmatter.
 
 ### Execution Modes (`--mode`)
 
@@ -182,7 +245,7 @@ mcpc --wrap --mode ai_acp --name "coding-agent" \
 #### `code_execution`
 
 Enables code execution capabilities for running code snippets and scripts
-through the agent.
+through the agent. Requires the `@mcpc-tech/plugin-code-execution` plugin.
 
 ```bash
 mcpc --wrap --mode code_execution --name "code-runner" \
@@ -190,7 +253,9 @@ mcpc --wrap --mode code_execution --name "code-runner" \
 ```
 
 > **Note:** Different modes may require specific plugins to be available. The
-> `agentic` mode is always available by default.
+> `agentic` mode is always available by default. The `code_execution` mode
+> requires `@mcpc-tech/plugin-code-execution` which is included by default in
+> the CLI.
 
 ### Config Options
 

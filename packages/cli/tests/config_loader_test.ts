@@ -1,6 +1,19 @@
 import { assertEquals, assertExists } from "@std/assert";
 import { loadConfig } from "../src/config/loader.ts";
+import type { ComposeDefinition } from "@mcpc/core";
 import process from "node:process";
+
+// Helper to get agent as ComposeDefinition (not string)
+function getAgent(
+  agents: (string | ComposeDefinition)[],
+  index: number,
+): ComposeDefinition {
+  const agent = agents[index];
+  if (typeof agent === "string") {
+    throw new Error("Expected ComposeDefinition, got string");
+  }
+  return agent;
+}
 
 Deno.test("Config Loader - load from MCPC_CONFIG env var", async () => {
   // Setup
@@ -21,7 +34,7 @@ Deno.test("Config Loader - load from MCPC_CONFIG env var", async () => {
   assertEquals(config.name, "mcpc-server");
   assertEquals(config.version, "0.1.0");
   assertEquals(config.agents.length, 1);
-  assertEquals(config.agents[0].name, "test-agent");
+  assertEquals(getAgent(config.agents, 0).name, "test-agent");
 
   // Cleanup
   delete process.env.MCPC_CONFIG;
@@ -58,8 +71,9 @@ Deno.test("Config Loader - environment variable substitution", async () => {
 
   // Verify
   assertExists(config);
-  assertEquals(config.agents[0].description, "Command: npx");
-  const serverConfig = config.agents[0].deps?.mcpServers?.server as any;
+  const agent = getAgent(config.agents, 0);
+  assertEquals(agent.description, "Command: npx");
+  const serverConfig = agent.deps?.mcpServers?.server as any;
   assertEquals(serverConfig?.command, "npx");
 
   // Cleanup
@@ -84,8 +98,8 @@ Deno.test("Config Loader - array format normalization", async () => {
   assertEquals(config.name, "mcpc-server"); // Default name
   assertEquals(config.version, "0.1.0"); // Default version
   assertEquals(config.agents.length, 2);
-  assertEquals(config.agents[0].name, "agent1");
-  assertEquals(config.agents[1].name, "agent2");
+  assertEquals(getAgent(config.agents, 0).name, "agent1");
+  assertEquals(getAgent(config.agents, 1).name, "agent2");
 
   // Cleanup
   delete process.env.MCPC_CONFIG;
@@ -208,8 +222,9 @@ Deno.test("Config Loader - nested environment variable substitution", async () =
   // Verify
   assertExists(config);
   assertEquals(config.name, "test-server");
-  assertEquals(config.agents[0].name, "test-value");
-  assertEquals(config.agents[0].description, "Nested: test and value");
+  const agent = getAgent(config.agents, 0);
+  assertEquals(agent.name, "test-value");
+  assertEquals(agent.description, "Nested: test and value");
 
   // Cleanup
   delete process.env.MCPC_CONFIG;
