@@ -244,7 +244,7 @@ export function createSkillsPlugin(options: SkillsPluginOptions): ToolPlugin {
               };
             }
           },
-          { internal: false },
+          { internal: true },
         );
       }
     },

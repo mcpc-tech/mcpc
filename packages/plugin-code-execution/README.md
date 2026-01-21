@@ -72,6 +72,24 @@ const server = await mcpc(
 );
 ```
 
+### Tool Interface
+
+The plugin exposes a Unix-style interface with `tool` and `args`:
+
+```typescript
+// Execute code
+await callTool("my-agent", {
+  tool: "exec",
+  args: { code: "2 + 2" },
+});
+
+// Get tool documentation (like Unix man command)
+await callTool("my-agent", {
+  tool: "man",
+  args: { tools: ["filesystem.read_file"] }, // optional: specific tools
+});
+```
+
 ### How It Works
 
 The plugin uses bidirectional JSON-RPC communication:

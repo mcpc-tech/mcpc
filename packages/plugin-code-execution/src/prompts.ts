@@ -1,13 +1,14 @@
 /**
  * Code Execution Prompts
- *
- * Prompt templates for the code execution mode plugin.
+ * Uses Unix-style `man` command pattern from core for consistency.
  */
 
+import { p } from "@mcpc/utils";
+
 /**
- * Code Execution system prompt - progressive disclosure pattern
+ * Code Execution system prompt - Unix-style interface
  */
-export const CODE_EXECUTION_PROMPT =
+const PROMPT_TEMPLATE =
   `Agentic tool \`{toolName}\` executes JavaScript code with MCP tool access.
 
 <manual>
@@ -19,44 +20,36 @@ export const CODE_EXECUTION_PROMPT =
 \`console.log(...)\` - Print output
 </api>
 
+<available_tools>
+{availableTools}
+</available_tools>
+
 <parameters>
-\`code\` (optional) - JavaScript to execute
-\`definitionsOf\` (optional) - Tool names whose schemas you need
-\`hasDefinitions\` (optional) - Tool names whose schemas you already have
+\`tool\` - "man" to get tool schemas, "exec" to execute code
+\`args\` - For "man": { tools: [...] }. For "exec": { code: "..." }
 </parameters>
 
 <rules>
-- **First call**: No tool definitions available—you must request them via \`definitionsOf\`
-- **When executing code**: Must provide \`hasDefinitions\` with ALL tools you have schemas for (avoid duplicate requests and reduce tokens)
-- **When getting definitions**: Use \`definitionsOf\` to request tool schemas you need
-- **Both together**: Execute code AND request new definitions in one call for efficiency
-- **Never request definitions you already have**
+1. **First call**: Use \`man\` to get tool schemas you need
+2. **Execute code**: Use \`exec\` with JavaScript code that calls \`callMCPTool\`
 </rules>
 
-<examples>
-Initial definition request:
+<format>
+Get tool schemas:
 \`\`\`json
 {
-  "hasDefinitions": [],
-  "definitionsOf": ["tool1"]
+  "tool": "man",
+  "args": { "tools": ["tool1", "tool2"] }
 }
 \`\`\`
-Execute code + get new definitions:
-\`\`\`json
-{
-  "code": "await callMCPTool('tool1', {x: 1});",
-  "hasDefinitions": ["tool1"],
-  "definitionsOf": ["tool2"]
-}
-\`\`\`
-</examples>`;
 
-/**
- * Compile prompt with variables
- */
-export function compilePrompt(
-  template: string,
-  variables: Record<string, string>,
-): string {
-  return template.replace(/\{(\w+)\}/g, (_, key) => variables[key] || "");
+Execute code:
+\`\`\`json
+{
+  "tool": "exec",
+  "args": { "code": "const result = await callMCPTool('tool1', params); console.log(result);" }
 }
+\`\`\`
+</format>`;
+
+export const compilePrompt = p(PROMPT_TEMPLATE);
