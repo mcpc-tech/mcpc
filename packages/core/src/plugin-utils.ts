@@ -116,6 +116,8 @@ export function isValidPlugin(plugin: unknown): plugin is ToolPlugin {
     typeof p.composeEnd === "function" ||
     typeof p.transformInput === "function" ||
     typeof p.transformOutput === "function" ||
+    typeof p.beforeToolExecute === "function" ||
+    typeof p.afterToolExecute === "function" ||
     typeof p.dispose === "function";
 
   if (!hasHook) return false;
