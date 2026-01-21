@@ -62,16 +62,16 @@ Execute a tool:
    *
    * Uses simplified description with progressive disclosure:
    * - Short description shown by default
-   * - Use `man { manual: true }` to get full manual
+   * - Use `man` command with args `{ manual: true }` to get full manual
    */
   AUTONOMOUS_EXECUTION_COMPACT: `Agentic tool \`{toolName}\`: {description}
 
-Use \`man\` with \`{ tools: [], manual: true }\` to get the full manual, or \`{ tools: ["tool1"] }\` to get tool schemas.
+Use \`man\` command with args \`{ tools: [], manual: true }\` to get the full manual, or \`{ tools: ["tool1"] }\` to get tool schemas.
 
 <format>
 Get full manual: \`{ "tool": "man", "args": { "tools": [], "manual": true } }\`
 Get tool schemas: \`{ "tool": "man", "args": { "tools": ["tool1", "tool2"] } }\`
-Get tool schemas + manual: \`{ "tool": "man", "args": { "tools": ["tool1"], "manual": true } }\`
+Get both: \`{ "tool": "man", "args": { "tools": ["tool1"], "manual": true } }\`
 Execute a tool: \`{ "tool": "tool_name", "args": { /* parameters */ } }\`
 </format>`,
 

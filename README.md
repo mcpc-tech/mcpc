@@ -186,7 +186,7 @@ const server = await mcpc(
       mcpServers: {
         "desktop-commander": {
           command: "npx",
-          args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+          args: ["-y", "@wonderwhy-er/desktop-commander@0.1.20"],
           transportType: "stdio",
         },
       },
