@@ -78,7 +78,9 @@ export function createCodeExecutionPlugin(
                 content: [
                   {
                     type: "text",
-                    text: `Available tools: ${allToolNames.join(", ") || "none"}`,
+                    text: `Available tools: ${
+                      allToolNames.join(", ") || "none"
+                    }`,
                   },
                 ],
               };
@@ -91,7 +93,9 @@ export function createCodeExecutionPlugin(
                 );
                 if (toolDetail) {
                   const [n, s] = toolDetail;
-                  return `<tool_definition name="${n}">\n${JSON.stringify(s, null, 2)}\n</tool_definition>`;
+                  return `<tool_definition name="${n}">\n${
+                    JSON.stringify(s, null, 2)
+                  }\n</tool_definition>`;
                 }
                 return null;
               })

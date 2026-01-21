@@ -128,7 +128,7 @@ Deno.test(
 );
 
 Deno.test(
-  "Code execution plugin - man command",
+  "Code execution plugin - man command shows usage",
   async () => {
     const server = await mcpc(
       [
@@ -151,7 +151,6 @@ Deno.test(
     );
 
     try {
-      // Test man with no tools - should list available tools
       const result: any = await server.callTool("test-agent", {
         tool: "man",
         args: {},
@@ -159,6 +158,9 @@ Deno.test(
 
       assertEquals(result.isError, undefined);
       assertEquals(result.content.length > 0, true);
+      // Verify man output contains expected content
+      const text = result.content[0].text;
+      assertStringIncludes(text, "Available tools");
     } finally {
       await server.close?.();
       await new Promise((r) => setTimeout(r, 1000));
