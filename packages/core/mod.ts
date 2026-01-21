@@ -64,11 +64,16 @@ export type { SamplingConfig, ToolRefXml } from "./src/types.ts";
 
 // Plugin system
 export type {
+  AfterToolExecuteContext,
+  AfterToolExecuteResult,
   AgentToolRegistrationContext,
+  BeforeToolExecuteContext,
+  BeforeToolExecuteResult,
   ComposedTool,
   ComposeEndContext,
   ComposeStartContext,
   FinalizeContext,
+  RuntimeTransformContext,
   ToolConfig,
   ToolPlugin,
   TransformContext,

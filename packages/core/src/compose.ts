@@ -190,20 +190,116 @@ export class ComposableMCPServer extends Server {
         throw new Error(`Tool ${toolName} not found`);
       }
 
+      // Get tool definition for context
+      const toolDefinition = this.toolManager.getComposedTool(toolName);
+
+      const startTime = Date.now();
+
+      // Trigger beforeToolExecute hooks (external call)
+      const beforeContext = {
+        toolName,
+        args,
+        server: this,
+        toolDefinition,
+        isInternalCall: false,
+      };
+
+      const beforeResult = await this.pluginManager.triggerBeforeToolExecute(
+        beforeContext,
+      );
+
+      // Check if execution should be skipped (dynamic handoff)
+      if (beforeResult?.skipExecution) {
+        const executionTimeMs = Date.now() - startTime;
+
+        // Trigger afterToolExecute hooks
+        const afterContext = {
+          toolName,
+          args,
+          result: beforeResult.result,
+          server: this,
+          wasSkipped: true,
+          executionTimeMs,
+          isError: false,
+          metadata: beforeResult.metadata,
+          isInternalCall: false,
+        };
+
+        const afterResult = await this.pluginManager.triggerAfterToolExecute(
+          afterContext,
+        );
+
+        let finalResult = (afterResult?.modifiedResult ??
+          beforeResult.result) as CallToolResult;
+
+        // Handle markAsError
+        if (afterResult?.markAsError && finalResult) {
+          finalResult = { ...finalResult, isError: true };
+        }
+
+        return finalResult;
+      }
+
+      // Use modified args if provided
+      const effectiveArgs = beforeResult?.modifiedArgs ?? args;
+
       // Apply plugin transformations
       const processedArgs = await this.applyPluginTransforms(
         toolName,
-        args,
+        effectiveArgs,
         "input",
       );
-      const result = (await handler(processedArgs, extra)) as CallToolResult;
 
-      return (await this.applyPluginTransforms(
+      let result = (await handler(processedArgs, extra)) as CallToolResult;
+      const isError = !!result?.isError;
+
+      result = (await this.applyPluginTransforms(
         toolName,
         result,
         "output",
         args,
       )) as CallToolResult;
+
+      // Preserve isError flag after transformations only if not explicitly set
+      if (isError && result && !("isError" in result)) {
+        result = { ...result, isError: true };
+      }
+
+      const executionTimeMs = Date.now() - startTime;
+
+      // Trigger afterToolExecute hooks
+      const afterContext = {
+        toolName,
+        args,
+        result,
+        server: this,
+        wasSkipped: false,
+        executionTimeMs,
+        isError,
+        metadata: beforeResult?.metadata,
+        isInternalCall: false,
+      };
+
+      const afterResult = await this.pluginManager.triggerAfterToolExecute(
+        afterContext,
+      );
+
+      if (afterResult?.modifiedResult !== undefined) {
+        let finalResult = afterResult.modifiedResult as CallToolResult;
+        // Handle markAsError only if modifiedResult doesn't already have isError set
+        const hasExplicitIsError = finalResult && "isError" in finalResult;
+        if (!hasExplicitIsError && afterResult.markAsError && finalResult) {
+          finalResult = { ...finalResult, isError: true };
+        }
+        return finalResult;
+      }
+
+      // Handle markAsError without modifiedResult
+      if (afterResult?.markAsError && result) {
+        return { ...result, isError: true };
+      }
+
+      return result;
     });
 
     // Handle logging/setLevel requests from MCP clients
@@ -230,8 +326,13 @@ export class ComposableMCPServer extends Server {
 
   /**
    * Call any registered tool directly, whether it's public or internal
+   * Supports tool execution lifecycle hooks for dynamic context handoff
    */
-  async callTool(name: string, args: unknown): Promise<unknown> {
+  async callTool(
+    name: string,
+    args: unknown,
+    options: { agentName?: string; executionChain?: string[] } = {},
+  ): Promise<unknown> {
     const resolvedName = this.resolveToolName(name);
     if (!resolvedName) {
       throw new Error(`Tool ${name} not found`);
@@ -242,18 +343,149 @@ export class ComposableMCPServer extends Server {
       throw new Error(`Tool ${name} not found`);
     }
 
+    // Get tool definition for context
+    const toolDefinition = this.toolManager.getComposedTool(resolvedName);
+
+    const startTime = Date.now();
+
+    // Trigger beforeToolExecute hooks
+    const beforeContext = {
+      toolName: resolvedName,
+      args,
+      server: this,
+      toolDefinition,
+      isInternalCall: true,
+      agentName: options.agentName,
+      executionChain: options.executionChain,
+    };
+
+    const beforeResult = await this.pluginManager.triggerBeforeToolExecute(
+      beforeContext,
+    );
+
+    // Check if execution should be skipped (dynamic handoff)
+    if (beforeResult?.skipExecution) {
+      const executionTimeMs = Date.now() - startTime;
+
+      // Trigger afterToolExecute hooks
+      const afterContext = {
+        toolName: resolvedName,
+        args,
+        result: beforeResult.result,
+        server: this,
+        wasSkipped: true,
+        executionTimeMs,
+        isError: false,
+        metadata: beforeResult.metadata,
+        isInternalCall: true,
+        agentName: options.agentName,
+      };
+
+      const afterResult = await this.pluginManager.triggerAfterToolExecute(
+        afterContext,
+      );
+
+      let finalResult = afterResult?.modifiedResult ?? beforeResult.result;
+
+      // Handle markAsError
+      if (
+        afterResult?.markAsError && finalResult &&
+        typeof finalResult === "object"
+      ) {
+        finalResult = { ...finalResult, isError: true };
+      }
+
+      return finalResult;
+    }
+
+    // Use modified args if provided
+    const effectiveArgs = beforeResult?.modifiedArgs ?? args;
+
+    // Apply input transformations
     const processedArgs = await this.applyPluginTransforms(
       resolvedName,
-      args,
+      effectiveArgs,
       "input",
     );
-    const result = await callback(processedArgs);
-    return await this.applyPluginTransforms(
+
+    // Execute the tool
+    let result: unknown;
+    let isError = false;
+    try {
+      result = await callback(processedArgs);
+    } catch (error) {
+      isError = true;
+      result = {
+        content: [
+          {
+            type: "text",
+            text: `Error: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    // Apply output transformations
+    result = await this.applyPluginTransforms(
       resolvedName,
       result,
       "output",
       args,
     );
+
+    // Preserve isError flag after transformations only if not explicitly set
+    if (
+      isError && result && typeof result === "object" && !("isError" in result)
+    ) {
+      result = { ...result, isError: true };
+    }
+
+    const executionTimeMs = Date.now() - startTime;
+
+    // Trigger afterToolExecute hooks
+    const afterContext = {
+      toolName: resolvedName,
+      args,
+      result,
+      server: this,
+      wasSkipped: false,
+      executionTimeMs,
+      isError,
+      metadata: beforeResult?.metadata,
+      isInternalCall: true,
+      agentName: options.agentName,
+    };
+
+    const afterResult = await this.pluginManager.triggerAfterToolExecute(
+      afterContext,
+    );
+
+    if (afterResult?.modifiedResult !== undefined) {
+      let finalResult = afterResult.modifiedResult;
+      // Handle markAsError only if modifiedResult doesn't already have isError set
+      const hasExplicitIsError = finalResult &&
+        typeof finalResult === "object" &&
+        "isError" in finalResult;
+      if (
+        !hasExplicitIsError &&
+        afterResult.markAsError &&
+        finalResult &&
+        typeof finalResult === "object"
+      ) {
+        finalResult = { ...finalResult, isError: true };
+      }
+      return finalResult;
+    }
+
+    // Handle markAsError without modifiedResult
+    if (afterResult?.markAsError && result && typeof result === "object") {
+      return { ...result, isError: true };
+    }
+
+    return result;
   }
 
   /**

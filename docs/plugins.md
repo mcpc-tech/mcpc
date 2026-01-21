@@ -168,6 +168,8 @@ Hooks execute in this order:
 
 ```typescript
 {
+  // === Composition Phase ===
+  
   // 1. Called when plugin added to server
   configureServer: async (server) => {
     // Setup: add tools, initialize resources
@@ -194,7 +196,36 @@ Hooks execute in this order:
     // Logging, metrics
   },
   
-  // 6. Called when server closes
+  // === Runtime Phase (Tool Execution) ===
+  
+  // 6. Called before each tool execution
+  beforeToolExecute: async (context) => {
+    // Intercept, validate, or skip execution
+    // Return { skipExecution: true, result: ... } to skip
+    // Return { modifiedArgs: ... } to change args
+  },
+  
+  // 7. Called to transform input arguments
+  transformInput: async (args, context) => {
+    // Transform input before execution
+    return transformedArgs;
+  },
+  
+  // 8. Called to transform output result
+  transformOutput: async (result, context) => {
+    // Transform output after execution
+    return transformedResult;
+  },
+  
+  // 9. Called after each tool execution
+  afterToolExecute: async (context) => {
+    // Log, modify result, trigger follow-up
+    // Return { modifiedResult: ... } to change result
+  },
+  
+  // === Cleanup Phase ===
+  
+  // 10. Called when server closes
   dispose: () => {
     // Cleanup: close connections, clear timers
   },
@@ -272,6 +303,39 @@ const customToolPlugin = {
   },
 };
 ```
+
+### Dynamic Tool Handoff
+
+Use execution lifecycle hooks for AI agent handoff:
+
+```typescript
+const handoffPlugin = {
+  name: "ai-handoff",
+  beforeToolExecute: async (context) => {
+    // Skip execution and delegate to AI
+    if (shouldDelegate(context.toolName)) {
+      const aiResult = await askAI(context);
+      return {
+        skipExecution: true,
+        result: { content: [{ type: "text", text: aiResult }] },
+        metadata: { delegated: true },
+      };
+    }
+    // Or modify arguments
+    return { modifiedArgs: sanitize(context.args) };
+  },
+  afterToolExecute: (context) => {
+    // Log execution or modify result
+    console.log(`${context.toolName} took ${context.executionTimeMs}ms`);
+    if (context.wasSkipped) {
+      console.log("Execution was delegated");
+    }
+  },
+};
+```
+
+> 📖 **Learn More**: See [Plugin Lifecycle Guide](./plugin-lifecycle.md) for
+> detailed lifecycle diagrams.
 
 ### Conditional Application
 
@@ -668,6 +732,7 @@ interface ToolPlugin {
   apply?: "agentic" | "workflow" | ((mode: string) => boolean);
   dependencies?: string[];
 
+  // Composition Phase
   configureServer?: (server: ComposableMCPServer) => void | Promise<void>;
   composeStart?: (context: ComposeStartContext) => void | Promise<void>;
   transformTool?: (
@@ -679,7 +744,61 @@ interface ToolPlugin {
     context: FinalizeContext,
   ) => void | Promise<void>;
   composeEnd?: (context: ComposeEndContext) => void | Promise<void>;
+
+  // Runtime Phase - Tool Execution Lifecycle
+  beforeToolExecute?: (
+    context: BeforeToolExecuteContext,
+  ) => BeforeToolExecuteResult | void | Promise<BeforeToolExecuteResult | void>;
+  transformInput?: (
+    args: unknown,
+    context: RuntimeTransformContext,
+  ) => unknown | Promise<unknown>;
+  transformOutput?: (
+    result: unknown,
+    context: RuntimeTransformContext,
+  ) => unknown | Promise<unknown>;
+  afterToolExecute?: (
+    context: AfterToolExecuteContext,
+  ) => AfterToolExecuteResult | void | Promise<AfterToolExecuteResult | void>;
+
+  // Cleanup
   dispose?: () => void | Promise<void>;
+}
+
+// Tool Execution Lifecycle Types
+interface BeforeToolExecuteContext {
+  toolName: string;
+  args: unknown;
+  server: ComposableMCPServer;
+  toolDefinition?: ComposedTool;
+  isInternalCall: boolean; // true if called within agent
+  agentName?: string; // Parent agent name
+  executionChain?: string[]; // Nested agent calls
+}
+
+interface BeforeToolExecuteResult {
+  skipExecution?: boolean; // Skip tool and use result
+  modifiedArgs?: unknown; // Modified arguments
+  result?: unknown; // Result if skipping
+  metadata?: Record<string, unknown>; // Pass to afterToolExecute
+}
+
+interface AfterToolExecuteContext {
+  toolName: string;
+  args: unknown;
+  result: unknown;
+  server: ComposableMCPServer;
+  wasSkipped: boolean; // true if beforeToolExecute skipped
+  executionTimeMs: number;
+  isError: boolean;
+  metadata?: Record<string, unknown>;
+  isInternalCall: boolean;
+  agentName?: string;
+}
+
+interface AfterToolExecuteResult {
+  modifiedResult?: unknown;
+  markAsError?: boolean;
 }
 ```
 
@@ -703,5 +822,7 @@ clearPluginCache();
 ## Next Steps
 
 - Check out the [examples](../packages/core/examples/)
+- Read the [Plugin Lifecycle Guide](./plugin-lifecycle.md) for detailed
+  lifecycle diagrams
 - Read about [tool composition](./learn-more/agentic-mcp-tools.md)
 - Explore [logging and tracing](./logging-and-tracing.md)

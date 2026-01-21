@@ -4,7 +4,7 @@
  */
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
-import type { ToolConfig } from "../plugin-types.ts";
+import type { ComposedTool, ToolConfig } from "../plugin-types.ts";
 import type { JSONSchema, ToolCallback } from "../types.ts";
 import { jsonSchema } from "./schema.ts";
 
@@ -280,5 +280,23 @@ export class ToolManager {
     }
 
     return composedTools;
+  }
+
+  /**
+   * Get a single tool as ComposedTool object by name
+   */
+  getComposedTool(name: string): ComposedTool | undefined {
+    const tool = this.toolRegistry.get(name);
+    if (!tool) {
+      return undefined;
+    }
+    return {
+      name,
+      description: tool.description,
+      inputSchema: (tool.schema ?? { type: "object", properties: {} }) as Tool[
+        "inputSchema"
+      ],
+      execute: tool.callback,
+    };
   }
 }

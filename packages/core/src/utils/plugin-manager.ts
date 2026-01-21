@@ -4,7 +4,11 @@
  */
 
 import type {
+  AfterToolExecuteContext,
+  AfterToolExecuteResult,
   AgentToolRegistrationContext,
+  BeforeToolExecuteContext,
+  BeforeToolExecuteResult,
   ComposedTool,
   ComposeEndContext,
   ComposeStartContext,
@@ -271,6 +275,149 @@ export class PluginManager {
     }
 
     return false;
+  }
+
+  // === Tool Execution Lifecycle Hooks ===
+
+  /**
+   * Trigger beforeToolExecute hooks for all applicable plugins
+   * Returns the combined result from all plugins
+   *
+   * Hook execution order:
+   * 1. 'pre' enforced plugins first
+   * 2. Normal plugins (no enforce)
+   * 3. 'post' enforced plugins last
+   *
+   * If any plugin returns skipExecution=true, execution is skipped
+   * and the result from that plugin is used.
+   */
+  async triggerBeforeToolExecute(
+    context: BeforeToolExecuteContext,
+  ): Promise<BeforeToolExecuteResult | undefined> {
+    const beforePlugins = this.plugins.filter((p) => p.beforeToolExecute);
+
+    if (beforePlugins.length === 0) {
+      return undefined;
+    }
+
+    const sortedPlugins = sortPluginsByOrder(beforePlugins);
+    let currentArgs = context.args;
+    let combinedMetadata: Record<string, unknown> = {};
+
+    for (const plugin of sortedPlugins) {
+      if (plugin.beforeToolExecute) {
+        try {
+          const result = await plugin.beforeToolExecute({
+            ...context,
+            args: currentArgs,
+          });
+
+          if (result) {
+            // Merge metadata
+            if (result.metadata) {
+              combinedMetadata = { ...combinedMetadata, ...result.metadata };
+            }
+
+            // If plugin wants to skip execution, return immediately
+            if (result.skipExecution) {
+              return {
+                skipExecution: true,
+                result: result.result,
+                metadata: combinedMetadata,
+              };
+            }
+
+            // Update args if modified
+            if (result.modifiedArgs !== undefined) {
+              currentArgs = result.modifiedArgs;
+            }
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error
+            ? error.message
+            : String(error);
+          await this.logger.error(
+            `Plugin "${plugin.name}" beforeToolExecute failed for "${context.toolName}": ${errorMsg}`,
+          );
+        }
+      }
+    }
+
+    // If args were modified, return the modified args
+    if (currentArgs !== context.args) {
+      return {
+        modifiedArgs: currentArgs,
+        metadata: Object.keys(combinedMetadata).length > 0
+          ? combinedMetadata
+          : undefined,
+      };
+    }
+
+    // Return metadata if any was collected
+    if (Object.keys(combinedMetadata).length > 0) {
+      return { metadata: combinedMetadata };
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Trigger afterToolExecute hooks for all applicable plugins
+   * Returns the final result after all plugins have processed it
+   */
+  async triggerAfterToolExecute(
+    context: AfterToolExecuteContext,
+  ): Promise<AfterToolExecuteResult | undefined> {
+    const afterPlugins = this.plugins.filter((p) => p.afterToolExecute);
+
+    if (afterPlugins.length === 0) {
+      return undefined;
+    }
+
+    const sortedPlugins = sortPluginsByOrder(afterPlugins);
+    let currentResult = context.result;
+    let markAsError = context.isError;
+
+    for (const plugin of sortedPlugins) {
+      if (plugin.afterToolExecute) {
+        try {
+          const result = await plugin.afterToolExecute({
+            ...context,
+            result: currentResult,
+            isError: markAsError,
+          });
+
+          if (result) {
+            // Update result if modified
+            if (result.modifiedResult !== undefined) {
+              currentResult = result.modifiedResult;
+            }
+
+            // Update error status if specified
+            if (result.markAsError !== undefined) {
+              markAsError = result.markAsError;
+            }
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error
+            ? error.message
+            : String(error);
+          await this.logger.error(
+            `Plugin "${plugin.name}" afterToolExecute failed for "${context.toolName}": ${errorMsg}`,
+          );
+        }
+      }
+    }
+
+    // Return result if it was modified or error status changed
+    if (currentResult !== context.result || markAsError !== context.isError) {
+      return {
+        modifiedResult: currentResult,
+        markAsError,
+      };
+    }
+
+    return undefined;
   }
 
   /**

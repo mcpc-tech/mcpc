@@ -299,7 +299,10 @@ export class AgenticExecutor {
       });
 
       try {
-        const result = await this.server.callTool(tool, toolArgs);
+        // Pass agent context for lifecycle hooks
+        const result = await this.server.callTool(tool, toolArgs, {
+          agentName: this.name,
+        });
         const callToolResult = (result as CallToolResult) ?? { content: [] };
 
         if (executeSpan) {

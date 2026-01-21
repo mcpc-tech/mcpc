@@ -76,6 +76,29 @@ export interface ToolPlugin {
     context: RuntimeTransformContext,
   ) => unknown | Promise<unknown>;
 
+  // === Tool Execution Lifecycle Hooks ===
+
+  /**
+   * Called before a tool is executed
+   * Use this to intercept tool calls, modify arguments, or skip execution entirely.
+   * This enables dynamic tool context handoff to AI agents.
+   *
+   * @returns BeforeToolExecuteResult to modify behavior, or void/undefined to continue normally
+   */
+  beforeToolExecute?: (
+    context: BeforeToolExecuteContext,
+  ) => BeforeToolExecuteResult | void | Promise<BeforeToolExecuteResult | void>;
+
+  /**
+   * Called after a tool is executed (or skipped)
+   * Use this to modify results, log execution, or trigger follow-up actions.
+   *
+   * @returns AfterToolExecuteResult to modify the result, or void/undefined to keep original
+   */
+  afterToolExecute?: (
+    context: AfterToolExecuteContext,
+  ) => AfterToolExecuteResult | void | Promise<AfterToolExecuteResult | void>;
+
   /** Called when plugin is removed or server is disposed - for cleanup */
   dispose?: () => void | Promise<void>;
 }
@@ -165,6 +188,90 @@ export interface RuntimeTransformContext {
   originalArgs?: unknown;
   /** Transformation direction */
   direction: "input" | "output";
+}
+
+// === Tool Execution Lifecycle Hooks Context ===
+
+/**
+ * Result of beforeToolExecute hook
+ * Allows plugins to modify execution or skip it entirely
+ */
+export interface BeforeToolExecuteResult {
+  /**
+   * If true, skip the actual tool execution and use the provided result
+   * This enables dynamic handoff to AI agents
+   */
+  skipExecution?: boolean;
+  /**
+   * Modified arguments to pass to the tool (if not skipping)
+   */
+  modifiedArgs?: unknown;
+  /**
+   * Result to return if skipping execution
+   * Required when skipExecution is true
+   */
+  result?: unknown;
+  /**
+   * Optional metadata to pass to afterToolExecute
+   */
+  metadata?: Record<string, unknown>;
+}
+
+/** Context for beforeToolExecute hook */
+export interface BeforeToolExecuteContext {
+  /** Name of the tool being executed */
+  toolName: string;
+  /** Arguments passed to the tool */
+  args: unknown;
+  /** The MCP server instance */
+  server: ComposableMCPServer;
+  /** Tool definition (if available) */
+  toolDefinition?: ComposedTool;
+  /** Whether this is an internal tool call (within agent) vs external (from MCP client) */
+  isInternalCall: boolean;
+  /** Parent agent name (if called from within an agent) */
+  agentName?: string;
+  /** Execution context chain (for nested agent calls) */
+  executionChain?: string[];
+}
+
+/** Context for afterToolExecute hook */
+export interface AfterToolExecuteContext {
+  /** Name of the tool that was executed */
+  toolName: string;
+  /** Original arguments passed to the tool */
+  args: unknown;
+  /** Result from tool execution */
+  result: unknown;
+  /** The MCP server instance */
+  server: ComposableMCPServer;
+  /** Whether execution was skipped by beforeToolExecute */
+  wasSkipped: boolean;
+  /** Time taken for execution in milliseconds */
+  executionTimeMs: number;
+  /** Whether the result indicates an error */
+  isError: boolean;
+  /** Metadata from beforeToolExecute */
+  metadata?: Record<string, unknown>;
+  /** Whether this is an internal tool call */
+  isInternalCall: boolean;
+  /** Parent agent name (if called from within an agent) */
+  agentName?: string;
+}
+
+/**
+ * Result of afterToolExecute hook
+ * Allows plugins to modify the final result
+ */
+export interface AfterToolExecuteResult {
+  /**
+   * Modified result to return
+   */
+  modifiedResult?: unknown;
+  /**
+   * If true, mark the result as an error
+   */
+  markAsError?: boolean;
 }
 
 // === Plugin Options ===
