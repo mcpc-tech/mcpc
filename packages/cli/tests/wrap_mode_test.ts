@@ -1,6 +1,19 @@
 import { assertEquals, assertExists } from "@std/assert";
 import { loadConfig } from "../src/config/loader.ts";
+import type { ComposeDefinition } from "@mcpc/core";
 import process from "node:process";
+
+// Helper to get agent as ComposeDefinition (not string)
+function getAgent(
+  agents: (string | ComposeDefinition)[] | undefined,
+  index: number,
+): ComposeDefinition {
+  const agent = agents?.[index];
+  if (!agent || typeof agent === "string") {
+    throw new Error("Expected ComposeDefinition, got string or undefined");
+  }
+  return agent;
+}
 
 Deno.test("wrap mode - parse single server command correctly", async () => {
   // Save original argv
@@ -28,11 +41,13 @@ Deno.test("wrap mode - parse single server command correctly", async () => {
     assertExists(config);
     assertEquals(config?.name, "mcpc-wrap-config");
     assertEquals(config?.agents.length, 1);
+
+    const agent = getAgent(config?.agents, 0);
     assertEquals(
-      config?.agents[0].name,
+      agent.name,
       "_wonderwhy-er_desktop-commander--orchestrator",
     );
-    const desktopConfig = config?.agents[0].deps?.mcpServers
+    const desktopConfig = agent.deps?.mcpServers
       ?.["_wonderwhy-er_desktop-commander"] as any;
     assertEquals(desktopConfig?.command, "npx");
     assertEquals(desktopConfig?.args, [
@@ -40,7 +55,7 @@ Deno.test("wrap mode - parse single server command correctly", async () => {
       "@wonderwhy-er/desktop-commander",
     ]);
     assertEquals(
-      config?.agents[0].deps?.mcpServers?.["_wonderwhy-er_desktop-commander"]
+      agent.deps?.mcpServers?.["_wonderwhy-er_desktop-commander"]
         ?.transportType,
       "stdio",
     );
@@ -85,13 +100,15 @@ Deno.test("wrap mode - parse multiple servers with different transports", async 
     // Should create a multi-server wrapper config
     assertEquals(config?.name, "mcpc-wrap-config");
     assertEquals(config?.agents.length, 1);
+
+    const agent = getAgent(config?.agents, 0);
     assertEquals(
-      config?.agents[0].name,
+      agent.name,
       "_wonderwhy-er_desktop-commander__https___api_github_com_mcp__https___api_example_com_sse--orchestrator",
     );
 
     // Check that all three servers are configured
-    const mcpServers = config?.agents[0].deps?.mcpServers;
+    const mcpServers = agent.deps?.mcpServers;
     assertExists(mcpServers);
     assertEquals(Object.keys(mcpServers || {}).length, 3);
 
@@ -127,7 +144,7 @@ Deno.test("wrap mode - parse multiple servers with different transports", async 
     );
 
     // Check that refs include all servers
-    const refs = config?.agents[0].options?.refs || [];
+    const refs = agent.options?.refs || [];
     assertEquals(refs.length, 3);
   } finally {
     // Restore original argv

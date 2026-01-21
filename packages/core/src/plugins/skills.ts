@@ -181,9 +181,16 @@ export function createSkillsPlugin(options: SkillsPluginOptions): ToolPlugin {
           async (args: { skill: string; ref?: string }) => {
             const meta = skillsMap.get(args.skill);
             if (!meta) {
+              const available = Array.from(skillsMap.keys());
+              const availableList = available.length > 0
+                ? `\n\nAvailable skills: ${available.join(", ")}`
+                : "\n\nNo skills available.";
               return {
                 content: [
-                  { type: "text", text: `Skill "${args.skill}" not found` },
+                  {
+                    type: "text",
+                    text: `Skill "${args.skill}" not found.${availableList}`,
+                  },
                 ],
                 isError: true,
               };

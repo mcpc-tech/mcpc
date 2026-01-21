@@ -30,7 +30,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config/loader.ts";
 import process from "node:process";
-import { createCodeExecutionPlugin } from "@mcpc-tech/plugin-code-execution";
+import { getAgentPlugins } from "./defaults.ts";
 
 const port = Number(process.env.PORT || "3002");
 const hostname = "0.0.0.0";
@@ -38,18 +38,10 @@ const hostname = "0.0.0.0";
 // Load configuration from environment or file
 const config = await loadConfig();
 
-// Add plugins
+// Add agent-level plugins (skip string paths)
 config?.agents.forEach((agent) => {
-  if (agent.plugins?.length ?? 0 === 0) {
-    agent.plugins = [];
-  }
-  agent.plugins?.push(
-    createCodeExecutionPlugin({
-      sandbox: {
-        timeout: 300_000,
-      },
-    }),
-  );
+  if (typeof agent === "string") return;
+  agent.plugins = [...(agent.plugins || []), ...getAgentPlugins()];
 });
 
 if (config) {

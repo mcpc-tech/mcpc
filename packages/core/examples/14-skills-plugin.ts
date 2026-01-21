@@ -15,6 +15,8 @@ import { createSkillsPlugin } from "../plugins.ts";
 
 // Get directory of current file for reliable relative paths
 const __dirname = dirname(fileURLToPath(import.meta.url));
+// Skills are in .claude/skills at project root
+const projectRoot = join(__dirname, "../../..");
 
 export const server = await mcpc(
   [
@@ -38,7 +40,7 @@ export const server = await mcpc(
 
       plugins: [
         createSkillsPlugin({
-          paths: [join(__dirname, "skills")],
+          paths: [join(projectRoot, ".claude/skills")],
         }),
       ],
     },
@@ -51,7 +53,7 @@ await server.connect(transport);
 /**
  * Skills Directory Structure:
  *
- * ./examples/skills/
+ * .claude/skills/
  * ├── git-workflow/
  * │   ├── SKILL.md
  * │   └── references/

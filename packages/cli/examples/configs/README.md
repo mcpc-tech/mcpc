@@ -4,9 +4,10 @@ This directory contains example configuration files for MCPC CLI.
 
 ## Available Configs
 
-### codex-fork.json
+### codex-fork.json / codex-fork.md
 
 A full-featured "Codex Fork" agent based on the MCPC documentation example.
+Available in both JSON and Markdown formats.
 
 Includes:
 
@@ -30,10 +31,12 @@ Includes:
 3. Copy the generated token (starts with `ghp_`)
 
 ```bash
-# Use with environment variable substitution
+# Use JSON config
 export GITHUB_PERSONAL_ACCESS_TOKEN="ghp_your_token_here"
-export MCPC_CONFIG_FILE=examples/configs/codex-fork.json
-deno run --allow-all src/bin.ts
+mcpc --config-file examples/configs/codex-fork.json
+
+# Or use Markdown config (same agent, different format)
+mcpc --config-file examples/configs/codex-fork.md
 ```
 
 ## Remote Loading

@@ -44,15 +44,12 @@
  * @module
  */
 
-import type { ComposeDefinition } from "@mcpc/core";
+import type { ComposeInput } from "@mcpc/core";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
-import {
-  isMarkdownAgentFile,
-  loadMarkdownAgentFile,
-} from "@mcpc/plugin-markdown-loader";
+import { DEFAULT_SKILLS_PATHS } from "../defaults.ts";
 
 export interface MCPCConfig {
   /**
@@ -71,9 +68,14 @@ export interface MCPCConfig {
     sampling?: Record<string, unknown>;
   };
   /**
-   * Agent composition definitions
+   * Agent composition definitions (can include markdown file paths)
    */
-  agents: ComposeDefinition[];
+  agents: ComposeInput[];
+  /**
+   * Skills directories to scan for domain-specific knowledge
+   * @see https://agentskills.io/specification
+   */
+  skills?: string[];
 }
 
 /**
@@ -142,7 +144,7 @@ async function saveUserConfig(
     // Handle existing config
     if (existingConfig) {
       const hasConflict = existingConfig.agents.some(
-        (agent) => agent.name === newAgentName,
+        (agent) => typeof agent !== "string" && agent.name === newAgentName,
       );
 
       if (hasConflict) {
@@ -275,20 +277,24 @@ USAGE:
 
 OPTIONS:
     --help, -h              Show this help message
+    --cwd <path>            Change working directory before loading config
+                           Useful when running from MCP Inspector or other tools
     --config <json>         Inline JSON configuration string
     --config-url <url>      Fetch configuration from URL
     --config-file <path>    Load configuration from file path
-                           Supports .json and .md (Markdown with YAML front matter)
+    --skills <dirs>         Skills directories (comma-separated), default: .claude/skills
+                           Example: --skills ./skills,./more-skills
     --request-headers <header>, -H <header>
                            Add custom HTTP header for URL fetching
                            Format: "Key: Value" or "Key=Value"
                            Can be used multiple times
-    --mode <mode>           Set execution mode for all agents
+    --mode <mode>           Set execution mode for JSON/object agents (does not
+                           affect Markdown agent files which define mode in frontmatter)
                            Supported modes:
                            - agentic: Fully autonomous agent mode (default)
                            - ai_sampling: AI SDK sampling mode for autonomous execution
                            - ai_acp: AI SDK ACP mode for coding agents
-                           - code_execution: Code execution mode for most efficient token usage
+                           - code_execution: Code execution mode (requires @mcpc-tech/plugin-code-execution)
     --add                   Add MCP servers to ~/.mcpc/config.json and exit
                            Then run 'mcpc' to start the server with saved config
                            Use --mcp-stdio, --mcp-http, or --mcp-sse to specify servers
@@ -355,36 +361,13 @@ EXAMPLES:
 CONFIGURATION:
     Configuration files support environment variable substitution using $VAR_NAME syntax.
     
-    Supported formats:
-    - JSON (.json): Standard JSON configuration
-    - Markdown (.md): Agent definition with YAML front matter
-    
-    Markdown agent file format:
-    \`\`\`markdown
-    ---
-    name: my-agent
-    mode: agentic
-    deps:
-      mcpServers:
-        server-name:
-          command: npx
-          args: ["-y", "package-name"]
-          transportType: stdio
-    ---
-    
-    # Agent Description
-    
-    Your agent description in Markdown.
-    Use <tool name="server.tool_name"/> to reference tools.
-    \`\`\`
-    
     Priority order:
     1. --config (inline JSON)
     2. MCPC_CONFIG environment variable
     3. --config-url or MCPC_CONFIG_URL
     4. --config-file or MCPC_CONFIG_FILE
     5. ~/.mcpc/config.json (user config)
-    6. ./mcpc.config.json or ./mcpc.config.md (local config)
+    6. ./mcpc.config.json (local config)
 
 For more information, visit: https://github.com/mcpc-tech/mcpc
 `);
@@ -404,6 +387,8 @@ function parseArgs(): {
   mcpServers?: ServerSpec[];
   mode?: string;
   name?: string;
+  skills?: string[];
+  cwd?: string;
 } {
   const args = process.argv.slice(2);
   const result: {
@@ -417,11 +402,15 @@ function parseArgs(): {
     mcpServers?: ServerSpec[];
     mode?: string;
     name?: string;
+    skills?: string[];
+    cwd?: string;
   } = {};
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === "--config" && i + 1 < args.length) {
+    if (arg === "--cwd" && i + 1 < args.length) {
+      result.cwd = args[++i];
+    } else if (arg === "--config" && i + 1 < args.length) {
       result.config = args[++i];
     } else if (arg === "--config-url" && i + 1 < args.length) {
       result.configUrl = args[++i];
@@ -484,6 +473,9 @@ function parseArgs(): {
       result.mode = args[++i];
     } else if (arg === "--name" && i + 1 < args.length) {
       result.name = args[++i];
+    } else if (arg === "--skills" && i + 1 < args.length) {
+      // Parse comma-separated skills directories
+      result.skills = args[++i].split(",").map((s) => s.trim()).filter(Boolean);
     }
   }
 
@@ -496,6 +488,20 @@ function parseArgs(): {
  */
 export async function loadConfig(): Promise<MCPCConfig | null> {
   const args = parseArgs();
+
+  // Change working directory if --cwd is specified
+  if (args.cwd) {
+    const targetCwd = resolve(process.cwd(), args.cwd);
+    process.chdir(targetCwd);
+    console.error(`Changed working directory to: ${targetCwd}`);
+  }
+
+  // Helper to merge skills from args
+  const mergeSkills = (config: MCPCConfig): MCPCConfig => {
+    // CLI --skills overrides config.skills; if neither, use default
+    config.skills = args.skills || config.skills || DEFAULT_SKILLS_PATHS;
+    return config;
+  };
 
   // Handle --help
   if (args.help) {
@@ -511,14 +517,14 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
 
   // Handle --wrap mode - generate config and run immediately (no save)
   if (args.wrap) {
-    return await createWrapConfig({ ...args, saveConfig: false });
+    return mergeSkills(await createWrapConfig({ ...args, saveConfig: false }));
   }
 
   // Priority 1: --config (inline JSON string)
   if (args.config) {
     try {
       const parsed = JSON.parse(args.config);
-      return applyModeOverride(normalizeConfig(parsed), args.mode);
+      return mergeSkills(applyModeOverride(normalizeConfig(parsed), args.mode));
     } catch (error) {
       console.error("Failed to parse --config argument:", error);
       throw error;
@@ -529,7 +535,7 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
   if (process.env.MCPC_CONFIG) {
     try {
       const parsed = JSON.parse(process.env.MCPC_CONFIG);
-      return applyModeOverride(normalizeConfig(parsed), args.mode);
+      return mergeSkills(applyModeOverride(normalizeConfig(parsed), args.mode));
     } catch (error) {
       console.error("Failed to parse MCPC_CONFIG environment variable:", error);
       throw error;
@@ -550,7 +556,7 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
       }
       const content = await response.text();
       const parsed = JSON.parse(content);
-      return applyModeOverride(normalizeConfig(parsed), args.mode);
+      return mergeSkills(applyModeOverride(normalizeConfig(parsed), args.mode));
     } catch (error) {
       console.error(`Failed to fetch config from ${configUrl}:`, error);
       throw error;
@@ -562,7 +568,7 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
   if (configFile) {
     try {
       const config = await loadConfigFromFile(configFile);
-      return applyModeOverride(config, args.mode);
+      return mergeSkills(applyModeOverride(config, args.mode));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
         console.error(`Config file not found: ${configFile}`);
@@ -578,7 +584,7 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
   const userConfigPath = getUserConfigPath();
   try {
     const config = await loadConfigFromFile(userConfigPath);
-    return applyModeOverride(config, args.mode);
+    return mergeSkills(applyModeOverride(config, args.mode));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
       console.error(`Failed to load config from ${userConfigPath}:`, error);
@@ -587,35 +593,19 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
     // File doesn't exist, continue to next option
   }
 
-  // Priority 6: ./mcpc.config.json or ./mcpc.config.md in current directory
+  // Priority 6: ./mcpc.config.json in current directory
   const defaultJsonConfigPath = resolve(process.cwd(), "mcpc.config.json");
-  const defaultMdConfigPath = resolve(process.cwd(), "mcpc.config.md");
 
-  // Try JSON config first
   try {
     const config = await loadConfigFromFile(defaultJsonConfigPath);
-    return applyModeOverride(config, args.mode);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      console.error(
-        `Failed to load config from ${defaultJsonConfigPath}:`,
-        error,
-      );
-      throw error;
-    }
-  }
-
-  // Try Markdown config
-  try {
-    const config = await loadConfigFromFile(defaultMdConfigPath);
-    return applyModeOverride(config, args.mode);
+    return mergeSkills(applyModeOverride(config, args.mode));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       // No config file found, this is okay
       return null;
     } else {
       console.error(
-        `Failed to load config from ${defaultMdConfigPath}:`,
+        `Failed to load config from ${defaultJsonConfigPath}:`,
         error,
       );
       throw error;
@@ -634,27 +624,32 @@ function replaceEnvVars(str: string): string {
 }
 
 /**
- * Load configuration from a file, supporting both JSON and Markdown formats
+ * Check if a path is a Markdown file
+ */
+function isMarkdownFile(path: string): boolean {
+  return path.endsWith(".md") || path.endsWith(".markdown");
+}
+
+/**
+ * Load configuration from a file
+ * - JSON files: parsed and normalized
+ * - Markdown files: returned as file path in agents array (resolved by markdownLoaderPlugin)
  * @param filePath Path to the configuration file
  * @returns Normalized MCPCConfig
  */
 async function loadConfigFromFile(filePath: string): Promise<MCPCConfig> {
-  if (isMarkdownAgentFile(filePath)) {
-    // Load Markdown agent file
-    const agent = await loadMarkdownAgentFile(filePath);
-    const config: MCPCConfig = {
+  if (isMarkdownFile(filePath)) {
+    // Return markdown file path - resolved by markdownLoaderPlugin in mcpc()
+    return {
       name: "mcpc-server",
       version: "0.1.0",
-      agents: [agent],
+      agents: [filePath],
     };
-    // Apply environment variable replacement
-    return normalizeConfig(config);
-  } else {
-    // Load JSON config file
-    const content = await readFile(filePath, "utf-8");
-    const parsed = JSON.parse(content);
-    return normalizeConfig(parsed);
   }
+  // JSON: parse and normalize
+  const content = await readFile(filePath, "utf-8");
+  const parsed = JSON.parse(content);
+  return normalizeConfig(parsed);
 }
 
 /**
@@ -683,8 +678,9 @@ function replaceEnvVarsInConfig(obj: unknown): unknown {
 function applyModeOverride(config: MCPCConfig, mode?: string): MCPCConfig {
   if (!mode) return config;
 
-  // Apply mode to all agents
+  // Apply mode to all agents (skip string paths)
   config.agents.forEach((agent) => {
+    if (typeof agent === "string") return;
     if (!agent.options) agent.options = {};
     agent.options.mode = mode as any;
   });
@@ -705,7 +701,7 @@ function normalizeConfig(config: unknown): MCPCConfig {
     return {
       name: "mcpc-server",
       version: "0.1.0",
-      agents: normalizeAgents(config as ComposeDefinition[]),
+      agents: normalizeAgents(config as ComposeInput[]),
     };
   }
 
@@ -717,6 +713,7 @@ function normalizeConfig(config: unknown): MCPCConfig {
       version: cfg.version || "0.1.0",
       capabilities: cfg.capabilities,
       agents: normalizeAgents(cfg.agents || []),
+      skills: cfg.skills,
     };
   }
 
@@ -726,8 +723,10 @@ function normalizeConfig(config: unknown): MCPCConfig {
 /**
  * Normalize agents to ensure deps structure is correct
  */
-function normalizeAgents(agents: ComposeDefinition[]): ComposeDefinition[] {
+function normalizeAgents(agents: ComposeInput[]): ComposeInput[] {
   return agents.map((agent) => {
+    // Skip string paths (markdown files)
+    if (typeof agent === "string") return agent;
     // Ensure deps has proper structure if it exists
     if (agent.deps && !agent.deps.mcpServers) {
       agent.deps.mcpServers = {};
@@ -745,6 +744,8 @@ export function validateConfig(config: MCPCConfig): void {
   }
 
   for (const agent of config.agents) {
+    // Skip string paths (markdown files)
+    if (typeof agent === "string") continue;
     if (agent.name === undefined) {
       throw new Error("Each agent must have a 'name' property");
     }
