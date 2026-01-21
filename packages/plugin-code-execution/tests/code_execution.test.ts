@@ -31,8 +31,8 @@ Deno.test(
 
     try {
       const result: any = await server.callTool("test-agent", {
-        code: "2 + 2",
-        hasDefinitions: ["test-code-execq"],
+        tool: "exec",
+        args: { code: "2 + 2" },
       });
 
       assertEquals(result.isError, undefined);
@@ -69,8 +69,8 @@ Deno.test(
 
     try {
       const result: any = await server.callTool("test-agent", {
-        code: "const sum = 1 + 2; sum",
-        hasDefinitions: [],
+        tool: "exec",
+        args: { code: "const sum = 1 + 2; sum" },
       });
 
       assertEquals(result.isError, undefined);
@@ -107,8 +107,8 @@ Deno.test(
 
     try {
       const result: any = await server.callTool("test-agent", {
-        code: "throw new Error('Test error');",
-        hasDefinitions: [],
+        tool: "exec",
+        args: { code: "throw new Error('Test error');" },
       });
 
       // Either result is an error or content contains error message
@@ -120,6 +120,45 @@ Deno.test(
           "error",
         );
       }
+    } finally {
+      await server.close?.();
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  },
+);
+
+Deno.test(
+  "Code execution plugin - man command",
+  async () => {
+    const server = await mcpc(
+      [
+        { name: "test-code-exec", version: "1.0.0" },
+        {
+          capabilities: { tools: {} },
+        },
+      ],
+      [
+        {
+          name: "test-agent",
+          description: "Test agent",
+          deps: { mcpServers: {} },
+          plugins: [createCodeExecutionPlugin()],
+          options: {
+            mode: "code_execution",
+          },
+        },
+      ],
+    );
+
+    try {
+      // Test man with no tools - should list available tools
+      const result: any = await server.callTool("test-agent", {
+        tool: "man",
+        args: {},
+      });
+
+      assertEquals(result.isError, undefined);
+      assertEquals(result.content.length > 0, true);
     } finally {
       await server.close?.();
       await new Promise((r) => setTimeout(r, 1000));

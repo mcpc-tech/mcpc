@@ -42,12 +42,9 @@ export class SandboxExecutor {
   /**
    * Execute code in sandbox
    */
-  async executeCode(
-    code: string,
-    hasDefinitions: string[],
-  ): Promise<CallToolResult> {
+  async executeCode(code: string): Promise<CallToolResult> {
     try {
-      const result = await this.sandbox.execute(code, { hasDefinitions });
+      const result = await this.sandbox.execute(code);
 
       if (result.error) {
         return {

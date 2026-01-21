@@ -2,14 +2,14 @@
  * Code Execution Mode Plugin
  *
  * Implements secure code execution using Deno sandbox.
- * Provides progressive disclosure and efficient context usage.
+ * Uses Unix-style `man` command pattern from core for consistency.
  */
 
 import type { AgentToolRegistrationContext, ToolPlugin } from "@mcpc/core";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { type SandboxConfig, SandboxExecutor } from "./sandbox-executor.ts";
 import { jsonSchema } from "@mcpc/core";
-import { CODE_EXECUTION_PROMPT, compilePrompt } from "./prompts.ts";
+import { compilePrompt } from "./prompts.ts";
 
 export interface CodeExecutionPluginOptions {
   sandbox?: SandboxConfig;
@@ -22,11 +22,12 @@ export function createCodeExecutionPlugin(
 
   return {
     name: "code_execution",
-    version: "1.0.0",
+    version: "2.0.0",
     apply: "code_execution",
 
     registerAgentTool: (context: AgentToolRegistrationContext) => {
-      const { server, name, description, allToolNames } = context;
+      const { server, name, description, allToolNames, toolNameToDetailList } =
+        context;
 
       // Start sandbox executor
       executor = new SandboxExecutor(
@@ -36,128 +37,103 @@ export function createCodeExecutionPlugin(
       );
       executor.start();
 
-      // Build tool schema
-      const toolItems = allToolNames.length > 0
-        ? { type: "string", enum: allToolNames }
-        : { type: "string" };
-
+      // Unix-style schema: tool + args (same as core agentic mode)
+      const toolEnum = ["man", "exec"];
       const schema = {
         type: "object",
         properties: {
-          code: {
+          tool: {
             type: "string",
+            enum: toolEnum,
             description:
-              "JavaScript to run. You can use callMCPTool(toolName, params) and console.log(). Before calling a tool, request its schema with definitionsOf, then use it in your code.",
+              'Use "man" to get tool schemas, "exec" to execute JavaScript code.',
           },
-          definitionsOf: {
-            type: "array",
-            items: toolItems,
-            default: [],
+          args: {
+            type: "object",
             description:
-              "Tool names whose schemas you need. The agent uses these to understand available tools before calling them.",
-          },
-          hasDefinitions: {
-            type: "array",
-            items: toolItems,
-            description:
-              "Tool names whose schemas were already provided in this conversation. List all tools you have schemas for to avoid duplicate schema requests",
+              'For "man": { tools: ["tool1", "tool2"] }. For "exec": { code: "..." }.',
           },
         },
-        // Conditional validation: if code is provided, hasDefinitions must be non-empty
-        if: {
-          properties: { code: { type: "string", minLength: 1 } },
-          required: ["code"],
-        },
-        then: {
-          properties: {
-            hasDefinitions: { type: "array", minItems: 1 },
-          },
-          required: ["hasDefinitions"],
-          errorMessage: {
-            required: {
-              hasDefinitions:
-                "When executing code, you must provide 'hasDefinitions' with tool schemas you have. First request schemas using 'definitionsOf'.",
-            },
-          },
-        },
-        // If no code, must have definitionsOf
-        else: {
-          anyOf: [
-            { required: ["definitionsOf"] },
-            { required: ["code"] },
-          ],
-          errorMessage:
-            "Provide either 'code' to execute or 'definitionsOf' to request tool schemas.",
-        },
+        required: ["tool"],
       } as const;
 
-      // Register tool with enhanced description
+      // Register tool
       server.tool(
         name,
-        compilePrompt(CODE_EXECUTION_PROMPT, { toolName: name, description }),
+        compilePrompt({
+          toolName: name,
+          description,
+          availableTools: allToolNames.join(", ") || "none",
+        }),
         jsonSchema<Record<string, unknown>>(schema as Record<string, unknown>),
         async (args: Record<string, unknown>): Promise<CallToolResult> => {
-          const code = args.code as string | undefined;
-          const definitionsOf = (args.definitionsOf as string[]) || [];
-          const hasDefinitions = (args.hasDefinitions as string[]) || [];
-          const contentParts: CallToolResult["content"] = [];
+          const tool = args.tool as string;
+          const toolArgs = (args.args as Record<string, unknown>) || {};
 
-          // Execute code (schema validation ensures hasDefinitions is present when code is provided)
-          if (code) {
-            if (!executor) throw new Error("Sandbox not initialized");
-
-            const result = await executor.executeCode(code, hasDefinitions);
-            if (result.content) {
-              contentParts.push(...result.content);
+          // Handle `man` command - return tool schemas
+          if (tool === "man") {
+            const requestedTools = (toolArgs.tools as string[]) || [];
+            if (requestedTools.length === 0) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: `Available tools: ${allToolNames.join(", ") || "none"}`,
+                  },
+                ],
+              };
             }
-          }
 
-          // Provide tool definitions
-          const needsDefinitions = definitionsOf.filter(
-            (def) => !hasDefinitions.includes(def),
-          );
-
-          if (needsDefinitions.length > 0) {
-            const definitionTexts: string[] = [];
-
-            for (const toolName of needsDefinitions) {
-              const toolDetail = context.toolNameToDetailList.find(
-                ([name]: [string, unknown]) => name === toolName,
-              );
-
-              if (toolDetail) {
-                const [name, schema] = toolDetail;
-                const schemaJson = JSON.stringify(schema, null, 2);
-                definitionTexts.push(
-                  `<tool_definition name="${name}">\n${schemaJson}\n</tool_definition>`,
+            const schemas = requestedTools
+              .map((toolName) => {
+                const toolDetail = toolNameToDetailList.find(
+                  ([n]) => n === toolName,
                 );
-              }
+                if (toolDetail) {
+                  const [n, s] = toolDetail;
+                  return `<tool_definition name="${n}">\n${JSON.stringify(s, null, 2)}\n</tool_definition>`;
+                }
+                return null;
+              })
+              .filter(Boolean);
+
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: schemas.length > 0
+                    ? schemas.join("\n\n")
+                    : "No schemas found for requested tools.",
+                },
+              ],
+            };
+          }
+
+          // Handle `exec` command - execute JavaScript code
+          if (tool === "exec") {
+            const code = toolArgs.code as string | undefined;
+            if (!code) {
+              return {
+                content: [
+                  { type: "text", text: 'Missing "code" in args for "exec".' },
+                ],
+                isError: true,
+              };
             }
 
-            if (definitionTexts.length > 0) {
-              contentParts.push({
+            if (!executor) throw new Error("Sandbox not initialized");
+            return await executor.executeCode(code);
+          }
+
+          return {
+            content: [
+              {
                 type: "text",
-                text: definitionTexts.join("\n\n"),
-              });
-            }
-          }
-
-          // Generate appropriate response message
-          let text: string;
-          if (contentParts.length > 0) {
-            text = contentParts
-              .filter((p) => p.type === "text")
-              .map((p) => (p as { type: "text"; text: string }).text)
-              .join("\n");
-          } else if (definitionsOf.length > 0) {
-            // All requested schemas already in hasDefinitions
-            text =
-              "All requested tool schemas are already available. You can now execute code using 'code' parameter.";
-          } else {
-            text = "no output generated, use console.log() to log output";
-          }
-
-          return { content: [{ type: "text", text }] };
+                text: `Unknown tool "${tool}". Use "man" or "exec".`,
+              },
+            ],
+            isError: true,
+          };
         },
       );
     },

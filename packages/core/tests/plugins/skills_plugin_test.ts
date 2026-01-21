@@ -1,8 +1,6 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { createSkillsPlugin } from "../../src/plugins/skills.ts";
 import { mcpc } from "../../mod.ts";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import type { ComposeDefinition } from "../../src/set-up-mcp-compose.ts";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,20 +32,16 @@ async function createTestServer() {
 Deno.test("skills plugin registers load-skill tool with skills list", async () => {
   const server = await createTestServer();
 
-  const [clientTransport, serverTransport] = InMemoryTransport
-    .createLinkedPair();
-  await server.connect(serverTransport);
+  // Test that the tool exists and works by calling it
+  // Internal tools are not visible via client.listTools() but can be called
+  const result = (await server.callTool("test-agent__load-skill", {
+    skill: "git-workflow",
+  })) as ToolResult;
 
-  const client = new Client({ name: "test-client", version: "1.0.0" });
-  await client.connect(clientTransport);
+  // Verify tool works and contains skill content
+  const text = result?.content?.find((c) => c.type === "text")?.text || "";
+  assertStringIncludes(text, "# Git Workflow");
 
-  const result = await client.listTools();
-  const tool = result.tools.find((t) => t.name === "test-agent__load-skill");
-
-  assertStringIncludes(tool?.description || "", "git-workflow");
-  assertStringIncludes(tool?.description || "", "code-review");
-
-  await client.close();
   await server.close();
 });
 
