@@ -14,22 +14,15 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { mcpc } from "../mod.ts";
 
-export const server = await mcpc(
-  [
-    {
-      name: "agentic-data-analyst",
-      version: "1.0.0",
-    },
-    { capabilities: { tools: { listChanged: true } } },
-  ],
-  [
+export const server = await mcpc({
+  name: "agentic-data-analyst",
+  version: "1.0.0",
+  capabilities: { tools: { listChanged: true } },
+
+  agents: [
     {
       name: "data-analyst",
-
-      // Agentic mode for complete autonomy
-      options: {
-        mode: "agentic",
-      },
+      mode: "agentic",
 
       description:
         `I am an autonomous data analyst that can perform comprehensive data analysis with complete freedom to orchestrate my actions.
@@ -60,22 +53,18 @@ I decide the order of operations dynamically based on:
 
 My autonomous approach ensures thorough analysis tailored to each unique dataset.`,
 
-      deps: {
-        mcpServers: {
-          "code-runner": {
-            command: "deno",
-            args: ["run", "--allow-all", "jsr:@mcpc/code-runner-mcp/bin"],
-            transportType: "stdio",
-          },
-          "@wonderwhy-er/desktop-commander": {
-            command: "npx",
-            args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
-            transportType: "stdio",
-          },
+      mcpServers: {
+        "code-runner": {
+          command: "deno",
+          args: ["run", "--allow-all", "jsr:@mcpc/code-runner-mcp/bin"],
+        },
+        "@wonderwhy-er/desktop-commander": {
+          command: "npx",
+          args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
         },
       },
     },
   ],
-);
+});
 
 await server.connect(new StdioServerTransport());

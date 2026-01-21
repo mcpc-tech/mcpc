@@ -119,15 +119,17 @@ const _errorEnrichmentPlugin: ToolPlugin = {
 
 // Example usage
 async function main() {
-  const server = await mcpc(
-    [{ name: "example-server", version: "1.0.0" }, {}],
-    [],
-    async (server) => {
-      // Add runtime transformation plugins
-      await server.addPlugin(inputSanitizationPlugin);
-      await server.addPlugin(outputFormattingPlugin);
-      await server.addPlugin(loggingPlugin);
+  const server = await mcpc({
+    name: "example-server",
+    version: "1.0.0",
 
+    plugins: [
+      inputSanitizationPlugin,
+      outputFormattingPlugin,
+      loggingPlugin,
+    ],
+
+    setup: (server) => {
       // Register a sample tool
       server.tool(
         "greet",
@@ -151,7 +153,7 @@ async function main() {
         },
       );
     },
-  );
+  });
 
   // Test the tool - input will be sanitized, output will be formatted and logged
   const result = await server.callTool("greet", {

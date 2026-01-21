@@ -15,21 +15,15 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { mcpc } from "../mod.ts";
 
-export const server = await mcpc(
-  [
-    {
-      name: "multi-mcp-web-analyzer",
-      version: "1.0.0",
-    },
-    { capabilities: { tools: { listChanged: true } } },
-  ],
-  [
+export const server = await mcpc({
+  name: "multi-mcp-web-analyzer",
+  version: "1.0.0",
+  capabilities: { tools: { listChanged: true } },
+
+  agents: [
     {
       name: "web-analyzer",
-
-      options: {
-        mode: "agentic",
-      },
+      mode: "agentic",
 
       description:
         `I am a comprehensive web analyzer that combines multiple MCP servers to perform sophisticated web content analysis and reporting.
@@ -83,27 +77,22 @@ I intelligently coordinate between browser automation, data processing, and file
 - PDF reports for sharing and presentation
 - Screenshots and visual documentation`,
 
-      deps: {
-        mcpServers: {
-          "@microsoft/playwright-mcp": {
-            command: "npx",
-            args: ["@playwright/mcp@latest", "--image-responses=emit"],
-            transportType: "stdio",
-          },
-          "code-runner": {
-            command: "deno",
-            args: ["run", "--allow-all", "jsr:@mcpc/code-runner-mcp/bin"],
-            transportType: "stdio",
-          },
-          "@wonderwhy-er/desktop-commander": {
-            command: "npx",
-            args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
-            transportType: "stdio",
-          },
+      mcpServers: {
+        "@microsoft/playwright-mcp": {
+          command: "npx",
+          args: ["@playwright/mcp@latest", "--image-responses=emit"],
+        },
+        "code-runner": {
+          command: "deno",
+          args: ["run", "--allow-all", "jsr:@mcpc/code-runner-mcp/bin"],
+        },
+        "@wonderwhy-er/desktop-commander": {
+          command: "npx",
+          args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
         },
       },
     },
   ],
-);
+});
 
 await server.connect(new StdioServerTransport());

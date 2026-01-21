@@ -13,7 +13,7 @@
 import { z } from "zod";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { type ComposeDefinition, mcpc } from "../mod.ts";
+import { mcpc } from "../mod.ts";
 
 // Create a simple in-memory MCP server for demonstration
 function createTestMcpServer() {
@@ -42,10 +42,22 @@ function createTestMcpServer() {
 // Initialize the in-memory server
 const testServer = createTestMcpServer();
 
-export const toolDefinitions: ComposeDefinition[] = [
-  {
-    name: "memory-agent",
-    description:
+// Note: In-memory transport requires direct server reference which is
+// not supported in the new API's McpServerDef. For in-memory transport,
+// use the setup callback to manually compose.
+export const server = await mcpc({
+  name: "in-memory-example",
+  version: "1.0.0",
+  capabilities: {
+    tools: { listChanged: true },
+  },
+
+  // For in-memory transport, we need to use the setup callback
+  // since the new API doesn't have a direct way to pass server instances
+  setup: async (server) => {
+    // Use the compose method directly for in-memory transport
+    await server.compose(
+      "memory-agent",
       `I am an agent that uses in-memory transport to communicate with MCP servers.
 
 Available tools:
@@ -54,34 +66,17 @@ Available tools:
 I can greet users using the in-memory MCP server. This demonstrates how MCPC can work with 
 in-memory transports for testing and embedded scenarios where you don't want to spawn 
 external processes.`,
-
-    deps: {
-      mcpServers: {
-        "test-memory-server": {
-          transportType: "memory" as const,
-          server: testServer,
+      {
+        mcpServers: {
+          "test-memory-server": {
+            transportType: "memory" as any,
+            server: testServer,
+          } as any,
         },
       },
-    },
+    );
   },
-];
-
-export const server = await mcpc(
-  [
-    {
-      name: "in-memory-example",
-      version: "1.0.0",
-    },
-    {
-      capabilities: {
-        tools: {
-          listChanged: true,
-        },
-      },
-    },
-  ],
-  toolDefinitions,
-);
+});
 
 // Only run if executed directly
 if (import.meta.main) {

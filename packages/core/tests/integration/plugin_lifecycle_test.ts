@@ -3,7 +3,7 @@
  */
 
 import { assertEquals } from "@std/assert";
-import { mcpc } from "../../mod.ts";
+import { mcpcLegacy as mcpc } from "../../mod.ts";
 import type { ToolPlugin } from "../../src/plugin-types.ts";
 import { jsonSchema } from "../../src/utils/schema.ts";
 

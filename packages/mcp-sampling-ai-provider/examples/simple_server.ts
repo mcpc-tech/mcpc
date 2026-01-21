@@ -15,7 +15,7 @@
  * 8. Client completes response.
  */
 
-import { mcpc } from "../../core/mod.ts";
+import { mcpcLegacy as mcpc } from "../../core/mod.ts";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { createMCPSamplingProvider } from "../mod.ts";

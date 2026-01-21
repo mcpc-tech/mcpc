@@ -4,7 +4,7 @@
  */
 
 import { assertEquals } from "@std/assert";
-import { mcpc } from "../../mod.ts";
+import { mcpcLegacy as mcpc } from "../../mod.ts";
 import {
   extractJsonSchema,
   isWrappedSchema,
