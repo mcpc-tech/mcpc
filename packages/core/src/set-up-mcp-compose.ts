@@ -15,6 +15,11 @@ export interface ComposeDefinition {
    * Description of the composed agent's purpose and capabilities.
    */
   description?: string;
+  /**
+   * Optional manual for progressive disclosure.
+   * If provided, description will be short and manual fetched via `man { tools: [], manual: true }`.
+   */
+  manual?: string;
   deps?: MCPSetting;
 
   /**
@@ -360,6 +365,7 @@ export async function mcpc(
       mcpcConfig.description ?? "",
       mcpcConfig.deps,
       mcpcConfig.options,
+      mcpcConfig.manual,
     );
   }
 

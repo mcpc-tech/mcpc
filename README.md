@@ -161,6 +161,43 @@ const server = await mcpc(
 > **Complete Example**: See
 > [14-skills-plugin.ts](packages/core/examples/14-skills-plugin.ts).
 
+### Examples: Progressive Manual Disclosure
+
+For agents with detailed instructions, use the `manual` field to reduce initial
+prompt length - the full manual is fetched on-demand via `man { manual: true }`:
+
+```typescript
+const server = await mcpc(
+  [{ name: "code-reviewer", version: "1.0.0" }, {
+    capabilities: { tools: {} },
+  }],
+  [{
+    name: "code-reviewer",
+    description: "AI code reviewer for quality and security analysis.",
+    manual: `Detailed review guidelines...
+<tool name="desktop-commander.read_file"/>
+<tool name="desktop-commander.write_file"/>
+
+## Review Categories
+1. Code Quality - readability, naming, complexity
+2. Security - SQL injection, XSS, credentials
+...`,
+    deps: {
+      mcpServers: {
+        "desktop-commander": {
+          command: "npx",
+          args: ["-y", "@wonderwhy-er/desktop-commander@0.1.20"],
+          transportType: "stdio",
+        },
+      },
+    },
+  }],
+);
+```
+
+> **Complete Example**: See
+> [21-progressive-manual.ts](packages/core/examples/21-progressive-manual.ts).
+
 ## How It Works
 
 Three simple steps:

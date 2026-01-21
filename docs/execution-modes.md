@@ -41,6 +41,41 @@ action based on previous results.
 3. LLM sees result and decides next action
 4. Process repeats until task is complete
 
+### Progressive Manual Disclosure
+
+For complex agents with detailed instructions, you can use the `manual` field to
+reduce initial prompt length:
+
+- **`description`**: Short summary shown in tool listing (saves tokens)
+- **`manual`**: Full documentation fetched on-demand via `man { manual: true }`
+
+Both fields support `<tool>` tag references.
+
+```typescript
+{
+  name: "code-reviewer",
+  description: "AI code reviewer for code quality and security analysis.",
+  manual: `Detailed instructions for the code reviewer...
+  
+Available tools:
+<tool name="filesystem.read_file"/>
+<tool name="filesystem.write_file"/>
+
+## Review Categories
+1. Code Quality - readability, naming, complexity
+2. Security - SQL injection, XSS, credentials
+3. Performance - algorithm efficiency, memory leaks
+...`,
+  deps: {/* ... */},
+}
+```
+
+The LLM can request the full manual when needed:
+
+- `man { tools: ["filesystem.read_file"] }` - Get tool schemas
+- `man { tools: [], manual: true }` - Get manual only
+- `man { tools: ["filesystem.read_file"], manual: true }` - Get both
+
 ### Example
 
 ```typescript
