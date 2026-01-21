@@ -1,5 +1,9 @@
 import { assertEquals, assertExists } from "@std/assert";
-import { type ComposeDefinition, convertToAISDKTools, mcpc } from "@mcpc/core";
+import {
+  type ComposeDefinition,
+  convertToAISDKTools,
+  mcpcLegacy as mcpc,
+} from "@mcpc/core";
 
 // Mock AI SDK helpers for testing
 const mockTool = (options: {

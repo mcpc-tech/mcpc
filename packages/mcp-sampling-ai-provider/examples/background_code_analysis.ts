@@ -15,7 +15,7 @@
  * deno run --allow-all examples/background_code_analysis.ts
  */
 
-import { mcpc } from "../../core/mod.ts";
+import { mcpcLegacy as mcpc } from "../../core/mod.ts";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createMCPSamplingProvider } from "../mod.ts";
 import { generateText, jsonSchema, stepCountIs, tool } from "ai";

@@ -3,13 +3,13 @@
  */
 
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { mcpc } from "../../src/set-up-mcp-compose.ts";
+import { mcpc as mcpcLegacy } from "../../src/set-up-mcp-compose.ts";
 import { Client } from "@modelcontextprotocol/sdk/client";
 import { assertArrayIncludes, assertEquals } from "@std/assert";
 import { jsonSchema } from "../../src/utils/schema.ts";
 
 Deno.test("Client list tools - agentic server + public tools", async () => {
-  const server = await mcpc(
+  const server = await mcpcLegacy(
     [{ name: "test-server", version: "1.0.0" }, {}],
     [
       {
@@ -54,7 +54,7 @@ Deno.test("Client list tools - agentic server + public tools", async () => {
 });
 
 Deno.test("Client list tools - agentic server + internal", async () => {
-  const server = await mcpc(
+  const server = await mcpcLegacy(
     [{ name: "test-server", version: "1.0.0" }, {}],
     [
       {
@@ -113,7 +113,7 @@ Deno.test("Client list tools - agentic server + internal", async () => {
 Deno.test(
   "Client list tools - agentic server, jsonSchema compatibility",
   async () => {
-    const server = await mcpc(
+    const server = await mcpcLegacy(
       [{ name: "test-server", version: "1.0.0" }, {}],
       [
         {
@@ -170,7 +170,7 @@ Deno.test(
     sanitizeOps: false,
   },
   async () => {
-    const server = await mcpc(
+    const server = await mcpcLegacy(
       [{ name: "test-server", version: "1.0.0" }, {}],
       [
         {

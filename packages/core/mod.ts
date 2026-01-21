@@ -4,38 +4,30 @@
  * Write a simple description, select your tools, and get a working MCP server.
  *
  * ```ts
- * import { type ComposeDefinition, mcpc } from "@mcpc/core";
+ * import { mcpc } from "@mcpc/core";
  * import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
  *
- * // Define MCP server dependencies
- * const deps: ComposeDefinition['deps'] = {
- *   mcpServers: {
- *     "desktop-commander": {
- *       command: "npx",
- *       args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
- *       transportType: "stdio",
- *     }
- *   }
- * }
+ * const server = await mcpc({
+ *   name: "coding-agent",
+ *   version: "1.0.0",
  *
- * // Write agent description with tool references
- * const description = `
- * I am a coding assistant that can read files and run terminal commands.
+ *   agents: [{
+ *     name: "coding-agent",
+ *     description: `
+ *       I am a coding assistant that can read files and run terminal commands.
+ *       <tool name="desktop-commander.execute_command"/>
+ *       <tool name="desktop-commander.read_file"/>
+ *     `,
+ *     mcpServers: {
+ *       "desktop-commander": {
+ *         command: "npx",
+ *         args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+ *       },
+ *     },
+ *   }],
+ * });
  *
- * Available tools:
- * <tool name="desktop-commander.execute_command" />
- * <tool name="desktop-commander.read_file" />
- * <tool name="desktop-commander.write_file" />
- * `
- *
- * // Create and start the server
- * const server = await mcpc(
- *   [{ name: "coding-agent", version: "1.0.0" }],
- *   [{ name: 'coding-agent', description, deps }]
- * )
- *
- * const transport = new StdioServerTransport()
- * await server.connect(transport)
+ * await server.connect(new StdioServerTransport());
  * ```
  *
  * ## Documentation
@@ -83,17 +75,29 @@ export * from "./src/utils/common/env.ts";
 export * from "./src/utils/common/json.ts";
 export * from "./src/utils/common/mcp.ts";
 
+// Legacy API - Positional arguments pattern (deprecated)
 export {
   type ComposeDefinition,
   type ComposeInput,
   type ComposibleMCPConfig,
   isMarkdownFile,
   type MarkdownAgentLoader,
-  mcpc,
+  mcpc as mcpcLegacy,
   type McpcOptions,
   parseMcpcConfigs,
   setMarkdownAgentLoader,
 } from "./src/set-up-mcp-compose.ts";
+
+// Main API - Single configuration object pattern
+export {
+  type AgentDef,
+  type AgentOptions,
+  mcpc,
+  type McpcConfig,
+  type McpServerDef,
+  registerMarkdownLoader,
+  type ServerCapabilities,
+} from "./src/mcpc.ts";
 
 // Schema utilities (replaces AI SDK dependency)
 export {

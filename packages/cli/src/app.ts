@@ -1,6 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { registerAgent } from "./controllers/register.ts";
-import { mcpc } from "@mcpc/core";
+import { mcpcLegacy } from "@mcpc/core";
 import { createLargeResultPlugin } from "@mcpc/core/plugins/large-result";
 import type { ComposableMCPServer, ComposeDefinition } from "@mcpc/core";
 import type { MCPCConfig } from "./config/loader.ts";
@@ -25,7 +25,7 @@ export const createServer = async (
     ] as ComposeDefinition[],
   };
 
-  return await mcpc(
+  return await mcpcLegacy(
     [
       {
         name: serverConfig.name || "mcpc-server",

@@ -4,7 +4,7 @@
  */
 
 import { assertEquals } from "@std/assert";
-import { mcpc } from "../../mod.ts";
+import { mcpcLegacy as mcpc } from "../../mod.ts";
 import { jsonSchema } from "../../src/utils/schema.ts";
 
 Deno.test("ToolManager - register and retrieve tool", async () => {

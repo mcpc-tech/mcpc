@@ -16,21 +16,15 @@ import { createSkillsPlugin } from "../plugins.ts";
 // Get directory of current file for reliable relative paths
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-export const server = await mcpc(
-  [
-    {
-      name: "skills-demo",
-      version: "1.0.0",
-    },
-    { capabilities: { tools: { listChanged: true } } },
-  ],
-  [
+export const server = await mcpc({
+  name: "skills-demo",
+  version: "1.0.0",
+  capabilities: { tools: { listChanged: true } },
+
+  agents: [
     {
       name: "coding-assistant",
-
-      options: {
-        mode: "agentic",
-      },
+      mode: "agentic",
 
       // Just describe the agent - skills info is in load-skill tool
       description:
@@ -43,7 +37,7 @@ export const server = await mcpc(
       ],
     },
   ],
-);
+});
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

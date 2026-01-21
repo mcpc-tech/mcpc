@@ -18,12 +18,19 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { type ComposeDefinition, mcpc } from "../mod.ts";
+import { mcpc } from "../mod.ts";
 
-export const toolDefinitions: ComposeDefinition[] = [
-  {
-    name: "coding-assistant",
-    description: `A coding assistant powered by Claude Code ACP.
+export const server = await mcpc({
+  name: "ai-acp-coding-assistant",
+  version: "1.0.0",
+  capabilities: {
+    tools: { listChanged: true },
+  },
+
+  agents: [
+    {
+      name: "coding-assistant",
+      description: `A coding assistant powered by Claude Code ACP.
 
 Available tools:
 <tool name="@modelcontextprotocol/server-everything.echo"/>
@@ -33,45 +40,26 @@ I can help with:
 1. Echo messages back
 2. Perform arithmetic operations`,
 
-    deps: {
       mcpServers: {
         "@modelcontextprotocol/server-everything": {
           command: "npx",
           args: ["-y", "@modelcontextprotocol/server-everything"],
-          transportType: "stdio" as const,
         },
       },
-    },
 
-    options: {
       mode: "ai_acp",
-      acpSettings: {
-        command: "claude-code-acp",
-        args: [],
-        session: {},
-      },
-      maxSteps: 50,
-      tracingEnabled: false,
-    },
-  },
-];
-
-export const server = await mcpc(
-  [
-    {
-      name: "ai-acp-coding-assistant",
-      version: "1.0.0",
-    },
-    {
-      capabilities: {
-        tools: {
-          listChanged: true,
+      options: {
+        acpSettings: {
+          command: "claude-code-acp",
+          args: [],
+          session: {},
         },
+        maxSteps: 50,
+        tracingEnabled: false,
       },
     },
   ],
-  toolDefinitions,
-);
+});
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

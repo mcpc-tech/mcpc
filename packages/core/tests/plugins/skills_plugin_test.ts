@@ -1,6 +1,6 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { createSkillsPlugin } from "../../src/plugins/skills.ts";
-import { mcpc } from "../../mod.ts";
+import { mcpcLegacy as mcpc } from "../../mod.ts";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import type { ComposeDefinition } from "../../src/set-up-mcp-compose.ts";

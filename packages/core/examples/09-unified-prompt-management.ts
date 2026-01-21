@@ -98,37 +98,31 @@ const agentDescription = fileOperationsDescription
   .replace("{hiddenTools}", hiddenTools)
   .replace("{wildcardTools}", wildcardTools);
 
-export const server = await mcpc(
-  [
-    {
-      name: "unified-prompt-manager",
-      version: "1.0.0",
-    },
-    { capabilities: { tools: { listChanged: true } } },
-  ],
-  [
+export const server = await mcpc({
+  name: "unified-prompt-manager",
+  version: "1.0.0",
+  capabilities: { tools: { listChanged: true } },
+
+  agents: [
     {
       name: "prompt-managed-agent",
-
-      // Use centralized description template
       description: agentDescription,
 
-      deps: {
-        mcpServers: {
-          "@wonderwhy-er/desktop-commander": {
-            command: "npx",
-            args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
-          },
-          "code-runner": {
-            command: "deno",
-            args: ["run", "--allow-all", "jsr:@mcpc/code-runner-mcp/bin"],
-          },
+      mcpServers: {
+        "@wonderwhy-er/desktop-commander": {
+          command: "npx",
+          args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+        },
+        "code-runner": {
+          command: "deno",
+          args: ["run", "--allow-all", "jsr:@mcpc/code-runner-mcp/bin"],
         },
       },
     },
   ],
+
   // Demonstrate internal tool registration with centralized prompts
-  (server) => {
+  setup: (server) => {
     server.tool(
       "audit-logger",
       "Internal comprehensive audit logging with standardized format",
@@ -228,6 +222,6 @@ export const server = await mcpc(
       "📝 All prompts are now centrally managed and dynamically generated",
     );
   },
-);
+});
 
 await server.connect(new StdioServerTransport());

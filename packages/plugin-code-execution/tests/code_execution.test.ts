@@ -3,7 +3,7 @@
  */
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { mcpc } from "@mcpc/core";
+import { mcpcLegacy as mcpc } from "@mcpc/core";
 import { createCodeExecutionPlugin } from "../mod.ts";
 
 Deno.test(

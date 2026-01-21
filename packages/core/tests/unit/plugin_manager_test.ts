@@ -4,7 +4,7 @@
  */
 
 import { assertEquals, assertRejects } from "@std/assert";
-import { mcpc } from "../../mod.ts";
+import { mcpcLegacy as mcpc } from "../../mod.ts";
 import type { ToolPlugin } from "../../src/plugin-types.ts";
 
 Deno.test("PluginManager - register valid plugin", async () => {

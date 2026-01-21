@@ -5,7 +5,7 @@
  * Uses in-memory transport for zero-overhead communication.
  */
 
-import { type ComposeDefinition, mcpc } from "@mcpc/core";
+import { type ComposeDefinition, mcpcLegacy } from "@mcpc/core";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer } from "./mod.ts";
 
@@ -48,7 +48,7 @@ I help you discover and compose MCP servers from the mcpc.tech registry to build
 `;
 
 (async () => {
-  const server = await mcpc(
+  const server = await mcpcLegacy(
     [
       { name: "mcpc-builder-agent", version: "1.0.0" },
       { capabilities: { tools: {} } },

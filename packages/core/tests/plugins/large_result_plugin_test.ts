@@ -1,4 +1,4 @@
-import { mcpc } from "../../mod.ts";
+import { mcpcLegacy as mcpc } from "../../mod.ts";
 import { jsonSchema } from "../../src/utils/schema.ts";
 import { createLargeResultPlugin } from "../../src/plugins/large-result.ts";
 import type { ComposeDefinition } from "../../src/set-up-mcp-compose.ts";

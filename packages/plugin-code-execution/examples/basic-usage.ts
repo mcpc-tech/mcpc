@@ -10,7 +10,7 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { type ComposeDefinition, mcpc } from "@mcpc/core";
+import { type ComposeDefinition, mcpcLegacy } from "@mcpc/core";
 import { createCodeExecutionPlugin } from "@mcpc/plugin-code-execution/plugin";
 
 const toolDefinitions: ComposeDefinition[] = [
@@ -48,7 +48,7 @@ The code can call MCP tools via \`callMCPTool(toolName, params)\` function.`,
 ];
 
 // Create server with code execution plugin
-const server = await mcpc(
+const server = await mcpcLegacy(
   [
     {
       name: "sandbox-demo",

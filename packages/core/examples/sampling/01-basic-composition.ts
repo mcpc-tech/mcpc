@@ -1,7 +1,7 @@
 /**
- * MCPC Example 01: Basic File Manager
+ * MCPC Example 01: Basic File Manager (AI Sampling Mode)
  *
- * Demonstrates the fundamental MCPC features:
+ * Demonstrates the fundamental MCPC features with AI sampling mode:
  * - Basic server creation and composition
  * - Dependency management with external MCP servers
  * - Simple tool orchestration with file operations
@@ -12,16 +12,21 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { mcpc } from "../../mod.ts";
-import type { ComposeDefinition } from "../../src/set-up-mcp-compose.ts";
 
-export const toolDefinitions: ComposeDefinition[] = [
-  {
-    name: "file-organizer",
-    options: {
+export const server = await mcpc({
+  name: "basic-file-manager",
+  version: "1.0.0",
+  capabilities: {
+    tools: { listChanged: true },
+  },
+
+  agents: [
+    {
+      name: "file-organizer",
       mode: "ai_sampling",
-    },
-    description:
-      `I am a smart file organizer that helps users manage their files efficiently.
+
+      description:
+        `I am a smart file organizer that helps users manage their files efficiently.
 
 Available tools:
 <tool name="@wonderwhy-er/desktop-commander.list_directory"/>
@@ -40,34 +45,15 @@ I can:
 
 I always ask for confirmation before making destructive changes and provide clear explanations of what I'm doing.`,
 
-    deps: {
       mcpServers: {
         "@wonderwhy-er/desktop-commander": {
           command: "npx",
           args: ["-y", "@wonderwhy-er/desktop-commander"],
-          transportType: "stdio",
-        },
-      },
-    },
-  },
-];
-
-export const server = await mcpc(
-  [
-    {
-      name: "basic-file-manager",
-      version: "1.0.0",
-    },
-    {
-      capabilities: {
-        tools: {
-          listChanged: true,
         },
       },
     },
   ],
-  toolDefinitions,
-);
+});
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
