@@ -525,10 +525,10 @@ IMPORTANT: You MUST respond with valid JSON only. Do not include any text before
 
     let enhanced = systemPrompt || "";
 
-    // Build tool instructions using XML format
+    // Build tool instructions using XML format with clear boundaries
     const toolsPrompt = `
 
-AVAILABLE TOOLS:
+<available_tools>
 You have access to the following tools. To use a tool, respond with this XML format:
 <use_tool tool="tool_name">
 {"param1": "value1", "param2": "value2"}
@@ -537,9 +537,9 @@ You have access to the following tools. To use a tool, respond with this XML for
 Follow the JSON schema definition for each tool's parameters.
 You can use multiple tools in one response. DO NOT include text before or after tool calls - wait for the tool results first.
 
-Tools:`;
+<tools>`;
 
-    // Add each tool's description
+    // Add each tool's description with clear XML boundaries
     const toolDescriptions = tools
       .map((tool) => {
         // Handle different tool types
@@ -548,23 +548,33 @@ Tools:`;
           const description = toolAny.description || "No description provided";
           // Try both inputSchema and parameters for compatibility
           const schema = toolAny.inputSchema || toolAny.parameters;
-          const params = schema
-            ? `\n  JSON Schema: ${JSON.stringify(schema, null, 2)}`
+          const schemaStr = schema
+            ? `\n<schema>\n${JSON.stringify(schema, null, 2)}\n</schema>`
             : "";
           return `
-- ${tool.name}: ${description}${params}`;
+<tool name="${tool.name}">
+<description>
+${description}
+</description>${schemaStr}
+</tool>`;
         } else if (tool.type === "provider-defined") {
           return `
-- ${tool.name}: ${tool.id || "No description provided"}`;
+<tool name="${tool.name}">
+<description>${tool.id || "No description provided"}</description>
+</tool>`;
         }
         return "";
       })
       .filter(Boolean)
       .join("");
 
+    const toolsEnd = `
+</tools>
+</available_tools>`;
+
     enhanced = enhanced
-      ? `${enhanced}${toolsPrompt}${toolDescriptions}`
-      : `${toolsPrompt}${toolDescriptions}`.trim();
+      ? `${enhanced}${toolsPrompt}${toolDescriptions}${toolsEnd}`
+      : `${toolsPrompt}${toolDescriptions}${toolsEnd}`.trim();
 
     return enhanced || undefined;
   }
