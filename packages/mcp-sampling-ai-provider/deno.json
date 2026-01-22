@@ -12,7 +12,7 @@
     "test": "deno test --allow-all tests/"
   },
   "imports": {
-    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.25.1",
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.25.3",
     "@ai-sdk/provider": "npm:@ai-sdk/provider@^2.0.0",
     "@ai-sdk/provider-utils": "npm:@ai-sdk/provider-utils@^2.2.8",
     "ai": "npm:ai@^5.0.60",

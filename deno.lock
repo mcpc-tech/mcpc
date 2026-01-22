@@ -27,8 +27,9 @@
     "npm:@mcpc-tech/handle-sandbox@^0.0.8": "0.0.8",
     "npm:@mcpc-tech/plugin-code-execution@^0.0.8": "0.0.8_zod@3.25.76_@opentelemetry+api@1.9.0_ajv@8.17.1_hono@4.9.10",
     "npm:@mcpc-tech/ripgrep-napi@^0.0.4": "0.0.4",
-    "npm:@modelcontextprotocol/sdk@^1.25.1": "1.25.1_zod@3.25.76_hono@4.9.10_ajv@8.17.1_express@5.1.0",
-    "npm:@modelcontextprotocol/sdk@^1.8.0": "1.25.1_zod@3.25.76_hono@4.9.10_ajv@8.17.1_express@5.1.0",
+    "npm:@modelcontextprotocol/sdk@^1.25.1": "1.25.3_zod@3.25.76_hono@4.9.10_ajv@8.17.1_express@5.1.0",
+    "npm:@modelcontextprotocol/sdk@^1.25.3": "1.25.3_zod@3.25.76_hono@4.9.10_ajv@8.17.1_express@5.1.0",
+    "npm:@modelcontextprotocol/sdk@^1.8.0": "1.25.3_zod@3.25.76_hono@4.9.10_ajv@8.17.1_express@5.1.0",
     "npm:@opentelemetry/api@^1.9.0": "1.9.0",
     "npm:@opentelemetry/exporter-trace-otlp-http@0.56": "0.56.0_@opentelemetry+api@1.9.0",
     "npm:@opentelemetry/resources@^1.29.0": "1.30.1_@opentelemetry+api@1.9.0",
@@ -239,8 +240,8 @@
         "tslib"
       ]
     },
-    "@hono/node-server@1.19.7_hono@4.9.10": {
-      "integrity": "sha512-vUcD0uauS7EU2caukW8z5lJKtoGMokxNbJtBiwHgpqxEXokaHCBkQUmCHhjFB1VUTWdqj25QoMkMKzgjq+uhrw==",
+    "@hono/node-server@1.19.9_hono@4.9.10": {
+      "integrity": "sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw==",
       "dependencies": [
         "hono"
       ]
@@ -402,8 +403,8 @@
         "@mcpc-tech/ripgrep-napi-win32-x64-msvc"
       ]
     },
-    "@modelcontextprotocol/sdk@1.25.1_zod@3.25.76_hono@4.9.10_ajv@8.17.1_express@5.1.0": {
-      "integrity": "sha512-yO28oVFFC7EBoiKdAn+VqRm+plcfv4v0xp6osG/VsCB0NlPZWi87ajbCZZ8f/RvOFLEu7//rSRmuZZ7lMoe3gQ==",
+    "@modelcontextprotocol/sdk@1.25.3_zod@3.25.76_hono@4.9.10_ajv@8.17.1_express@5.1.0": {
+      "integrity": "sha512-vsAMBMERybvYgKbg/l4L1rhS7VXV1c0CtyJg72vwxONVX0l4ZfKVAnZEWTQixJGTzKnELjQ59e4NbdFDALRiAQ==",
       "dependencies": [
         "@hono/node-server",
         "ajv",
@@ -1479,7 +1480,7 @@
           "jsr:@std/assert@1",
           "npm:@ai-sdk/provider-utils@^2.2.8",
           "npm:@ai-sdk/provider@2",
-          "npm:@modelcontextprotocol/sdk@^1.25.1",
+          "npm:@modelcontextprotocol/sdk@^1.25.3",
           "npm:ai@^5.0.60",
           "npm:zod@^3.24.2"
         ]

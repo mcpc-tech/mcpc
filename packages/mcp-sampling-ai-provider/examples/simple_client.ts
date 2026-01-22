@@ -11,7 +11,7 @@ import { LoggingMessageNotificationSchema } from "@modelcontextprotocol/sdk/type
 import { convertMCPToolsToAISDK, setupClientSampling } from "../mod.ts";
 import { generateText, jsonSchema, tool } from "ai";
 
-const DEBUG = false;
+const DEBUG = true;
 
 // 1. Initialize MCP Client
 const client = new Client(
@@ -90,11 +90,13 @@ if (DEBUG) {
 try {
   const result = await client.callTool({
     name: "ask-agent",
-    arguments: { question: "What is 15 + 27? You MUST use the 'add' tool." },
+    arguments: {
+      question:
+        "What is 15 + 27? You MUST use the 'add' tool and report back whether the tool is called or not.",
+    },
   });
 
-  // @ts-ignore: raw content access
-  console.log(result.content[0].text);
+  console.log(result.content);
 } catch (error) {
   console.error("❌ Tool call failed:", error);
 }
