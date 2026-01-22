@@ -1442,9 +1442,9 @@
       },
       "packages/cli": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.29",
+          "jsr:@mcpc/core@~0.3.30",
           "jsr:@mcpc/plugin-markdown-loader@^0.0.3",
-          "jsr:@mcpc/utils@~0.2.5",
+          "jsr:@mcpc/utils@~0.2.12",
           "jsr:@std/assert@^1.0.14",
           "jsr:@std/http@^1.0.14",
           "npm:@hono/zod-openapi@~0.19.2",
@@ -1458,8 +1458,8 @@
       },
       "packages/core": {
         "dependencies": [
-          "jsr:@mcpc/mcp-sampling-ai-provider@~0.1.20",
-          "jsr:@mcpc/utils@~0.2.11",
+          "jsr:@mcpc/mcp-sampling-ai-provider@~0.1.21",
+          "jsr:@mcpc/utils@~0.2.12",
           "jsr:@std/assert@1",
           "npm:@ai-sdk/provider-utils@^2.2.8",
           "npm:@ai-sdk/provider@2",
