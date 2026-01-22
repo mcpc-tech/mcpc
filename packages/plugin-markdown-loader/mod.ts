@@ -32,7 +32,9 @@ import { loadMarkdownAgentFile } from "./src/markdown-loader.ts";
 export { setMarkdownAgentLoader } from "@mcpc/core";
 
 export {
+  isDirectory,
   isMarkdownAgentFile,
+  loadMarkdownAgentDirectory,
   loadMarkdownAgentFile,
   type MarkdownAgentFrontMatter,
   markdownAgentToComposeDefinition,
