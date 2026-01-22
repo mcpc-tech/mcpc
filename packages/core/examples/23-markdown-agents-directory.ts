@@ -28,7 +28,16 @@ const agentsDir = join(
 );
 
 // Load all agents from the directory
-const agentDefinitions = await loadMarkdownAgentDirectory(agentsDir);
+const { definitions: agentDefinitions, errors } =
+  await loadMarkdownAgentDirectory(agentsDir);
+
+// Report any errors
+if (errors.length > 0) {
+  console.warn(`Encountered ${errors.length} error(s):`);
+  for (const err of errors) {
+    console.warn(`  - ${err.path}: ${err.error}`);
+  }
+}
 
 console.log(`Loaded ${agentDefinitions.length} agents from ${agentsDir}`);
 for (const agent of agentDefinitions) {

@@ -205,9 +205,11 @@ export function markdownAgentToComposeDefinition(
     }
   }
 
-  // If frontMatter.description is provided, body becomes manual (progressive disclosure)
+  // If frontMatter.description is provided (non-empty), body becomes manual (progressive disclosure)
   // Otherwise, body becomes description (existing behavior)
-  const hasDescription = frontMatter.description !== undefined;
+  // Treat empty string as undefined
+  const hasDescription = frontMatter.description !== undefined &&
+    frontMatter.description !== "";
 
   return {
     name: frontMatter.name,
@@ -231,20 +233,31 @@ export async function loadMarkdownAgentFile(
 }
 
 /**
+ * Result of loading agents from a directory
+ */
+export interface LoadDirectoryResult {
+  /** Successfully loaded agent definitions */
+  definitions: ComposeDefinition[];
+  /** Errors encountered during loading (file path and error message) */
+  errors: Array<{ path: string; error: string }>;
+}
+
+/**
  * Load all Markdown agent definitions from a directory.
  * Only loads .md files in the directory (non-recursive by default).
  *
  * @param dirPath - Path to the directory containing Markdown agent files
  * @param options - Options for loading
  * @param options.recursive - If true, recursively search subdirectories (default: false)
- * @returns Array of ComposeDefinition objects
+ * @returns Object containing definitions and any errors encountered
  */
 export async function loadMarkdownAgentDirectory(
   dirPath: string,
   options: { recursive?: boolean } = {},
-): Promise<ComposeDefinition[]> {
+): Promise<LoadDirectoryResult> {
   const { recursive = false } = options;
   const definitions: ComposeDefinition[] = [];
+  const errors: Array<{ path: string; error: string }> = [];
 
   async function processDirectory(dir: string): Promise<void> {
     const entries = await readdir(dir, { withFileTypes: true });
@@ -259,15 +272,18 @@ export async function loadMarkdownAgentDirectory(
           const definition = await loadMarkdownAgentFile(fullPath);
           definitions.push(definition);
         } catch (error) {
-          // Skip files that fail to parse (e.g., non-agent markdown files)
-          console.warn(`Skipping ${fullPath}: ${error}`);
+          // Collect errors instead of logging
+          errors.push({
+            path: fullPath,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       }
     }
   }
 
   await processDirectory(dirPath);
-  return definitions;
+  return { definitions, errors };
 }
 
 /**

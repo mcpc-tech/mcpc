@@ -34,6 +34,7 @@ export { setMarkdownAgentLoader } from "@mcpc/core";
 export {
   isDirectory,
   isMarkdownAgentFile,
+  type LoadDirectoryResult,
   loadMarkdownAgentDirectory,
   loadMarkdownAgentFile,
   type MarkdownAgentFrontMatter,

@@ -101,6 +101,13 @@ It will be used as the \`manual\` field for progressive disclosure.
 
 Use <tool name="server.tool"/> to do something.
 `,
+  emptyDescription: `---
+name: empty-desc-agent
+description: ""
+---
+
+Body content here.
+`,
 };
 
 Deno.test("parse valid markdown agent file", () => {
@@ -201,6 +208,17 @@ Deno.test("without frontmatter description, body becomes description (no manual)
   assertEquals(definition.manual, undefined);
 });
 
+Deno.test("empty string description is treated as undefined", () => {
+  const parsed = parseMarkdownAgent(fixtures.emptyDescription);
+  assertEquals(parsed.frontMatter.description, "");
+
+  const definition = markdownAgentToComposeDefinition(parsed);
+  assertEquals(definition.name, "empty-desc-agent");
+  // Empty string should be treated as no description, so body becomes description
+  assertEquals(definition.description, "Body content here.");
+  assertEquals(definition.manual, undefined);
+});
+
 // Directory loading tests
 const TEST_DIR = "./test-agents-temp";
 
@@ -230,8 +248,9 @@ Agent two description.
   await writeFile(join(TEST_DIR, "readme.txt"), "This is not an agent.");
 
   try {
-    const definitions = await loadMarkdownAgentDirectory(TEST_DIR);
+    const { definitions, errors } = await loadMarkdownAgentDirectory(TEST_DIR);
     assertEquals(definitions.length, 2);
+    assertEquals(errors.length, 0);
     const names = definitions.map((d) => d.name).sort();
     assertEquals(names, ["agent-one", "agent-two"]);
   } finally {
@@ -264,16 +283,42 @@ Nested agent.
   try {
     // Non-recursive should only find root
     const nonRecursive = await loadMarkdownAgentDirectory(TEST_DIR);
-    assertEquals(nonRecursive.length, 1);
-    assertEquals(nonRecursive[0].name, "root-agent");
+    assertEquals(nonRecursive.definitions.length, 1);
+    assertEquals(nonRecursive.definitions[0].name, "root-agent");
 
     // Recursive should find both
     const recursive = await loadMarkdownAgentDirectory(TEST_DIR, {
       recursive: true,
     });
-    assertEquals(recursive.length, 2);
-    const names = recursive.map((d) => d.name).sort();
+    assertEquals(recursive.definitions.length, 2);
+    const names = recursive.definitions.map((d) => d.name).sort();
     assertEquals(names, ["nested-agent", "root-agent"]);
+  } finally {
+    await rm(TEST_DIR, { recursive: true, force: true });
+  }
+});
+
+Deno.test("loadMarkdownAgentDirectory returns errors for invalid files", async () => {
+  await mkdir(TEST_DIR, { recursive: true });
+  await writeFile(
+    join(TEST_DIR, "valid.md"),
+    `---
+name: valid-agent
+---
+
+Valid agent.
+`,
+  );
+  // Invalid markdown file (no frontmatter)
+  await writeFile(join(TEST_DIR, "invalid.md"), "# No frontmatter here");
+
+  try {
+    const { definitions, errors } = await loadMarkdownAgentDirectory(TEST_DIR);
+    assertEquals(definitions.length, 1);
+    assertEquals(definitions[0].name, "valid-agent");
+    assertEquals(errors.length, 1);
+    assertEquals(errors[0].path.includes("invalid.md"), true);
+    assertEquals(errors[0].error.includes("missing YAML front matter"), true);
   } finally {
     await rm(TEST_DIR, { recursive: true, force: true });
   }
