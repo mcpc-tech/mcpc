@@ -34,8 +34,9 @@ import {
   type MCPSetting,
   type SamplingConfig,
 } from "@mcpc/core";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import { parse as parseYaml } from "@std/yaml";
+import { join } from "node:path";
 import process from "node:process";
 
 // Re-export for convenience
@@ -77,6 +78,12 @@ function replaceEnvVarsInObject<T>(obj: T): T {
 export interface MarkdownAgentFrontMatter {
   /** Agent name (required) */
   name: string;
+  /**
+   * Short description for progressive disclosure.
+   * If provided, the Markdown body becomes the `manual` field.
+   * If not provided, the Markdown body becomes the `description` field.
+   */
+  description?: string;
   /** Execution mode */
   mode?: "agentic" | "ai_sampling" | "ai_acp" | "code_execution";
   /** Maximum execution steps */
@@ -127,7 +134,8 @@ export interface MarkdownAgentFrontMatter {
  */
 export interface ParsedMarkdownAgent {
   frontMatter: MarkdownAgentFrontMatter;
-  description: string;
+  /** The Markdown body content */
+  body: string;
 }
 
 /**
@@ -161,7 +169,7 @@ export function parseMarkdownAgent(content: string): ParsedMarkdownAgent {
 
   return {
     frontMatter,
-    description: markdownContent.trim(),
+    body: markdownContent.trim(),
   };
 }
 
@@ -187,7 +195,7 @@ export function markdownAgentToComposeDefinition(
 ): ComposeDefinition {
   // Replace environment variables in front matter
   const frontMatter = replaceEnvVarsInObject(parsed.frontMatter);
-  const description = replaceEnvVars(parsed.description);
+  const body = replaceEnvVars(parsed.body);
 
   // Build options by picking defined keys from front matter
   const options: Record<string, unknown> = {};
@@ -197,9 +205,16 @@ export function markdownAgentToComposeDefinition(
     }
   }
 
+  // If frontMatter.description is provided (non-empty), body becomes manual (progressive disclosure)
+  // Otherwise, body becomes description (existing behavior)
+  // Treat empty string as undefined
+  const hasDescription = frontMatter.description !== undefined &&
+    frontMatter.description !== "";
+
   return {
     name: frontMatter.name,
-    description,
+    description: hasDescription ? frontMatter.description : body,
+    ...(hasDescription && body ? { manual: body } : {}),
     deps: frontMatter.deps as MCPSetting | undefined,
     plugins: frontMatter.plugins,
     ...(Object.keys(options).length > 0 ? { options } : {}),
@@ -215,4 +230,70 @@ export async function loadMarkdownAgentFile(
   const content = await readFile(filePath, "utf-8");
   const parsed = parseMarkdownAgent(content);
   return markdownAgentToComposeDefinition(parsed);
+}
+
+/**
+ * Result of loading agents from a directory
+ */
+export interface LoadDirectoryResult {
+  /** Successfully loaded agent definitions */
+  definitions: ComposeDefinition[];
+  /** Errors encountered during loading (file path and error message) */
+  errors: Array<{ path: string; error: string }>;
+}
+
+/**
+ * Load all Markdown agent definitions from a directory.
+ * Only loads .md files in the directory (non-recursive by default).
+ *
+ * @param dirPath - Path to the directory containing Markdown agent files
+ * @param options - Options for loading
+ * @param options.recursive - If true, recursively search subdirectories (default: false)
+ * @returns Object containing definitions and any errors encountered
+ */
+export async function loadMarkdownAgentDirectory(
+  dirPath: string,
+  options: { recursive?: boolean } = {},
+): Promise<LoadDirectoryResult> {
+  const { recursive = false } = options;
+  const definitions: ComposeDefinition[] = [];
+  const errors: Array<{ path: string; error: string }> = [];
+
+  async function processDirectory(dir: string): Promise<void> {
+    const entries = await readdir(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+
+      if (entry.isDirectory() && recursive) {
+        await processDirectory(fullPath);
+      } else if (entry.isFile() && isMarkdownFile(entry.name)) {
+        try {
+          const definition = await loadMarkdownAgentFile(fullPath);
+          definitions.push(definition);
+        } catch (error) {
+          // Collect errors instead of logging
+          errors.push({
+            path: fullPath,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    }
+  }
+
+  await processDirectory(dirPath);
+  return { definitions, errors };
+}
+
+/**
+ * Check if a path is a directory
+ */
+export async function isDirectory(path: string): Promise<boolean> {
+  try {
+    const stats = await stat(path);
+    return stats.isDirectory();
+  } catch {
+    return false;
+  }
 }
