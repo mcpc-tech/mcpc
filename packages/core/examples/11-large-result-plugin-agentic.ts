@@ -18,7 +18,7 @@ const server = await mcpc(
       description:
         "Agent that demonstrates automatic large output handling and file storage",
       plugins: [
-        "./plugins/large-result.ts?maxSize=8000&previewSize=4000",
+        "./plugins/large-result.ts?maxSize=300&previewSize=150",
         // create a large result plugin instance
         // createLargeResultPlugin(),
       ],

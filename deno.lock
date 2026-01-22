@@ -3,6 +3,7 @@
   "specifiers": {
     "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.41.0",
     "jsr:@mcpc/plugin-markdown-loader@^0.0.3": "0.0.3",
+    "jsr:@std/assert@*": "1.0.14",
     "jsr:@std/assert@1": "1.0.14",
     "jsr:@std/assert@^1.0.14": "1.0.14",
     "jsr:@std/cli@^1.0.21": "1.0.21",

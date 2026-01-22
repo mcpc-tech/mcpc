@@ -293,12 +293,40 @@ export class AgenticExecutor {
     toolArgs: Record<string, unknown>,
     executeSpan: Span | null,
   ): Promise<CallToolResult> {
-    // First check external tools (from toolNameToDetailList)
-    const externalTool = this.toolNameToDetailList.find(
+    // Check if tool exists (either in toolNameToDetailList or allToolNames)
+    const isExternalTool = this.toolNameToDetailList.some(
       ([name]) => name === tool,
     );
+    const isInternalTool = this.allToolNames.includes(tool);
 
-    if (externalTool) {
+    if (!isExternalTool && !isInternalTool) {
+      // Tool not found - handled at the end
+      if (executeSpan) {
+        executeSpan.setAttributes({
+          toolType: "not_found",
+          tool,
+        });
+        endSpan(executeSpan);
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Tool "${tool}" not found. Available tools: ${
+              this.allToolNames.join(", ")
+            }`,
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    // For external tools, validate args first using schema from toolNameToDetailList
+    if (isExternalTool) {
+      const externalTool = this.toolNameToDetailList.find(
+        ([name]) => name === tool,
+      );
       const [, toolDetail] = externalTool as [
         string,
         {
@@ -307,16 +335,8 @@ export class AgenticExecutor {
         },
       ];
 
-      if (executeSpan) {
-        executeSpan.setAttributes({
-          toolType: "external",
-          selectedTool: tool,
-        });
-      }
-
       // Runtime validation using tool's inputSchema
       if (toolDetail.inputSchema) {
-        // Extract raw JSON Schema from wrapped schema format
         const rawSchema = extractJsonSchema(toolDetail.inputSchema as any);
         const validation = validateSchema(toolArgs, rawSchema);
         if (!validation.valid) {
@@ -340,102 +360,62 @@ export class AgenticExecutor {
           };
         }
       }
+    }
 
-      this.logger.debug({
-        message: "Executing external tool",
-        tool,
+    // Execute tool via server.callTool to ensure transformTool hooks are applied
+    const toolType = isExternalTool ? "external" : "internal";
+    if (executeSpan) {
+      executeSpan.setAttributes({
+        toolType,
+        selectedTool: tool,
       });
+    }
 
-      const result = await toolDetail.execute(toolArgs);
+    this.logger.debug({
+      message: `Executing ${toolType} tool`,
+      tool,
+    });
+
+    try {
+      // Pass agent context for lifecycle hooks
+      const result = await this.server.callTool(tool, toolArgs, {
+        agentName: this.name,
+      });
+      const callToolResult = (result as CallToolResult) ?? { content: [] };
 
       if (executeSpan) {
         executeSpan.setAttributes({
           success: true,
-          isError: !!result.isError,
-          resultContentLength: result.content?.length || 0,
+          isError: !!callToolResult.isError,
+          resultContentLength: callToolResult.content?.length || 0,
         });
         endSpan(executeSpan);
       }
 
-      return result;
-    }
-
-    // Check internal tools (from server)
-    if (this.allToolNames.includes(tool)) {
+      return callToolResult;
+    } catch (error) {
       if (executeSpan) {
-        executeSpan.setAttributes({
-          toolType: "internal",
-          selectedTool: tool,
-        });
+        endSpan(executeSpan, error as Error);
       }
 
-      this.logger.debug({
-        message: "Executing internal tool",
+      this.logger.error({
+        message: `Error executing ${toolType} tool`,
         tool,
+        error: String(error),
       });
 
-      try {
-        // Pass agent context for lifecycle hooks
-        const result = await this.server.callTool(tool, toolArgs, {
-          agentName: this.name,
-        });
-        const callToolResult = (result as CallToolResult) ?? { content: [] };
-
-        if (executeSpan) {
-          executeSpan.setAttributes({
-            success: true,
-            isError: !!callToolResult.isError,
-            resultContentLength: callToolResult.content?.length || 0,
-          });
-          endSpan(executeSpan);
-        }
-
-        return callToolResult;
-      } catch (error) {
-        if (executeSpan) {
-          endSpan(executeSpan, error as Error);
-        }
-
-        this.logger.error({
-          message: "Error executing internal tool",
-          tool,
-          error: String(error),
-        });
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error executing tool "${tool}": ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-            },
-          ],
-          isError: true,
-        };
-      }
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error executing tool "${tool}": ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          },
+        ],
+        isError: true,
+      };
     }
-
-    // Tool not found
-    if (executeSpan) {
-      executeSpan.setAttributes({
-        toolType: "not_found",
-        tool,
-      });
-      endSpan(executeSpan);
-    }
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Tool "${tool}" not found. Available tools: ${
-            this.allToolNames.join(", ")
-          }`,
-        },
-      ],
-      isError: true,
-    };
   }
 
   validate(
