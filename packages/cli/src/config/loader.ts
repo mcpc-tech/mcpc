@@ -45,11 +45,15 @@
  */
 
 import type { ComposeInput } from "@mcpc/core";
+import { parseArgs } from "@std/cli/parse-args";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { DEFAULT_SKILLS_PATHS } from "../defaults.ts";
+
+/** CLI version - synced with deno.json */
+const CLI_VERSION = "0.1.44";
 
 export interface MCPCConfig {
   /**
@@ -266,102 +270,56 @@ async function createWrapConfig(args: {
 }
 
 /**
+ * Print version information
+ */
+function printVersion(): void {
+  console.log(`mcpc ${CLI_VERSION}`);
+}
+
+/**
  * Print help message
  */
 function printHelp(): void {
   console.log(`
-MCPC CLI - Model Context Protocol Composer
+mcpc ${CLI_VERSION} - Model Context Protocol Composer
 
 USAGE:
     mcpc [OPTIONS]
 
 OPTIONS:
-    --help, -h              Show this help message
+    -h, --help              Show this help message
+    -v, --version           Show version information
     --cwd <path>            Change working directory before loading config
-                           Useful when running from MCP Inspector or other tools
     --config <json>         Inline JSON configuration string
     --config-url <url>      Fetch configuration from URL
     --config-file <path>    Load configuration from file path
-    --skills <dirs>         Skills directories (comma-separated), default: .claude/skills
-                           Example: --skills ./skills,./more-skills
-    --request-headers <header>, -H <header>
-                           Add custom HTTP header for URL fetching
-                           Format: "Key: Value" or "Key=Value"
-                           Can be used multiple times
-    --mode <mode>           Set execution mode for JSON/object agents (does not
-                           affect Markdown agent files which define mode in frontmatter)
-                           Supported modes:
-                           - agentic: Fully autonomous agent mode (default)
-                           - ai_sampling: AI SDK sampling mode for autonomous execution
-                           - ai_acp: AI SDK ACP mode for coding agents
-                           - code_execution: Code execution mode (requires @mcpc-tech/plugin-code-execution)
+    --skills <dirs>         Skills directories (comma-separated)
+    -H, --request-headers <header>
+                            Add custom HTTP header for URL fetching
+                            Format: "Key: Value" or "Key=Value"
+    --mode <mode>           Set execution mode for agents
+                            Modes: agentic, ai_sampling, ai_acp, code_execution
     --add                   Add MCP servers to ~/.mcpc/config.json and exit
-                           Then run 'mcpc' to start the server with saved config
-                           Use --mcp-stdio, --mcp-http, or --mcp-sse to specify servers
-    --wrap                  Wrap and run MCP servers immediately without saving config
-                           Use --mcp-stdio, --mcp-http, or --mcp-sse to specify servers
+    --wrap                  Wrap and run MCP servers immediately
     --mcp-stdio <cmd>       Add an MCP server with stdio transport
-                           Example: --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
     --mcp-http <url>        Add an MCP server with streamable-http transport
-                           Example: --mcp-http "https://api.github.com/mcp"
     --mcp-sse <url>         Add an MCP server with SSE transport
-                           Example: --mcp-sse "https://api.example.com/sse"
-    --name <name>           Custom agent name for wrap mode (overrides auto-detection)
+    --name <name>           Custom agent name for wrap mode
 
 ENVIRONMENT VARIABLES:
-    MCPC_CONFIG            Inline JSON configuration (same as --config)
-    MCPC_CONFIG_URL        URL to fetch config from (same as --config-url)
-    MCPC_CONFIG_FILE       Path to config file (same as --config-file)
+    MCPC_CONFIG             Inline JSON configuration
+    MCPC_CONFIG_URL         URL to fetch config from
+    MCPC_CONFIG_FILE        Path to config file
 
 EXAMPLES:
-    # Show help
     mcpc --help
-
-    # Add MCP servers to config and save to ~/.mcpc/config.json
+    mcpc --version
     mcpc --add --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
-    # Edit ~/.mcpc/config.json if needed (add headers, etc.)
-    mcpc  # Loads config from ~/.mcpc/config.json automatically
-
-    # Wrap and run immediately (one-time use, no config saved)
     mcpc --wrap --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
-
-    # Multiple servers with different transports
-    mcpc --add \
-      --mcp-stdio "npx -y @wonderwhy-er/desktop-commander" \
-      --mcp-http "https://api.github.com/mcp" \
-      --mcp-sse "https://api.example.com/sse"
-
-    # Custom agent name
-    mcpc --add --name my-agent --mcp-stdio "npx shadcn@latest mcp"
-    mcpc --wrap --name my-agent --mcp-stdio "npx shadcn@latest mcp"
-
-    # Load from URL
-    mcpc --config-url \\
-      "https://raw.githubusercontent.com/mcpc-tech/mcpc/main/packages/cli/examples/configs/codex-fork.json"
-
-    # Load from URL with custom headers
-    mcpc \\
-      --config-url "https://api.example.com/config.json" \\
-      -H "Authorization: Bearer token123" \\
-      -H "X-Custom-Header: value"
-
-    # Load from file
+    mcpc --config-url "https://example.com/config.json"
     mcpc --config-file ./my-config.json
 
-    # Override execution mode for all agents
-    mcpc --config-file ./my-config.json --mode ai_sampling
-
-    # Using environment variable
-    export MCPC_CONFIG='[{"name":"agent","description":"..."}]'
-    mcpc
-
-    # Use default configuration (./mcpc.config.json)
-    mcpc
-
-CONFIGURATION:
-    Configuration files support environment variable substitution using $VAR_NAME syntax.
-    
-    Priority order:
+CONFIG PRIORITY:
     1. --config (inline JSON)
     2. MCPC_CONFIG environment variable
     3. --config-url or MCPC_CONFIG_URL
@@ -369,19 +327,18 @@ CONFIGURATION:
     5. ~/.mcpc/config.json (user config)
     6. ./mcpc.config.json (local config)
 
-For more information, visit: https://github.com/mcpc-tech/mcpc
+For more information: https://github.com/mcpc-tech/mcpc
 `);
 }
 
-/**
- * Parse command-line arguments
- */
-function parseArgs(): {
+/** Parsed CLI arguments type */
+interface ParsedArgs {
   config?: string;
   configUrl?: string;
   configFile?: string;
   requestHeaders?: Record<string, string>;
   help?: boolean;
+  version?: boolean;
   add?: boolean;
   wrap?: boolean;
   mcpServers?: ServerSpec[];
@@ -389,93 +346,131 @@ function parseArgs(): {
   name?: string;
   skills?: string[];
   cwd?: string;
-} {
-  const args = process.argv.slice(2);
-  const result: {
-    config?: string;
-    configUrl?: string;
-    configFile?: string;
-    requestHeaders?: Record<string, string>;
-    help?: boolean;
-    add?: boolean;
-    wrap?: boolean;
-    mcpServers?: ServerSpec[];
-    mode?: string;
-    name?: string;
-    skills?: string[];
-    cwd?: string;
-  } = {};
+}
 
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === "--cwd" && i + 1 < args.length) {
-      result.cwd = args[++i];
-    } else if (arg === "--config" && i + 1 < args.length) {
-      result.config = args[++i];
-    } else if (arg === "--config-url" && i + 1 < args.length) {
-      result.configUrl = args[++i];
-    } else if (arg === "--config-file" && i + 1 < args.length) {
-      result.configFile = args[++i];
-    } else if (
-      (arg === "--request-headers" || arg === "-H") &&
-      i + 1 < args.length
-    ) {
-      // Parse header in format "Key: Value" or "Key=Value"
-      const headerStr = args[++i];
-      const colonIdx = headerStr.indexOf(":");
-      const equalIdx = headerStr.indexOf("=");
-      const separatorIdx = colonIdx !== -1
-        ? equalIdx !== -1 ? Math.min(colonIdx, equalIdx) : colonIdx
-        : equalIdx;
+/**
+ * Parse a header string in format "Key: Value" or "Key=Value"
+ */
+function parseHeader(headerStr: string): { key: string; value: string } | null {
+  const colonIdx = headerStr.indexOf(":");
+  const equalIdx = headerStr.indexOf("=");
+  const separatorIdx = colonIdx !== -1
+    ? equalIdx !== -1 ? Math.min(colonIdx, equalIdx) : colonIdx
+    : equalIdx;
 
-      if (separatorIdx !== -1) {
-        const key = headerStr.substring(0, separatorIdx).trim();
-        const value = headerStr.substring(separatorIdx + 1).trim();
-        if (!result.requestHeaders) {
-          result.requestHeaders = {};
-        }
-        result.requestHeaders[key] = value;
+  if (separatorIdx !== -1) {
+    return {
+      key: headerStr.substring(0, separatorIdx).trim(),
+      value: headerStr.substring(separatorIdx + 1).trim(),
+    };
+  }
+  return null;
+}
+
+/**
+ * Parse MCP server specification from command string
+ */
+function parseMcpServer(
+  cmdString: string,
+  transportType: "stdio" | "streamable-http" | "sse",
+): ServerSpec {
+  const cmdParts = cmdString.split(/\s+/);
+  return {
+    command: cmdParts[0],
+    args: cmdParts.slice(1),
+    transportType,
+  };
+}
+
+/**
+ * Parse command-line arguments using @std/cli
+ */
+function parseCLIArgs(): ParsedArgs {
+  const args = parseArgs(process.argv.slice(2), {
+    boolean: ["help", "version", "add", "wrap"],
+    string: [
+      "cwd",
+      "config",
+      "config-url",
+      "config-file",
+      "mode",
+      "name",
+      "skills",
+      "mcp-stdio",
+      "mcp-http",
+      "mcp-sse",
+    ],
+    collect: ["request-headers", "mcp-stdio", "mcp-http", "mcp-sse"],
+    alias: {
+      h: "help",
+      v: "version",
+      H: "request-headers",
+    },
+    default: {
+      help: false,
+      version: false,
+      add: false,
+      wrap: false,
+    },
+  });
+
+  const result: ParsedArgs = {
+    help: args.help,
+    version: args.version,
+    add: args.add,
+    wrap: args.wrap,
+    cwd: args.cwd,
+    config: args.config,
+    configUrl: args["config-url"],
+    configFile: args["config-file"],
+    mode: args.mode,
+    name: args.name,
+  };
+
+  // Parse skills
+  if (args.skills) {
+    result.skills = args.skills.split(",").map((s: string) => s.trim()).filter(
+      Boolean,
+    );
+  }
+
+  // Parse request headers
+  const headers = args["request-headers"] as string[] | undefined;
+  if (headers && headers.length > 0) {
+    result.requestHeaders = {};
+    for (const h of headers) {
+      const parsed = parseHeader(h);
+      if (parsed) {
+        result.requestHeaders[parsed.key] = parsed.value;
       }
-    } else if (arg === "--help" || arg === "-h") {
-      result.help = true;
-    } else if (arg === "--add") {
-      result.add = true;
-    } else if (arg === "--wrap") {
-      result.wrap = true;
-    } else if (
-      (arg === "--mcp-stdio" || arg === "--mcp-http" || arg === "--mcp-sse") &&
-      i + 1 < args.length
-    ) {
-      // Parse MCP server specification
-      const cmdString = args[++i];
-      const cmdParts = cmdString.split(/\s+/);
-      const command = cmdParts[0];
-      const cmdArgs = cmdParts.slice(1);
+    }
+  }
 
-      let transportType: "stdio" | "streamable-http" | "sse";
-      if (arg === "--mcp-stdio") {
-        transportType = "stdio";
-      } else if (arg === "--mcp-http") {
-        transportType = "streamable-http";
-      } else {
-        transportType = "sse";
-      }
+  // Parse MCP servers
+  const mcpStdio = args["mcp-stdio"] as string[] | undefined;
+  const mcpHttp = args["mcp-http"] as string[] | undefined;
+  const mcpSse = args["mcp-sse"] as string[] | undefined;
 
-      if (!result.mcpServers) {
-        result.mcpServers = [];
+  if (
+    (mcpStdio && mcpStdio.length > 0) ||
+    (mcpHttp && mcpHttp.length > 0) ||
+    (mcpSse && mcpSse.length > 0)
+  ) {
+    result.mcpServers = [];
+    if (mcpStdio) {
+      for (const cmd of mcpStdio) {
+        result.mcpServers.push(parseMcpServer(cmd, "stdio"));
       }
-      result.mcpServers.push({
-        command,
-        args: cmdArgs,
-        transportType,
-      });
-    } else if (arg === "--mode" && i + 1 < args.length) {
-      result.mode = args[++i];
-    } else if (arg === "--name" && i + 1 < args.length) {
-      result.name = args[++i];
-    } else if (arg === "--skills" && i + 1 < args.length) {
-      // Parse comma-separated skills directories
-      result.skills = args[++i].split(",").map((s) => s.trim()).filter(Boolean);
+    }
+    if (mcpHttp) {
+      for (const url of mcpHttp) {
+        result.mcpServers.push(parseMcpServer(url, "streamable-http"));
+      }
+    }
+    if (mcpSse) {
+      for (const url of mcpSse) {
+        result.mcpServers.push(parseMcpServer(url, "sse"));
+      }
     }
   }
 
@@ -487,7 +482,19 @@ function parseArgs(): {
  * @returns Configuration object or null if no configuration found
  */
 export async function loadConfig(): Promise<MCPCConfig | null> {
-  const args = parseArgs();
+  const args = parseCLIArgs();
+
+  // Handle --version
+  if (args.version) {
+    printVersion();
+    process.exit(0);
+  }
+
+  // Handle --help
+  if (args.help) {
+    printHelp();
+    process.exit(0);
+  }
 
   // Change working directory if --cwd is specified
   if (args.cwd) {
@@ -502,12 +509,6 @@ export async function loadConfig(): Promise<MCPCConfig | null> {
     config.skills = args.skills || config.skills || DEFAULT_SKILLS_PATHS;
     return config;
   };
-
-  // Handle --help
-  if (args.help) {
-    printHelp();
-    process.exit(0);
-  }
 
   // Handle --add mode - generate config, save, and exit
   if (args.add) {

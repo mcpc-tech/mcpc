@@ -97,6 +97,11 @@ export interface MCPServerConfig {
   transportType?: "stdio" | "sse" | "streamable-http";
   url?: string;
   headers?: Record<string, string>;
+  // Optional runtime fields from @mcpc/core
+  autoApprove?: string[];
+  disabled?: boolean;
+  disabledReason?: string;
+  toolCallTimeout?: number;
 }
 
 export interface MCPConfig {
@@ -108,6 +113,29 @@ export interface ToolSelection {
   tools: string[] | "__ALL__"; // specific tools or all tools
 }
 
+/** Sampling configuration matching @mcpc/core SamplingConfig */
+export interface SamplingConfig {
+  maxIterations?: number;
+  /** Use LLM to summarize sub-agent results (default: true) */
+  summarize?: boolean;
+}
+
+/** Agent options matching @mcpc/core ComposeDefinition.options */
+export interface AgentOptions {
+  /** Execution mode for the agent */
+  mode?: "agentic" | "ai_sampling" | "ai_acp";
+  /** Enable sampling mode */
+  sampling?: boolean;
+  /** Configuration for sampling mode execution */
+  samplingConfig?: SamplingConfig;
+  /** Maximum number of agentic steps (default: 50) */
+  maxSteps?: number;
+  /** Maximum tokens for sampling requests (default: 128000) */
+  maxTokens?: number;
+  /** Enable OpenTelemetry tracing */
+  tracingEnabled?: boolean;
+}
+
 export interface MCPCConfig {
   name: string;
   version: string;
@@ -117,9 +145,6 @@ export interface MCPCConfig {
     deps: {
       mcpServers: Record<string, MCPServerConfig>;
     };
-    options?: {
-      mode?: "agentic" | "ai_sampling" | "ai_acp";
-      sampling?: boolean;
-    };
+    options?: AgentOptions;
   }>;
 }
