@@ -47,7 +47,8 @@ Execute a tool: \`{ "tool": "tool_name", "args": { /* parameters */ } }\`
    * - Short description shown by default
    * - Use `man` command with args `{ manual: true }` to get full manual
    */
-  AUTONOMOUS_EXECUTION_COMPACT: `Agentic tool \`{toolName}\` that executes tasks by calling its tools, following the <rules/> and using the <format/>.
+  AUTONOMOUS_EXECUTION_COMPACT:
+    `Agentic tool \`{toolName}\` that executes tasks by calling its tools, following the <rules/> and using the <format/>.
 
 {description}
 
