@@ -242,6 +242,7 @@ export class PluginManager {
   /**
    * Trigger registerAgentTool hook - allows plugins to register the main agent tool
    * Returns true if any plugin handled the registration
+   * Throws the original error if plugin fails (instead of swallowing it)
    */
   async triggerRegisterAgentTool(
     context: AgentToolRegistrationContext,
@@ -259,18 +260,11 @@ export class PluginManager {
 
     for (const plugin of sortedPlugins) {
       if (plugin.registerAgentTool) {
-        try {
-          await plugin.registerAgentTool(context);
-          // First successful registration wins
-          return true;
-        } catch (error) {
-          const errorMsg = error instanceof Error
-            ? error.message
-            : String(error);
-          await this.logger.error(
-            `Plugin "${plugin.name}" registerAgentTool failed: ${errorMsg}`,
-          );
-        }
+        // Don't catch errors here - let them propagate so the caller
+        // can see the actual error message (e.g., "ai_acp mode requires acpSettings")
+        await plugin.registerAgentTool(context);
+        // First successful registration wins
+        return true;
       }
     }
 

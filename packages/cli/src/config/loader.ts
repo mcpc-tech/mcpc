@@ -683,6 +683,15 @@ function applyModeOverride(config: MCPCConfig, mode?: string): MCPCConfig {
     if (typeof agent === "string") return;
     if (!agent.options) agent.options = {};
     agent.options.mode = mode as any;
+
+    // Add default acpSettings for ai_acp mode if not provided
+    if (mode === "ai_acp" && !agent.options.acpSettings) {
+      agent.options.acpSettings = {
+        command: "claude-code-acp",
+        args: [],
+        session: {},
+      };
+    }
   });
 
   return config;
