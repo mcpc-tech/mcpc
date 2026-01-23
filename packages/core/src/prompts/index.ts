@@ -19,9 +19,7 @@ export const SystemPrompts = {
    * - No `hasDefinitions` - trusts model's context memory
    */
   AUTONOMOUS_EXECUTION:
-    `Agentic tool \`{toolName}\` that executes complex tasks by iteratively selecting and calling tools.
-
-You must follow the <manual/>, obey the <rules/>, and use the <format/>.
+    `Agentic tool \`{toolName}\` that executes tasks by calling its tools, following the <manual/>, obeying the <rules/>, and using the <format/>.
 
 <manual>
 {description}
@@ -35,26 +33,11 @@ You must follow the <manual/>, obey the <rules/>, and use the <format/>.
 <rules>
 1. **First call**: Use \`man\` to get tool schemas you need
 2. **Execute tools**: Use tool name in \`tool\` and parameters in \`args\`
-3. **Parallel calls**: If your client supports it, call \`man\` and execute tools simultaneously
-4. Note: You are an agent exposed as an MCP tool
 </rules>
 
 <format>
-Get tool schemas:
-\`\`\`json
-{
-  "tool": "man",
-  "args": { "tools": ["tool1", "tool2"] }
-}
-\`\`\`
-
-Execute a tool:
-\`\`\`json
-{
-  "tool": "tool_name",
-  "args": { /* tool parameters */ }
-}
-\`\`\`
+Get tool schemas: \`{ "tool": "man", "args": { "tools": ["tool1", "tool2"] } }\`
+Execute a tool: \`{ "tool": "tool_name", "args": { /* parameters */ } }\`
 </format>`,
 
   /**
@@ -64,14 +47,17 @@ Execute a tool:
    * - Short description shown by default
    * - Use `man` command with args `{ manual: true }` to get full manual
    */
-  AUTONOMOUS_EXECUTION_COMPACT: `Agentic tool \`{toolName}\`: {description}
+  AUTONOMOUS_EXECUTION_COMPACT: `Agentic tool \`{toolName}\` that executes tasks by calling its tools, following the <rules/> and using the <format/>.
 
-Use \`man\` command with args \`{ tools: [], manual: true }\` to get the full manual, or \`{ tools: ["tool1"] }\` to get tool schemas.
+{description}
+
+<rules>
+1. **First call**: Use \`man\` to get tool schemas and full manual
+2. **Execute tools**: Use tool name in \`tool\` and parameters in \`args\`
+</rules>
 
 <format>
-Get full manual: \`{ "tool": "man", "args": { "tools": [], "manual": true } }\`
-Get tool schemas: \`{ "tool": "man", "args": { "tools": ["tool1", "tool2"] } }\`
-Get both: \`{ "tool": "man", "args": { "tools": ["tool1"], "manual": true } }\`
+Get manual + schemas: \`{ "tool": "man", "args": { "tools": ["tool1"], "manual": true } }\`
 Execute a tool: \`{ "tool": "tool_name", "args": { /* parameters */ } }\`
 </format>`,
 
@@ -120,32 +106,11 @@ You must follow the <manual/>, obey the <rules/>, and use the <format/>.
  */
 export const ResponseTemplates = {
   /**
-   * Success response for action execution
-   */
-  ACTION_SUCCESS: `Action \`{currentAction}\` completed.
-
-Next: Execute \`{nextAction}\` by calling \`{toolName}\` again.`,
-
-  /**
-   * Planning prompt when no next action is specified
-   */
-  PLANNING_PROMPT: `Action \`{currentAction}\` completed. Determine next step:
-
-1. Analyze results from \`{currentAction}\`
-2. Decide: Continue with another action or Complete?
-3. Call \`{toolName}\` with chosen action or \`decision: "complete"\``,
-
-  /**
    * Error response templates
    */
   ERROR_RESPONSE: `Validation failed: {errorMessage}
 
 Adjust parameters and retry.`,
-
-  /**
-   * Completion message
-   */
-  COMPLETION_MESSAGE: `Task completed.`,
 
   /**
    * Security validation messages
@@ -183,13 +148,10 @@ export const CompiledPrompts = {
   autonomousExecutionCompact: p(SystemPrompts.AUTONOMOUS_EXECUTION_COMPACT),
   samplingToolDescription: p(SystemPrompts.SAMPLING_TOOL_DESCRIPTION),
   aiLoopSystem: p(SystemPrompts.AI_LOOP_SYSTEM),
-  actionSuccess: p(ResponseTemplates.ACTION_SUCCESS),
-  planningPrompt: p(ResponseTemplates.PLANNING_PROMPT),
   errorResponse: p(ResponseTemplates.ERROR_RESPONSE),
   securityPassed: p(ResponseTemplates.SECURITY_VALIDATION.PASSED),
   securityFailed: p(ResponseTemplates.SECURITY_VALIDATION.FAILED),
   auditLog: p(ResponseTemplates.AUDIT_LOG),
-  completionMessage: () => ResponseTemplates.COMPLETION_MESSAGE,
 };
 
 /**
