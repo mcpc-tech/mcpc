@@ -4,10 +4,8 @@
 
 import { createLargeResultPlugin } from "@mcpc/core/plugins/large-result";
 import { createSkillsPlugin } from "@mcpc/core/plugins/skills";
-import {
-  codeExecutionPlugin,
-  createCodeExecutionPlugin,
-} from "@mcpc-tech/plugin-code-execution";
+import { createCodeExecutionPlugin } from "@mcpc-tech/plugin-code-execution";
+import { markdownLoaderPlugin } from "@mcpc-tech/plugin-markdown-loader";
 import type { ComposeDefinition, ToolPlugin } from "@mcpc/core";
 import { resolve } from "node:path";
 import process from "node:process";
@@ -28,7 +26,7 @@ export function getGlobalPlugins(
   // Resolve relative paths to absolute paths
   const resolvedPaths = skillsPaths.map((p) => resolve(process.cwd(), p));
   return [
-    "@mcpc/plugin-markdown-loader",
+    markdownLoaderPlugin(),
     createSkillsPlugin({ paths: resolvedPaths }),
   ];
 }
@@ -54,7 +52,7 @@ export function getDefaultAgents(): ComposeDefinition[] {
       description: "",
       plugins: [
         createLargeResultPlugin({}),
-        codeExecutionPlugin,
+        createCodeExecutionPlugin(),
       ],
       options: {
         mode: "code_execution",
