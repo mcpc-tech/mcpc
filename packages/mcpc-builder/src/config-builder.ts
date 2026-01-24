@@ -457,6 +457,7 @@ ${toolReferences.join("\n")}`;
     // Build YAML frontmatter
     const frontmatter: Record<string, any> = {
       name: serverName,
+      description: description,
       mode: options?.mode || "agentic",
     };
 
@@ -497,7 +498,7 @@ ${toolReferences.join("\n")}`;
     // Add available tools section
     mdBody += `## Available Tools\n\n`;
     for (const toolRef of toolReferences) {
-      mdBody += `- ${toolRef}\n`;
+      mdBody += `${toolRef}\n`;
     }
 
     return `---\n${yaml}\n---\n\n${mdBody}`;
