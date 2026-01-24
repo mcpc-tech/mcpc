@@ -38,7 +38,8 @@
         "mcpc-builder-agent": "mcpc-builder-agent.ts"
       },
       "packageJson": {
-        "name": "@mcpc-tech/builder"
+        "name": "@mcpc-tech/builder",
+        "files": ["agents/**/*.md"]
       }
     },
     {
