@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/builder",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -12,8 +12,12 @@
   "bin": {
     "mcpc-builder-agent": "./mcpc-builder-agent.ts"
   },
+  "publish": {
+    "include": ["*.ts", "src/**/*.ts", "agents/**/*.md"]
+  },
   "imports": {
     "@mcpc/core": "jsr:@mcpc/core@^0.3.32",
+    "@mcpc/plugin-markdown-loader": "jsr:@mcpc/plugin-markdown-loader@^0.0.8",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
     "@std/assert": "jsr:@std/assert@^1.0.14",
     "zod": "npm:zod@^3.24.2"
