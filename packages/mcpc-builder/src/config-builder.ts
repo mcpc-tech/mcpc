@@ -43,8 +43,12 @@ function getCommandAndArgs(pkg: any): { command: string; args: string[] } {
         pkg.runtimeArguments.forEach((runtimeArg: any) => {
           // Handle positional runtime arguments (e.g., "run" command)
           if (runtimeArg.type === "positional") {
-            // Skip boolean true values - they indicate the argument is enabled, not a literal value
-            if (runtimeArg.value && runtimeArg.value !== true) {
+            // Skip boolean flags (value is true or "true") - they indicate the argument is enabled
+            if (
+              runtimeArg.value &&
+              runtimeArg.value !== true &&
+              runtimeArg.value !== "true"
+            ) {
               // Skip special hints that will be handled separately
               if (
                 runtimeArg.valueHint === "env_var_name" ||
@@ -64,8 +68,12 @@ function getCommandAndArgs(pkg: any): { command: string; args: string[] } {
             args.push(runtimeArg.name);
 
             // Handle value with variables (e.g., --mount with {source_path})
-            // Skip boolean true values - they indicate the flag is enabled, not a literal value
-            if (runtimeArg.value && runtimeArg.value !== true) {
+            // Skip boolean flags (value is true or "true") - they indicate the flag is enabled
+            if (
+              runtimeArg.value &&
+              runtimeArg.value !== true &&
+              runtimeArg.value !== "true"
+            ) {
               let value = String(runtimeArg.value);
 
               // Replace variables with placeholders
@@ -287,6 +295,8 @@ export class ConfigBuilder {
       description?: string;
       isSecret?: boolean;
     }>;
+    mcpServers: MCPCConfig["agents"][0]["deps"]["mcpServers"];
+    toolReferences: string[];
   }> {
     const mcpServers: MCPCConfig["agents"][0]["deps"]["mcpServers"] = {};
     const requiredVars: Array<{
@@ -413,6 +423,8 @@ ${toolReferences.join("\n")}`;
         ],
       },
       requiredVars,
+      mcpServers,
+      toolReferences,
     };
   }
 
@@ -421,6 +433,151 @@ ${toolReferences.join("\n")}`;
    */
   async getEnvVarSchemas(serverNames: string[]): Promise<Record<string, any>> {
     return await registryClient.getEnvVarSchemas(serverNames);
+  }
+
+  /**
+   * Generate markdown format config with YAML frontmatter
+   * This format is human-readable and includes description/manual in the markdown body
+   */
+  generateMarkdownConfig(
+    serverName: string,
+    description: string,
+    mcpServers: Record<string, MCPServerConfig>,
+    toolReferences: string[],
+    options?: {
+      mode?: "agentic" | "ai_sampling" | "ai_acp";
+      enableSampling?: boolean;
+      samplingConfig?: { maxIterations?: number; summarize?: boolean };
+      maxSteps?: number;
+      maxTokens?: number;
+      tracingEnabled?: boolean;
+    },
+    manual?: string,
+  ): string {
+    // Build YAML frontmatter
+    const frontmatter: Record<string, any> = {
+      name: serverName,
+      mode: options?.mode || "agentic",
+    };
+
+    // Add optional settings
+    if (options?.enableSampling) {
+      frontmatter.sampling = true;
+    }
+    if (options?.samplingConfig) {
+      frontmatter.samplingConfig = options.samplingConfig;
+    }
+    if (options?.maxSteps) {
+      frontmatter.maxSteps = options.maxSteps;
+    }
+    if (options?.maxTokens) {
+      frontmatter.maxTokens = options.maxTokens;
+    }
+    if (options?.tracingEnabled) {
+      frontmatter.tracingEnabled = options.tracingEnabled;
+    }
+
+    // Add deps.mcpServers
+    frontmatter.deps = { mcpServers };
+
+    // Convert frontmatter to YAML
+    const yamlLines: string[] = [];
+    this.objectToYaml(frontmatter, yamlLines, 0);
+    const yaml = yamlLines.join("\n");
+
+    // Build markdown body
+    let mdBody = `# ${serverName}\n\n`;
+    mdBody += `${description}\n\n`;
+
+    // Add manual section if provided
+    if (manual) {
+      mdBody += `## Manual\n\n${manual}\n\n`;
+    }
+
+    // Add available tools section
+    mdBody += `## Available Tools\n\n`;
+    for (const toolRef of toolReferences) {
+      mdBody += `- ${toolRef}\n`;
+    }
+
+    return `---\n${yaml}\n---\n\n${mdBody}`;
+  }
+
+  /**
+   * Helper: Convert object to YAML string lines
+   */
+  private objectToYaml(
+    obj: any,
+    lines: string[],
+    indent: number,
+  ): void {
+    const prefix = "  ".repeat(indent);
+
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        if (typeof item === "object" && item !== null) {
+          lines.push(`${prefix}-`);
+          this.objectToYaml(item, lines, indent + 1);
+        } else {
+          lines.push(`${prefix}- ${this.formatYamlValue(item)}`);
+        }
+      }
+    } else if (typeof obj === "object" && obj !== null) {
+      for (const [key, value] of Object.entries(obj)) {
+        if (value === undefined) continue;
+
+        if (Array.isArray(value)) {
+          if (value.length === 0) {
+            lines.push(`${prefix}${key}: []`);
+          } else if (
+            value.every((v) => typeof v !== "object" || v === null)
+          ) {
+            // Simple array - inline format
+            const items = value.map((v) => this.formatYamlValue(v));
+            lines.push(`${prefix}${key}: [${items.join(", ")}]`);
+          } else {
+            // Complex array - multiline format
+            lines.push(`${prefix}${key}:`);
+            this.objectToYaml(value, lines, indent + 1);
+          }
+        } else if (typeof value === "object" && value !== null) {
+          lines.push(`${prefix}${key}:`);
+          this.objectToYaml(value, lines, indent + 1);
+        } else {
+          lines.push(`${prefix}${key}: ${this.formatYamlValue(value)}`);
+        }
+      }
+    }
+  }
+
+  /**
+   * Helper: Format a value for YAML
+   */
+  private formatYamlValue(value: any): string {
+    if (value === null) return "null";
+    if (value === undefined) return "";
+    if (typeof value === "boolean") return value ? "true" : "false";
+    if (typeof value === "number") return String(value);
+    if (typeof value === "string") {
+      // Quote strings that need it
+      if (
+        value === "" ||
+        value.includes(":") ||
+        value.includes("#") ||
+        value.includes("\n") ||
+        value.includes('"') ||
+        value.includes("'") ||
+        value.startsWith(" ") ||
+        value.endsWith(" ") ||
+        value.startsWith("$") ||
+        /^[\[\]{}>|*&!%@`]/.test(value)
+      ) {
+        // Use double quotes and escape
+        return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+      }
+      return value;
+    }
+    return String(value);
   }
 }
 

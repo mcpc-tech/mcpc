@@ -25,11 +25,8 @@
  * @module
  */
 
-import { setMarkdownAgentLoader, type ToolPlugin } from "@mcpc/core";
+import type { ToolPlugin } from "@mcpc/core";
 import { loadMarkdownAgentFile } from "./src/markdown-loader.ts";
-
-// Re-export for direct use (e.g., CLI auto-registration)
-export { setMarkdownAgentLoader } from "@mcpc/core";
 
 export {
   isDirectory,
@@ -54,8 +51,9 @@ export function markdownLoaderPlugin(): ToolPlugin {
     name: "markdown-loader",
     version: "1.0.0",
     enforce: "pre", // Run before other plugins
-    configureServer: () => {
-      setMarkdownAgentLoader(loadMarkdownAgentFile);
+    configureServer: (server) => {
+      server.registerFileLoader(".md", loadMarkdownAgentFile);
+      server.registerFileLoader(".markdown", loadMarkdownAgentFile);
     },
   };
 }

@@ -54,6 +54,9 @@ export const composeMCPCConfigSchema: z.ZodObject<any> = z.object({
   tracingEnabled: z.boolean().optional().describe(
     "Enable OpenTelemetry tracing",
   ),
+  manual: z.string().optional().describe(
+    "Manual/instructions for using this agent, will be included in the markdown config",
+  ),
 });
 
 export const getEnvVarSchemasSchema: z.ZodObject<any> = z.object({

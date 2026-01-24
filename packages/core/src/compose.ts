@@ -14,7 +14,7 @@ import {
 } from "@modelcontextprotocol/sdk/server/index.js";
 import { parseTags } from "@mcpc/utils";
 import { composeMcpDepTools } from "./utils/common/mcp.ts";
-import type { ComposeDefinition } from "./set-up-mcp-compose.ts";
+import type { ComposeDefinition, FileLoader } from "./set-up-mcp-compose.ts";
 import type { JSONSchema, ToolCallback } from "./types.ts";
 import { processToolTags } from "./utils/common/tool-tag-processor.ts";
 import { getBuiltInPlugins } from "./plugins/built-in/index.ts";
@@ -40,6 +40,7 @@ export class ComposableMCPServer extends Server {
   private pluginManager: PluginManager;
   private toolManager: ToolManager;
   private logger = createLogger("mcpc.compose");
+  private fileLoaders = new Map<string, FileLoader>();
 
   // Legacy property for backward compatibility
   get toolNameMapping(): Map<string, string> {
@@ -61,6 +62,72 @@ export class ComposableMCPServer extends Server {
     this.logger.setServer(this);
     this.pluginManager = new PluginManager(this);
     this.toolManager = new ToolManager();
+  }
+
+  /**
+   * Register a file loader for a specific extension.
+   * Plugins can use this to add support for different file formats.
+   *
+   * @param extension - File extension including the dot (e.g., ".md", ".yaml")
+   * @param loader - Function that loads a file and returns a ComposeDefinition
+   *
+   * @example
+   * ```typescript
+   * // In a plugin's configureServer hook:
+   * configureServer: (server) => {
+   *   server.registerFileLoader(".md", loadMarkdownAgentFile);
+   *   server.registerFileLoader(".yaml", loadYamlAgentFile);
+   * }
+   * ```
+   */
+  registerFileLoader(extension: string, loader: FileLoader): void {
+    this.fileLoaders.set(extension.toLowerCase(), loader);
+  }
+
+  /**
+   * Get the file loader for a specific extension.
+   */
+  getFileLoader(extension: string): FileLoader | undefined {
+    return this.fileLoaders.get(extension.toLowerCase());
+  }
+
+  /**
+   * Check if a file extension has a registered loader.
+   */
+  hasFileLoader(extension: string): boolean {
+    return this.fileLoaders.has(extension.toLowerCase());
+  }
+
+  /**
+   * Get all registered file extensions.
+   */
+  getRegisteredExtensions(): string[] {
+    return Array.from(this.fileLoaders.keys());
+  }
+
+  /**
+   * Resolve a file path to a ComposeDefinition using registered loaders.
+   * @internal
+   */
+  async resolveFilePath(filePath: string): Promise<ComposeDefinition> {
+    const lastDot = filePath.lastIndexOf(".");
+    const extension = lastDot === -1
+      ? ""
+      : filePath.slice(lastDot).toLowerCase();
+    const loader = this.fileLoaders.get(extension);
+
+    if (!loader) {
+      const supportedExtensions = this.getRegisteredExtensions().join(", ");
+      const hint = supportedExtensions
+        ? ` Supported extensions: ${supportedExtensions}.`
+        : ' No file loaders registered. Use a loader plugin (e.g., markdownLoaderPlugin from "@mcpc/plugin-markdown-loader").';
+
+      throw new Error(
+        `Cannot load file "${filePath}": No loader registered for "${extension}" extension.${hint}`,
+      );
+    }
+
+    return await loader(filePath);
   }
 
   /**

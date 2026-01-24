@@ -87,12 +87,10 @@ export {
   type ComposeDefinition,
   type ComposeInput,
   type ComposibleMCPConfig,
-  isMarkdownFile,
-  type MarkdownAgentLoader,
+  type FileLoader,
   mcpc,
   type McpcOptions,
   parseMcpcConfigs,
-  setMarkdownAgentLoader,
 } from "./src/set-up-mcp-compose.ts";
 
 // Schema utilities (replaces AI SDK dependency)
