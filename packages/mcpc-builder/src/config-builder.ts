@@ -271,6 +271,10 @@ export class ConfigBuilder {
     options?: {
       mode?: "agentic" | "ai_sampling" | "ai_acp";
       enableSampling?: boolean;
+      samplingConfig?: { maxIterations?: number; summarize?: boolean };
+      maxSteps?: number;
+      maxTokens?: number;
+      tracingEnabled?: boolean;
     },
   ): Promise<{
     config: MCPCConfig;
@@ -396,6 +400,12 @@ ${toolReferences.join("\n")}`;
             options: {
               mode: options?.mode || "agentic",
               ...(options?.enableSampling && { sampling: true }),
+              ...(options?.samplingConfig &&
+                { samplingConfig: options.samplingConfig }),
+              ...(options?.maxSteps && { maxSteps: options.maxSteps }),
+              ...(options?.maxTokens && { maxTokens: options.maxTokens }),
+              ...(options?.tracingEnabled &&
+                { tracingEnabled: options.tracingEnabled }),
             },
           },
         ],

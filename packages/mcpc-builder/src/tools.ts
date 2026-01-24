@@ -88,6 +88,32 @@ export const toolDefinitions = [
             "Enable autonomous sampling mode for compatible clients (VS Code, Cursor). When enabled, the agent can make decisions and execute tools automatically without user confirmation for each step. Use with caution - only enable for trusted, well-tested agents.",
           default: false,
         },
+        samplingConfig: {
+          type: "object",
+          description: "Configuration for sampling mode execution",
+          properties: {
+            maxIterations: {
+              type: "number",
+              description: "Maximum iterations",
+            },
+            summarize: {
+              type: "boolean",
+              description: "Use LLM to summarize results (default: true)",
+            },
+          },
+        },
+        maxSteps: {
+          type: "number",
+          description: "Maximum agentic steps (default: 50)",
+        },
+        maxTokens: {
+          type: "number",
+          description: "Maximum tokens for sampling (default: 128000)",
+        },
+        tracingEnabled: {
+          type: "boolean",
+          description: "Enable OpenTelemetry tracing",
+        },
       },
       required: [
         "serverName",

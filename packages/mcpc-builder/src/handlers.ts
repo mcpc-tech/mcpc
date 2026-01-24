@@ -71,6 +71,10 @@ export async function handleToolCall(request: CallToolRequest): Promise<any> {
             {
               mode: args.mode,
               enableSampling: args.enableSampling,
+              samplingConfig: args.samplingConfig,
+              maxSteps: args.maxSteps,
+              maxTokens: args.maxTokens,
+              tracingEnabled: args.tracingEnabled,
             },
           );
 

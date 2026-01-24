@@ -40,6 +40,20 @@ export const composeMCPCConfigSchema: z.ZodObject<any> = z.object({
     .describe("Execution mode for the agent"),
   enableSampling: z.boolean().optional().default(false)
     .describe("Enable autonomous sampling mode"),
+  // New options from @mcpc/core
+  samplingConfig: z.object({
+    maxIterations: z.number().optional(),
+    summarize: z.boolean().optional(),
+  }).optional().describe("Configuration for sampling mode execution"),
+  maxSteps: z.number().optional().describe(
+    "Maximum agentic steps (default: 50)",
+  ),
+  maxTokens: z.number().optional().describe(
+    "Maximum tokens for sampling (default: 128000)",
+  ),
+  tracingEnabled: z.boolean().optional().describe(
+    "Enable OpenTelemetry tracing",
+  ),
 });
 
 export const getEnvVarSchemasSchema: z.ZodObject<any> = z.object({
