@@ -2,6 +2,7 @@
   "version": "5",
   "specifiers": {
     "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.44.0",
+    "jsr:@mcpc/plugin-markdown-loader@^0.0.8": "0.0.8",
     "jsr:@std/assert@1": "1.0.17",
     "jsr:@std/assert@^1.0.14": "1.0.17",
     "jsr:@std/cli@^1.0.25": "1.0.26",
@@ -26,7 +27,6 @@
     "npm:@mcpc-tech/acp-ai-provider@~0.1.20": "0.1.50_zod@3.25.76_hono@4.11.5",
     "npm:@mcpc-tech/handle-sandbox@^0.0.8": "0.0.8",
     "npm:@mcpc-tech/plugin-code-execution@^0.0.8": "0.0.8_zod@3.25.76_@opentelemetry+api@1.9.0_ajv@8.17.1_hono@4.11.5",
-    "npm:@mcpc-tech/plugin-markdown-loader@^0.0.7": "0.0.7_zod@3.25.76_@opentelemetry+api@1.9.0_ajv@8.17.1_hono@4.11.5",
     "npm:@mcpc-tech/ripgrep-napi@^0.0.4": "0.0.4",
     "npm:@modelcontextprotocol/sdk@^1.25.1": "1.25.3_zod@3.25.76_hono@4.11.5_ajv@8.17.1_express@5.2.1",
     "npm:@modelcontextprotocol/sdk@^1.25.3": "1.25.3_zod@3.25.76_hono@4.11.5_ajv@8.17.1_express@5.2.1",
@@ -58,6 +58,12 @@
     },
     "@es-toolkit/es-toolkit@1.44.0": {
       "integrity": "647a7e777945a3ac81bd1783670f85429c2a661510d9af36becc6963ddfca00d"
+    },
+    "@mcpc/plugin-markdown-loader@0.0.8": {
+      "integrity": "a50072705e581e383ac8391581e8a48950a8329042ca2ccd285dd208c6fe3fbe",
+      "dependencies": [
+        "jsr:@std/yaml"
+      ]
     },
     "@std/assert@1.0.17": {
       "integrity": "df5ebfffe77c03b3fa1401e11c762cc8f603d51021c56c4d15a8c7ab45e90dbe",
@@ -309,29 +315,6 @@
         "@opentelemetry/sdk-trace-node",
         "@opentelemetry/semantic-conventions@1.39.0",
         "@segment/ajv-human-errors",
-        "ajv",
-        "ajv-errors",
-        "ajv-formats",
-        "cheerio",
-        "json-schema-traverse",
-        "jsonrepair"
-      ]
-    },
-    "@mcpc-tech/plugin-markdown-loader@0.0.7_zod@3.25.76_@opentelemetry+api@1.9.0_ajv@8.17.1_hono@4.11.5": {
-      "integrity": "sha512-VIm7I9Jtgj87SuTWAm1oiLLMWBTmIJCD0ole0Ya48HW5v4zZtJ28/ODcuDjNQZCCmY4uEkNJBMyfdw+cQqyyPQ==",
-      "dependencies": [
-        "@ai-sdk/provider@2.0.1",
-        "@mcpc-tech/acp-ai-provider",
-        "@mcpc-tech/ripgrep-napi",
-        "@modelcontextprotocol/sdk",
-        "@opentelemetry/api",
-        "@opentelemetry/exporter-trace-otlp-http",
-        "@opentelemetry/resources@1.30.1_@opentelemetry+api@1.9.0",
-        "@opentelemetry/sdk-trace-base@1.30.1_@opentelemetry+api@1.9.0",
-        "@opentelemetry/sdk-trace-node",
-        "@opentelemetry/semantic-conventions@1.39.0",
-        "@segment/ajv-human-errors",
-        "ai@5.0.123_zod@3.25.76",
         "ajv",
         "ajv-errors",
         "ajv-formats",
@@ -1459,14 +1442,14 @@
       },
       "packages/cli": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.32",
+          "jsr:@mcpc/core@~0.3.33",
+          "jsr:@mcpc/plugin-markdown-loader@^0.0.9",
           "jsr:@mcpc/utils@~0.2.12",
           "jsr:@std/assert@^1.0.14",
           "jsr:@std/cli@^1.0.26",
           "jsr:@std/http@^1.0.14",
           "npm:@hono/zod-openapi@~0.19.2",
           "npm:@mcpc-tech/plugin-code-execution@^0.0.8",
-          "npm:@mcpc-tech/plugin-markdown-loader@^0.0.7",
           "npm:@mcpc-tech/ripgrep-napi@^0.0.4",
           "npm:@modelcontextprotocol/sdk@^1.8.0",
           "npm:hono@^4.7.5",
@@ -1529,7 +1512,7 @@
       },
       "packages/plugin-markdown-loader": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.31",
+          "jsr:@mcpc/core@~0.3.33",
           "jsr:@std/assert@1",
           "jsr:@std/yaml@^1.0.5"
         ]

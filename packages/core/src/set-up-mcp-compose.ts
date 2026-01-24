@@ -144,57 +144,12 @@ export interface ComposibleMCPConfig {
 }
 
 /**
- * Markdown agent file loader function type.
- * This is registered by markdownLoaderPlugin() to avoid circular dependencies.
+ * File loader function type for loading agent definitions from files.
+ * Plugins can register loaders for different file extensions.
  */
-export type MarkdownAgentLoader = (
+export type FileLoader = (
   filePath: string,
 ) => Promise<ComposeDefinition>;
-
-// Global loader reference - set by markdownLoaderPlugin()
-let markdownAgentLoader: MarkdownAgentLoader | null = null;
-
-/**
- * Register the Markdown agent loader (called by markdownLoaderPlugin())
- */
-export function setMarkdownAgentLoader(loader: MarkdownAgentLoader): void {
-  markdownAgentLoader = loader;
-}
-
-/**
- * Check if a path is a Markdown file (.md or .markdown)
- */
-export function isMarkdownFile(path: string): boolean {
-  return path.endsWith(".md") || path.endsWith(".markdown");
-}
-
-/**
- * Resolve ComposeInput to ComposeDefinition
- * Supports both inline definitions and file paths
- */
-async function resolveComposeInput(
-  input: ComposeInput,
-): Promise<ComposeDefinition> {
-  if (typeof input !== "string") {
-    return input;
-  }
-
-  if (!isMarkdownFile(input)) {
-    throw new Error(
-      `Invalid compose input: "${input}". ` +
-        `Expected a Markdown file path (.md) or a ComposeDefinition object.`,
-    );
-  }
-
-  if (!markdownAgentLoader) {
-    throw new Error(
-      `Cannot load Markdown agent file "${input}": Markdown loader not available. ` +
-        `Use markdownLoaderPlugin() from "@mcpc/plugin-markdown-loader", or use inline ComposeDefinition objects.`,
-    );
-  }
-
-  return await markdownAgentLoader(input);
-}
 
 export function parseMcpcConfigs(
   conf?: ComposeDefinition[],
@@ -324,8 +279,16 @@ export async function mcpc(
   }
 
   // Resolve all compose inputs (file paths and inline definitions) in parallel
+  // Use server's file loader registry
+  const resolveInput = (input: ComposeInput): Promise<ComposeDefinition> => {
+    if (typeof input !== "string") {
+      return Promise.resolve(input);
+    }
+    return server.resolveFilePath(input);
+  };
+
   const resolvedConfigs = composeConf
-    ? await Promise.all(composeConf.map(resolveComposeInput))
+    ? await Promise.all(composeConf.map(resolveInput))
     : [];
   const parsed = parseMcpcConfigs(resolvedConfigs);
 

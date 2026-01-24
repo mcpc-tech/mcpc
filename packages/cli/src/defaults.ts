@@ -5,7 +5,7 @@
 import { createLargeResultPlugin } from "@mcpc/core/plugins/large-result";
 import { createSkillsPlugin } from "@mcpc/core/plugins/skills";
 import { createCodeExecutionPlugin } from "@mcpc-tech/plugin-code-execution";
-import { markdownLoaderPlugin } from "@mcpc-tech/plugin-markdown-loader";
+import { markdownLoaderPlugin } from "@mcpc/plugin-markdown-loader";
 import type { ComposeDefinition, ToolPlugin } from "@mcpc/core";
 import { resolve } from "node:path";
 import process from "node:process";

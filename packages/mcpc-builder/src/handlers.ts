@@ -61,28 +61,46 @@ export async function handleToolCall(request: CallToolRequest): Promise<any> {
 
       case "compose_mcpc_config": {
         const args = composeMCPCConfigSchema.parse(request.params.arguments);
-        const { config: result, requiredVars } = await configBuilder
-          .composeMCPCConfig(
-            args.serverName,
-            args.toolName,
-            args.description,
-            args.serverDeps,
-            args.toolSelection,
-            {
-              mode: args.mode,
-              enableSampling: args.enableSampling,
-              samplingConfig: args.samplingConfig,
-              maxSteps: args.maxSteps,
-              maxTokens: args.maxTokens,
-              tracingEnabled: args.tracingEnabled,
-            },
-          );
+        const { config: _result, requiredVars, mcpServers, toolReferences } =
+          await configBuilder
+            .composeMCPCConfig(
+              args.serverName,
+              args.toolName,
+              args.description,
+              args.serverDeps,
+              args.toolSelection,
+              {
+                mode: args.mode,
+                enableSampling: args.enableSampling,
+                samplingConfig: args.samplingConfig,
+                maxSteps: args.maxSteps,
+                maxTokens: args.maxTokens,
+                tracingEnabled: args.tracingEnabled,
+              },
+            );
 
-        // Generate file paths using absolute path
+        // Generate file paths using absolute path - default to MD format
         const homeDir = process.env.HOME || process.env.USERPROFILE || "~";
-        const configFileName = `${args.serverName}.json`;
+        const configFileName = `${args.serverName}.md`;
         const mcpcDir = `${homeDir}/.mcpc`;
         const absolutePath = `${mcpcDir}/${configFileName}`;
+
+        // Generate markdown config
+        const mdContent = configBuilder.generateMarkdownConfig(
+          args.serverName,
+          args.description,
+          mcpServers,
+          toolReferences,
+          {
+            mode: args.mode,
+            enableSampling: args.enableSampling,
+            samplingConfig: args.samplingConfig,
+            maxSteps: args.maxSteps,
+            maxTokens: args.maxTokens,
+            tracingEnabled: args.tracingEnabled,
+          },
+          args.manual,
+        );
 
         // Generate MCP server definition for CLI commands (using file reference)
         const mcpServerDef = {
@@ -94,7 +112,7 @@ export async function handleToolCall(request: CallToolRequest): Promise<any> {
 
         // Create directory if it doesn't exist and write file
         mkdirSync(mcpcDir, { recursive: true });
-        writeFileSync(absolutePath, JSON.stringify(result, null, 2));
+        writeFileSync(absolutePath, mdContent);
 
         // Build environment variables section
         let envVarsSection = "";
@@ -130,18 +148,12 @@ The following variables need to be configured in the generated config file (\`${
             });
           });
 
-          envVarsSection += `\n**Steps to configure:**
+          envVarsSection += `
+**Steps to configure:**
 1. Open \`${absolutePath}\`
-2. Find all \`$VARIABLE_NAME\` placeholders
+2. Find all \`$VARIABLE_NAME\` placeholders in the YAML frontmatter
 3. Replace them with actual values
 4. Save the file
-
-**Example:**
-\`\`\`json
-"env": {
-  "GITHUB_TOKEN": "$GITHUB_TOKEN"  // ← Replace $GITHUB_TOKEN with your actual token
-}
-\`\`\`
 
 `;
         } else {

@@ -27,20 +27,26 @@
  * @module
  */
 
-import {
-  type ComposeDefinition,
-  isMarkdownFile,
-  type McpServerConfig,
-  type MCPSetting,
-  type SamplingConfig,
+import type {
+  ComposeDefinition,
+  McpServerConfig,
+  MCPSetting,
+  SamplingConfig,
 } from "@mcpc/core";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { parse as parseYaml } from "@std/yaml";
 import { join } from "node:path";
 import process from "node:process";
 
+/**
+ * Check if a path is a Markdown file (.md or .markdown)
+ */
+export function isMarkdownFile(path: string): boolean {
+  return path.endsWith(".md") || path.endsWith(".markdown");
+}
+
 // Re-export for convenience
-export { isMarkdownFile, isMarkdownFile as isMarkdownAgentFile };
+export { isMarkdownFile as isMarkdownAgentFile };
 
 /**
  * Replace environment variable references in a string.
