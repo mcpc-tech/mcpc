@@ -43,7 +43,8 @@ function getCommandAndArgs(pkg: any): { command: string; args: string[] } {
         pkg.runtimeArguments.forEach((runtimeArg: any) => {
           // Handle positional runtime arguments (e.g., "run" command)
           if (runtimeArg.type === "positional") {
-            if (runtimeArg.value) {
+            // Skip boolean true values - they indicate the argument is enabled, not a literal value
+            if (runtimeArg.value && runtimeArg.value !== true) {
               // Skip special hints that will be handled separately
               if (
                 runtimeArg.valueHint === "env_var_name" ||
@@ -51,7 +52,7 @@ function getCommandAndArgs(pkg: any): { command: string; args: string[] } {
               ) {
                 return;
               }
-              args.push(runtimeArg.value);
+              args.push(String(runtimeArg.value));
             }
           } // Handle named runtime arguments (flags)
           else if (runtimeArg.type === "named") {
@@ -63,8 +64,9 @@ function getCommandAndArgs(pkg: any): { command: string; args: string[] } {
             args.push(runtimeArg.name);
 
             // Handle value with variables (e.g., --mount with {source_path})
-            if (runtimeArg.value) {
-              let value = runtimeArg.value;
+            // Skip boolean true values - they indicate the flag is enabled, not a literal value
+            if (runtimeArg.value && runtimeArg.value !== true) {
+              let value = String(runtimeArg.value);
 
               // Replace variables with placeholders
               if (runtimeArg.variables) {
