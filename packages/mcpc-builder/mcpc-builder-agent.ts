@@ -10,14 +10,25 @@ import { mcpc } from "@mcpc/core";
 import { loadMarkdownAgentFile } from "@mcpc/plugin-markdown-loader";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 import process from "node:process";
 import { createServer } from "./mod.ts";
 
-async function main() {
-  // Load agent definition from markdown file
-  const agentDef = await loadMarkdownAgentFile(
-    fileURLToPath(new URL("./agents/mcpc-builder-agent.md", import.meta.url)),
+function resolveAgentMdPath(): string {
+  // Local dev: ./agents/mcpc-builder-agent.md (relative to this file)
+  // Bundled npm: ../agents/mcpc-builder-agent.md (bin/mcpc-builder-agent.mjs -> agents/)
+  const localPath = fileURLToPath(
+    new URL("./agents/mcpc-builder-agent.md", import.meta.url),
   );
+  if (existsSync(localPath)) return localPath;
+
+  return fileURLToPath(
+    new URL("../agents/mcpc-builder-agent.md", import.meta.url),
+  );
+}
+
+async function main() {
+  const agentDef = await loadMarkdownAgentFile(resolveAgentMdPath());
 
   // Override deps with in-memory server (can't be defined in markdown)
   agentDef.deps = {
