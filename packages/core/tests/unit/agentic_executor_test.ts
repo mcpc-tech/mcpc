@@ -143,6 +143,110 @@ Deno.test(
 );
 
 Deno.test(
+  "Agentic mode - man command with tools and manual returns both",
+  async () => {
+    const server = await mcpc(
+      [
+        { name: "test-manual-tools", version: "1.0.0" },
+        {
+          capabilities: { tools: {} },
+        },
+      ],
+      [
+        {
+          name: "manual-agent",
+          description: `Agent with manual.
+<tool name="tool-one"/>
+<tool name="tool-two"/>`,
+          manual: "# This is the manual\n\nDetailed instructions here.",
+          deps: { mcpServers: {} },
+          options: {
+            mode: "agentic",
+          },
+        },
+      ],
+      (server) => {
+        server.tool(
+          "tool-one",
+          "Tool one",
+          {
+            type: "object",
+            properties: {
+              input: { type: "string", description: "Input param" },
+            },
+          },
+          () => ({
+            content: [{ type: "text", text: "Tool one executed" }],
+          }),
+        );
+        server.tool(
+          "tool-two",
+          "Tool two",
+          {
+            type: "object",
+            properties: {},
+          },
+          () => ({
+            content: [{ type: "text", text: "Tool two executed" }],
+          }),
+        );
+      },
+    );
+
+    try {
+      // Request both tools and manual
+      const result: any = await server.callTool("manual-agent", {
+        tool: "man",
+        args: { tools: ["tool-one", "tool-two"], manual: true },
+      });
+
+      assertEquals(result.isError, undefined);
+      assertExists(result.content);
+
+      const contentText = result.content.map((c: any) => c.text).join("\n");
+
+      // Should include tool schemas
+      assertEquals(
+        contentText.includes("tool-one"),
+        true,
+        "Should include tool-one schema",
+      );
+      assertEquals(
+        contentText.includes("tool-two"),
+        true,
+        "Should include tool-two schema",
+      );
+      assertEquals(
+        contentText.includes("input"),
+        true,
+        "Should include tool-one's input param",
+      );
+
+      // Should include manual content
+      assertEquals(
+        contentText.includes("This is the manual"),
+        true,
+        "Should include manual",
+      );
+      assertEquals(
+        contentText.includes("Detailed instructions"),
+        true,
+        "Should include manual details",
+      );
+
+      // Should have separator
+      assertEquals(
+        contentText.includes("---"),
+        true,
+        "Should have separator between tools and manual",
+      );
+    } finally {
+      await server.close?.();
+    }
+  },
+);
+
+Deno.test(
   "Agentic mode - executes tool with parameters",
   async () => {
     const server = await mcpc(
