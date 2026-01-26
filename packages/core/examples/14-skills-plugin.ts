@@ -28,7 +28,7 @@ export const server = await mcpc(
   ],
   [
     {
-      name: "coding-assistant",
+      name: "slide-agent",
 
       options: {
         mode: "agentic",
@@ -36,7 +36,7 @@ export const server = await mcpc(
 
       // Just describe the agent - skills info is in load-skill tool
       description:
-        "I am a coding assistant that can help with git workflows and code reviews.",
+        "I am a presentation assistant that can help with creating professional slides using Slidev.",
 
       plugins: [
         createSkillsPlugin({
@@ -54,12 +54,7 @@ await server.connect(transport);
  * Skills Directory Structure:
  *
  * .claude/skills/
- * ├── git-workflow/
- * │   ├── SKILL.md
- * │   └── references/
- * │       ├── branching.md
- * │       └── hotfix.md
- * └── code-review/
+ * └── creating-slidev-presentations/
  *     └── SKILL.md
  *
  * The coding-assistant__load-skill tool description will show:
@@ -67,8 +62,7 @@ await server.connect(transport);
  * Load a skill's detailed instructions or reference files for the "coding-assistant" agent.
  *
  * Available skills:
- * - git-workflow: Git branching and commit best practices
- * - code-review: Code review guidelines and checklist
+ * - creating-slidev-presentations: Creates presentation slides using Slidev with Markdown syntax
  *
  * Usage:
  * - coding-assistant__load-skill({ skill: "skill-name" }) - Load main SKILL.md content
@@ -77,12 +71,12 @@ await server.connect(transport);
  * Usage Examples:
  *
  * 1. Load skill instructions:
- *    Agent calls: coding-assistant__load-skill({ skill: "git-workflow" })
+ *    Agent calls: coding-assistant__load-skill({ skill: "creating-slidev-presentations" })
  *    Returns: SKILL.md body content
  *
  * 2. Load reference file:
- *    Agent calls: coding-assistant__load-skill({ skill: "git-workflow", ref: "references/hotfix.md" })
- *    Returns: hotfix.md content
+ *    Agent calls: coding-assistant__load-skill({ skill: "skill-name", ref: "references/file.md" })
+ *    Returns: file.md content
  *
  * Claude Desktop Configuration:
  * ```json
