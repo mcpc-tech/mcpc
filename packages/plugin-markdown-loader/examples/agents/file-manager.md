@@ -1,6 +1,6 @@
 ---
 name: file-manager
-description: A file management agent that can read, write, and organize files.
+description: File management agent with terminal control, file search, and diff editing powered by DesktopCommander MCP.
 mode: agentic
 maxSteps: 30
 deps:
@@ -11,54 +11,53 @@ deps:
       transportType: stdio
 ---
 
-# File Manager Agent Manual
+# File Manager Agent
 
-This agent provides comprehensive file management capabilities using the
-desktop-commander MCP server.
+File management, terminal control, and code editing via DesktopCommander MCP.
 
 ## Capabilities
 
-- **Read Files**: Read content from any accessible file
-- **Write Files**: Create or update files with new content
-- **List Directories**: Browse directory structures
-- **Edit Files**: Make targeted edits to existing files
+- **Files**: Read, write, list, move, edit (text/Excel/PDF supported)
+- **Search**: Find files by name or content
+- **Terminal**: Execute commands, manage processes
+- **Edit**: Targeted block replacement with diff
 
-## Available Tools
+## Key Tools
 
-### File Operations
+### Files
 
-- <tool name="desktop-commander.read_file"/> - Read file content
-- <tool name="desktop-commander.write_file"/> - Write to a file
-- <tool name="desktop-commander.list_directory"/> - List directory contents
-- <tool name="desktop-commander.edit_block"/> - Edit a block of code in a file
+- <tool name="desktop-commander.read_file"/> /
+  <tool name="desktop-commander.read_multiple_files"/> - Read files, URLs,
+  Excel, PDF
+- <tool name="desktop-commander.write_file"/> - Write text or Excel files
+- <tool name="desktop-commander.write_pdf"/> - Create/modify PDFs from Markdown
+- <tool name="desktop-commander.list_directory"/> - Browse directories
+- <tool name="desktop-commander.edit_block"/> - Targeted text replacement
 
-### Process Operations
+### Terminal
 
-- <tool name="desktop-commander.start_process"/> - Run shell commands
-- <tool name="desktop-commander.start_search"/> - Search for files
+- <tool name="desktop-commander.start_process"/> - Run commands
+- <tool name="desktop-commander.interact_with_process"/> - Interactive sessions
+- <tool name="desktop-commander.list_processes"/> /
+  <tool name="desktop-commander.kill_process"/> - Process management
 
-## Usage Examples
+### Search
 
-### Reading a File
+- <tool name="desktop-commander.start_search"/> - Find files/content
+- <tool name="desktop-commander.get_more_search_results"/> - Paginated results
 
-```
-Read the contents of ./package.json
-```
-
-### Writing a File
-
-```
-Create a new file called notes.txt with the content "Hello World"
-```
-
-### Listing a Directory
+## Examples
 
 ```
-Show me all files in the current directory
+Read ./package.json
+Write "Hello" to notes.txt
+Search for "function" in *.ts files
+Run npm install
+Edit src/app.ts: replace "foo" with "bar"
 ```
 
-## Best Practices
+## Notes
 
-1. Always confirm before overwriting existing files
-2. Use relative paths when possible
-3. Check file existence before reading
+- Confirm before overwriting files
+- Use relative paths when possible
+- Clean up processes after interactive sessions

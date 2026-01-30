@@ -356,7 +356,7 @@ Deno.test("Config Loader - --cwd changes working directory", async () => {
     );
 
     Object.defineProperty(process, "argv", {
-      value: ["deno", "run", "--cwd", tempDir],
+      value: ["deno", "run", "--cwd", tempDir, "--config-file", configPath],
       configurable: true,
       writable: true,
     });
@@ -364,6 +364,7 @@ Deno.test("Config Loader - --cwd changes working directory", async () => {
     // Ensure no other config sources
     delete process.env.MCPC_CONFIG;
     delete process.env.MCPC_CONFIG_FILE;
+    delete process.env.MCPC_CONFIG_URL;
 
     const config = await loadConfig();
 
