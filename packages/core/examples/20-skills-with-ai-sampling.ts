@@ -16,7 +16,7 @@ import { mcpc } from "../mod.ts";
 import { createSkillsPlugin } from "../plugins.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// Skills are in .claude/skills at project root
+// Skills are in .agent/skills at project root
 const projectRoot = join(__dirname, "../../..");
 
 export const server = await mcpc(
@@ -54,7 +54,7 @@ I'll load the appropriate skill first.`,
 
       plugins: [
         createSkillsPlugin({
-          paths: [join(projectRoot, ".claude/skills")],
+          paths: [join(projectRoot, ".agent/skills")],
         }),
       ],
 
@@ -79,7 +79,7 @@ await server.connect(transport);
  *
  * 1. Skills Plugin (from example 14)
  *    - Provides load-skill tool for lazy-loading domain knowledge
- *    - Skills are loaded from .claude/skills/ directory
+ *    - Skills are loaded from .agent/skills/ directory
  *
  * 2. AI Sampling Mode (from example 01)
  *    - Uses client's sampling capability for tool orchestration

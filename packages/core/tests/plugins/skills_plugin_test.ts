@@ -10,9 +10,9 @@ interface ToolResult {
   isError?: boolean;
 }
 
-// Get the absolute path to the .claude/skills directory at project root
+// Get the absolute path to the .agent/skills directory at project root
 const testDir = dirname(fileURLToPath(import.meta.url));
-const skillsPath = join(testDir, "../../../../.claude/skills");
+const skillsPath = join(testDir, "../../../../.agent/skills");
 
 /** Create test server with skills plugin */
 async function createTestServer() {
