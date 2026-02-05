@@ -35,29 +35,33 @@ import { getAgentPlugins } from "./defaults.ts";
 const port = Number(process.env.PORT || "3002");
 const hostname = "0.0.0.0";
 
-// Load configuration from environment or file
-const config = await loadConfig();
+async function main() {
+  // Load configuration from environment or file
+  const config = await loadConfig();
 
-// Add agent-level plugins (skip string paths)
-config?.agents.forEach((agent) => {
-  if (typeof agent === "string") return;
-  agent.plugins = [...(agent.plugins || []), ...getAgentPlugins()];
-});
+  // Add agent-level plugins (skip string paths)
+  config?.agents.forEach((agent) => {
+    if (typeof agent === "string") return;
+    agent.plugins = [...(agent.plugins || []), ...getAgentPlugins()];
+  });
 
-if (config) {
-  console.log(`Loaded configuration with ${config.agents.length} agent(s)`);
-} else {
-  console.log("No configuration found, using default example configuration");
+  if (config) {
+    console.log(`Loaded configuration with ${config.agents.length} agent(s)`);
+  } else {
+    console.log("No configuration found, using default example configuration");
+  }
+
+  const app = new OpenAPIHono();
+
+  app.route("mcp", createApp(config || undefined));
+
+  Deno.serve(
+    {
+      port,
+      hostname,
+    },
+    app.fetch,
+  );
 }
 
-const app = new OpenAPIHono();
-
-app.route("mcp", createApp(config || undefined));
-
-Deno.serve(
-  {
-    port,
-    hostname,
-  },
-  app.fetch,
-);
+main();
