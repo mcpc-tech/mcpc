@@ -586,6 +586,60 @@ export class ComposableMCPServer extends Server {
   }
 
   /**
+   * Get all internal tools with their full metadata (description, schema)
+   * Internal tools are not exposed to MCP clients but available within the agent
+   */
+  getInternalTools(): Array<{
+    name: string;
+    description: string;
+    inputSchema: JSONSchema;
+  }> {
+    const internalNames = this.getInternalToolNames();
+    const registry = this.toolManager.getToolRegistry();
+
+    return internalNames.map((name) => {
+      const tool = registry.get(name);
+      return {
+        name,
+        description: tool?.description || "",
+        inputSchema: tool?.schema || { type: "object" },
+      };
+    });
+  }
+
+  /**
+   * Get a single tool with full details including execute callback
+   * Works for both public and internal tools
+   */
+  getComposedTool(name: string): ComposedTool | undefined {
+    return this.toolManager.getComposedTool(name);
+  }
+
+  /**
+   * Get all tools (public and internal) as composed tools with execute callback
+   */
+  getAllComposedTools(): ComposedTool[] {
+    return this.toolManager.getAllComposedTools();
+  }
+
+  /**
+   * Get all tools (public and internal) with full details
+   */
+  getAllTools(): Array<{
+    name: string;
+    description: string;
+    inputSchema: JSONSchema;
+  }> {
+    const registry = this.toolManager.getToolRegistry();
+
+    return Array.from(registry.entries()).map(([name, tool]) => ({
+      name,
+      description: tool?.description || "",
+      inputSchema: tool?.schema || { type: "object" },
+    }));
+  }
+
+  /**
    * Get hidden tool schema by name (for internal access)
    */
   getHiddenToolSchema(

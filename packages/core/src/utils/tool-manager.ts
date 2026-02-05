@@ -299,4 +299,26 @@ export class ToolManager {
       execute: tool.callback,
     };
   }
+
+  /**
+   * Get all tools as ComposedTool objects with execute callback
+   * Includes both public and internal tools
+   */
+  getAllComposedTools(): ComposedTool[] {
+    const composedTools: ComposedTool[] = [];
+
+    for (const [name, tool] of this.toolRegistry.entries()) {
+      composedTools.push({
+        name,
+        description: tool.description,
+        inputSchema:
+          (tool.schema ?? { type: "object", properties: {} }) as Tool[
+            "inputSchema"
+          ],
+        execute: tool.callback,
+      });
+    }
+
+    return composedTools;
+  }
 }
