@@ -82,6 +82,42 @@ content. See
 [`packages/core/src/plugins/large-result.ts`](../packages/core/src/plugins/large-result.ts)
 for details.
 
+### Executing Bash Commands
+
+Add bash command execution capability to agents:
+
+```typescript
+import { createBashPlugin } from "@mcpc/core/plugins";
+
+plugins: [
+  createBashPlugin({
+    maxBytes: 100000, // Max output bytes (default: 100KB)
+    maxLines: 2000, // Max output lines (default: 2000)
+    timeoutMs: 60000, // Command timeout (default: 60s)
+  }),
+];
+```
+
+**What it does:**
+
+1. Adds a `bash` tool to execute shell commands
+2. Truncates output if too large to prevent context pollution
+3. Returns exit code and handles timeouts
+4. Useful for running scripts, build commands, git operations
+
+**Usage:**
+
+```typescript
+// Execute command
+bash({ command: "npm run build" });
+
+// Execute with custom working directory
+bash({ command: "npm test", cwd: "/project/path" });
+```
+
+**Note**: For skills with scripts (e.g., `scripts/deploy.sh`), use `load-skill`
+to get the script path, then use `bash` to execute it.
+
 ### Adding Search Functionality
 
 Add file search to any directory:
@@ -689,10 +725,11 @@ plugins: [
 
 ```
 skills/
-├── git-workflow/
+├── creating-slidev-presentations/
 │   ├── SKILL.md           # Required: skill definition with frontmatter
+│   ├── scripts/           # Optional: executable scripts
+│   │   └── export-pdf.sh
 │   └── references/        # Optional: additional reference files
-│       └── branching.md
 └── code-review/
     └── SKILL.md
 ```
@@ -701,11 +738,11 @@ skills/
 
 ```markdown
 ---
-name: git-workflow
-description: Git branching and commit best practices
+name: creating-slidev-presentations
+description: Creates presentation slides using Slidev
 ---
 
-# Git Workflow
+# Creating Slidev Presentations
 
 Your skill instructions here...
 ```

@@ -146,20 +146,28 @@ For complex agents where inline `description` becomes unwieldy, use
 files that are loaded on-demand.
 
 ```typescript
-import { createSkillsPlugin } from "@mcpc/core/plugins/skills";
+import { createBashPlugin, createSkillsPlugin } from "@mcpc/core/plugins";
 
 const server = await mcpc(
   [{ name: "my-agent", version: "1.0.0" }, { capabilities: { tools: {} } }],
   [{
     name: "my-agent",
-    description: "An agent with domain knowledge",
-    plugins: [createSkillsPlugin({ paths: ["./skills"] })],
+    description: 'An agent with domain knowledge\n\n<tool name="bash"/>',
+    plugins: [
+      createSkillsPlugin({ paths: ["./skills"] }),
+      createBashPlugin(),
+    ],
   }],
 );
 ```
 
-> **Complete Example**: See
-> [14-skills-plugin.ts](packages/core/examples/14-skills-plugin.ts).
+Skills load domain knowledge on-demand, while bash plugin enables script
+execution. For scripts in `scripts/` directory, skills returns the path - use
+bash tool to execute.
+
+> **Complete Examples**: See
+> [14-skills-plugin.ts](packages/core/examples/14-skills-plugin.ts) and
+> [25-skills-with-bash.ts](packages/core/examples/25-skills-with-bash.ts).
 
 ### Examples: Progressive Manual Disclosure
 

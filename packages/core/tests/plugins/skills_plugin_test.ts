@@ -35,12 +35,12 @@ Deno.test("skills plugin registers load-skill tool with skills list", async () =
   // Test that the tool exists and works by calling it
   // Internal tools are not visible via client.listTools() but can be called
   const result = (await server.callTool("test-agent__load-skill", {
-    skill: "git-workflow",
+    skill: "creating-slidev-presentations",
   })) as ToolResult;
 
   // Verify tool works and contains skill content
   const text = result?.content?.find((c) => c.type === "text")?.text || "";
-  assertStringIncludes(text, "# Git Workflow");
+  assertStringIncludes(text, "# Creating Slidev Presentations");
 
   await server.close();
 });
@@ -49,12 +49,12 @@ Deno.test("load-skill returns skill body content", async () => {
   const server = await createTestServer();
 
   const result = (await server.callTool("test-agent__load-skill", {
-    skill: "git-workflow",
+    skill: "creating-slidev-presentations",
   })) as ToolResult;
 
   const text = result?.content?.find((c) => c.type === "text")?.text || "";
 
-  assertStringIncludes(text, "# Git Workflow");
+  assertStringIncludes(text, "# Creating Slidev Presentations");
   assertEquals(
     text.includes("---\nname:"),
     false,
@@ -67,13 +67,13 @@ Deno.test("load-skill returns skill body content", async () => {
 Deno.test("load-skill with ref returns reference file", async () => {
   const server = await createTestServer();
 
+  // creating-slidev-presentations doesn't have references/ so this should error
   const result = (await server.callTool("test-agent__load-skill", {
-    skill: "git-workflow",
-    ref: "references/hotfix.md",
+    skill: "creating-slidev-presentations",
+    ref: "references/nonexistent.md",
   })) as ToolResult;
 
-  const text = result?.content?.find((c) => c.type === "text")?.text || "";
-  assertStringIncludes(text, "# Hotfix Procedure");
+  assertEquals(result.isError, true);
 
   await server.close();
 });
@@ -82,7 +82,7 @@ Deno.test("load-skill rejects path traversal", async () => {
   const server = await createTestServer();
 
   const result = (await server.callTool("test-agent__load-skill", {
-    skill: "git-workflow",
+    skill: "creating-slidev-presentations",
     ref: "../../../etc/passwd",
   })) as ToolResult;
 

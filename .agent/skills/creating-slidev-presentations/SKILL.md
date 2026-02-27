@@ -981,3 +981,21 @@ Then:
 theme: myname
 ---
 ```
+
+## Scripts
+
+### scripts/export-pdf.sh
+
+Export presentation to PDF for sharing.
+
+Usage:
+
+```bash
+bash scripts/export-pdf.sh
+```
+
+This script:
+
+1. Checks if dependencies are installed
+2. Runs `npm run export` to generate PDF
+3. Outputs to `slides.pdf`

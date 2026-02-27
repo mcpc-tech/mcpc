@@ -2,7 +2,6 @@
   "version": "5",
   "specifiers": {
     "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.44.0",
-    "jsr:@mcpc/plugin-markdown-loader@^0.0.10": "0.0.10",
     "jsr:@std/assert@1": "1.0.17",
     "jsr:@std/assert@^1.0.14": "1.0.17",
     "jsr:@std/cli@^1.0.25": "1.0.26",
@@ -58,12 +57,6 @@
     },
     "@es-toolkit/es-toolkit@1.44.0": {
       "integrity": "647a7e777945a3ac81bd1783670f85429c2a661510d9af36becc6963ddfca00d"
-    },
-    "@mcpc/plugin-markdown-loader@0.0.10": {
-      "integrity": "db16e5ff622fbe52a93656be1c8c064247f7196ee31ced6135d54791582eea41",
-      "dependencies": [
-        "jsr:@std/yaml"
-      ]
     },
     "@std/assert@1.0.17": {
       "integrity": "df5ebfffe77c03b3fa1401e11c762cc8f603d51021c56c4d15a8c7ab45e90dbe",
@@ -1442,8 +1435,8 @@
       },
       "packages/cli": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.37",
-          "jsr:@mcpc/plugin-markdown-loader@^0.0.10",
+          "jsr:@mcpc/core@~0.3.39",
+          "jsr:@mcpc/plugin-markdown-loader@^0.0.12",
           "jsr:@mcpc/utils@~0.2.12",
           "jsr:@std/assert@^1.0.14",
           "jsr:@std/cli@^1.0.26",
@@ -1494,8 +1487,8 @@
       },
       "packages/mcpc-builder": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.35",
-          "jsr:@mcpc/plugin-markdown-loader@^0.0.10",
+          "jsr:@mcpc/core@~0.3.39",
+          "jsr:@mcpc/plugin-markdown-loader@^0.0.12",
           "jsr:@std/assert@^1.0.14",
           "npm:@modelcontextprotocol/sdk@^1.8.0",
           "npm:zod@^3.24.2"
@@ -1503,8 +1496,8 @@
       },
       "packages/plugin-code-execution": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.35",
-          "jsr:@mcpc/utils@~0.2.11",
+          "jsr:@mcpc/core@~0.3.39",
+          "jsr:@mcpc/utils@~0.2.12",
           "jsr:@std/assert@1",
           "npm:@mcpc-tech/handle-sandbox@^0.0.8",
           "npm:@modelcontextprotocol/sdk@^1.8.0"
@@ -1512,7 +1505,7 @@
       },
       "packages/plugin-markdown-loader": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.35",
+          "jsr:@mcpc/core@~0.3.39",
           "jsr:@std/assert@1",
           "jsr:@std/yaml@^1.0.5"
         ]

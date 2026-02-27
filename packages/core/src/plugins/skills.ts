@@ -115,7 +115,7 @@ Usage:
 - ${toolName}({ skill: "skill-name" }) - Load main SKILL.md content
 - ${toolName}({ skill: "skill-name", ref: "path/to/file" }) - Load reference file
 
-Note: For scripts/ and assets/, use appropriate tools directly.`;
+Note: For scripts/, use the bash tool with the script path to execute.`;
 }
 
 /**
@@ -241,7 +241,11 @@ export function createSkillsPlugin(options: SkillsPluginOptions): ToolPlugin {
                 "utf-8",
               );
               const body = extractBody(content);
-              return { content: [{ type: "text", text: body }] };
+              // Include skill absolute path for reference
+              const skillPathInfo = `\n---\nSkill path: ${meta.basePath}\n`;
+              return {
+                content: [{ type: "text", text: body + skillPathInfo }],
+              };
             } catch {
               return {
                 content: [
