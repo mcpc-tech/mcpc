@@ -20,7 +20,7 @@
     ]
   },
   "imports": {
-    "@mcpc/core": "jsr:@mcpc/core@^0.3.39",
+    "@mcpc/core": "jsr:@mcpc/core@^0.3.40",
     "@mcpc/plugin-markdown-loader": "jsr:@mcpc/plugin-markdown-loader@^0.0.12",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
     "@std/assert": "jsr:@std/assert@^1.0.14",

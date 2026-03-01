@@ -4,6 +4,7 @@
 
 import { createLargeResultPlugin } from "@mcpc/core/plugins/large-result";
 import { createSkillsPlugin } from "@mcpc/core/plugins/skills";
+import { createBashPlugin } from "@mcpc/core/plugins/bash";
 import { createCodeExecutionPlugin } from "@mcpc-tech/plugin-code-execution";
 import { markdownLoaderPlugin } from "@mcpc/plugin-markdown-loader";
 import type { ComposeDefinition, ToolPlugin } from "@mcpc/core";
@@ -28,6 +29,7 @@ export function getGlobalPlugins(
   return [
     markdownLoaderPlugin(),
     createSkillsPlugin({ paths: resolvedPaths }),
+    createBashPlugin(),
   ];
 }
 

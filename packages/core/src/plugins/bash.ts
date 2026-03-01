@@ -9,7 +9,7 @@
 
 import { spawn } from "node:child_process";
 import process from "node:process";
-import type { ToolPlugin } from "../plugin-types.ts";
+import type { ComposeStartContext, ToolPlugin } from "../plugin-types.ts";
 
 /** Default max output bytes to prevent context pollution */
 const DEFAULT_MAX_BYTES = 100_000;
@@ -129,15 +129,27 @@ export function createBashPlugin(options: BashPluginOptions = {}): ToolPlugin {
     ...options,
   };
 
+  // deno-lint-ignore no-explicit-any
+  let serverRef: any = null;
+
   return {
     name: "plugin-bash",
     version: "1.0.0",
 
     // Store server reference for tool registration
     configureServer: (server) => {
-      // Register bash tool
-      server.tool(
-        "bash",
+      serverRef = server;
+    },
+
+    // Register bash tool with agent name prefix
+    composeStart: (context: ComposeStartContext) => {
+      if (!serverRef) return;
+
+      const agentName = context.serverName;
+      const toolName = `${agentName}__bash`;
+
+      serverRef.tool(
+        toolName,
         "Execute a bash command and return its output.\n\n" +
           "Use this for:\n" +
           "- Running shell commands\n" +

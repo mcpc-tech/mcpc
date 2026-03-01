@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/core",
-  "version": "0.3.39",
+  "version": "0.3.40",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -10,7 +10,8 @@
     "./plugins": "./plugins.ts",
     "./plugins/search": "./src/plugins/search-tool.ts",
     "./plugins/large-result": "./src/plugins/large-result.ts",
-    "./plugins/skills": "./src/plugins/skills.ts"
+    "./plugins/skills": "./src/plugins/skills.ts",
+    "./plugins/bash": "./src/plugins/bash.ts"
   },
   "tasks": {
     "server:compile": "echo \"no need to compile\"",
