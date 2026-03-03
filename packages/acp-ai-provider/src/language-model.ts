@@ -186,6 +186,23 @@ export class ACPLanguageModel implements LanguageModelV2 {
     this.clientToolAbort = null;
   }
 
+  private hasToolInput(input: unknown): boolean {
+    if (input === null || input === undefined) {
+      return false;
+    }
+    if (typeof input === "object") {
+      return Object.keys(input as object).length > 0;
+    }
+    if (typeof input === "string") {
+      return input.length > 0;
+    }
+    return true;
+  }
+
+  private normalizeToolInput(input: unknown): unknown {
+    return input ?? {};
+  }
+
   /**
    * Parses a 'tool_call' notification update into a structured object.
    * Note: We only use rawInput for tool input (content is for UI display).
@@ -812,22 +829,29 @@ export class ACPLanguageModel implements LanguageModelV2 {
       }
 
       case "tool_call_update": {
-        const { toolCallId, toolName, toolResult, isError, status } = this
+        const { toolCallId, toolName, toolResult, isError } = this
           .parseToolResult(update);
+        const effectiveStatus = update.status ?? "in_progress";
 
         let toolInfo = this.toolCallsMap.get(toolCallId);
+        // ACP allows incremental tool updates and rawInput can be provided on
+        // tool_call_update (not only on the initial tool_call), so we must
+        // recover args from update.rawInput when available.
+        const updateInput = this.normalizeToolInput(
+          "rawInput" in update ? update.rawInput : undefined,
+        );
 
-        // On in_progress: emit tool-call if we haven't already
-        // This handles cases where rawInput is legitimately empty ({})
-        // or where the tool_call notifications were missed
-        if (status === "in_progress") {
+        // On in_progress: emit tool-call if we haven't already.
+        // This keeps AI SDK tool-call payloads stable even when the agent
+        // sends args later via tool_call_update.
+        if (effectiveStatus === "in_progress") {
           if (!toolInfo) {
             // First time seeing this toolCallId
             toolInfo = {
               index: this.toolCallsMap.size,
               name: toolName,
               inputStarted: true,
-              inputAvailable: true,
+              inputAvailable: false,
             };
             this.toolCallsMap.set(toolCallId, toolInfo);
             controller.enqueue({
@@ -837,8 +861,11 @@ export class ACPLanguageModel implements LanguageModelV2 {
             });
           }
 
-          if (!toolInfo.inputAvailable) {
-            // Tool is executing, so input is now available (even if empty)
+          // Emit tool-call if input wasn't available before, or if we have new input data
+          // (handles case where tool_call notification had empty args but tool_call_update has rawInput)
+          const hasNewInput = this.hasToolInput(updateInput);
+          if (!toolInfo.inputAvailable || hasNewInput) {
+            // Input is now available (either wasn't before, or we got new data from update)
             toolInfo.inputAvailable = true;
 
             // Update the stored name if we now have a better one (title vs toolCallId)
@@ -856,7 +883,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
               input: JSON.stringify({
                 toolCallId,
                 toolName: toolInfo.name,
-                args: {},
+                args: updateInput,
               }),
             });
           }
@@ -868,7 +895,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
           break;
         }
 
-        if (!["completed", "failed"].includes(status)) {
+        if (!["completed", "failed"].includes(effectiveStatus)) {
           // Ignore other intermediate statuses (e.g., pending)
           break;
         }
@@ -885,30 +912,34 @@ export class ACPLanguageModel implements LanguageModelV2 {
             type: "tool-call",
             toolCallId,
             toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
-            input: JSON.stringify({ toolCallId, toolName }), // Note: input args are missing
+            input: JSON.stringify({ toolCallId, toolName, args: updateInput }),
           });
-        } else if (!toolInfo.inputAvailable) {
-          // We got tool-input-start but tool-call was never emitted
-          toolInfo.inputAvailable = true;
+        } else {
+          // Emit tool-call if input wasn't available before, or if we have new input data
+          const hasNewInput = this.hasToolInput(updateInput);
+          if (!toolInfo.inputAvailable || hasNewInput) {
+            // Input is now available (either wasn't before, or we got new data from update)
+            toolInfo.inputAvailable = true;
 
-          // Update the stored name if we now have a better one (title vs toolCallId)
-          if (
-            update.title && toolInfo.name !== update.title &&
-            update.title !== toolCallId
-          ) {
-            toolInfo.name = update.title;
-          }
+            // Update the stored name if we now have a better one (title vs toolCallId)
+            if (
+              update.title && toolInfo.name !== update.title &&
+              update.title !== toolCallId
+            ) {
+              toolInfo.name = update.title;
+            }
 
-          controller.enqueue({
-            type: "tool-call",
-            toolCallId,
-            toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
-            input: JSON.stringify({
+            controller.enqueue({
+              type: "tool-call",
               toolCallId,
-              toolName: toolInfo.name,
-              args: {},
-            }),
-          });
+              toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
+              input: JSON.stringify({
+                toolCallId,
+                toolName: toolInfo.name,
+                args: updateInput,
+              }),
+            });
+          }
         }
 
         // Check if this is a client-side tool (no execute function)
