@@ -208,7 +208,8 @@ export class ACPLanguageModel implements LanguageModelV3 {
 
   /**
    * Parses a 'tool_call_update' notification update into a structured object.
-   * Note: We only use rawOutput for tool result (content is for UI display).
+   * Note: We only use rawOutput for tool result here (content is for UI display).
+   * rawInput is handled in handleStreamNotification when emitting tool-call args.
    */
   private parseToolResult(update: SessionNotification["update"]): {
     toolCallId: string;
@@ -815,10 +816,20 @@ export class ACPLanguageModel implements LanguageModelV3 {
           .parseToolResult(update);
 
         let toolInfo = this.toolCallsMap.get(toolCallId);
+        // ACP allows incremental tool updates and rawInput can be provided on
+        // tool_call_update (not only on the initial tool_call), so we must
+        // recover args from update.rawInput when available.
+        // Ref: https://agentclientprotocol.com/protocol/tool-calls
+        // Ref: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol
+        const updateInput = "rawInput" in update &&
+            update.rawInput &&
+            typeof update.rawInput === "object"
+          ? update.rawInput
+          : {};
 
-        // On in_progress: emit tool-call if we haven't already
-        // This handles cases where rawInput is legitimately empty ({})
-        // or where the tool_call notifications were missed
+        // On in_progress: emit tool-call if we haven't already.
+        // This keeps AI SDK tool-call payloads stable even when the agent
+        // sends args later via tool_call_update.
         if (status === "in_progress") {
           if (!toolInfo) {
             // First time seeing this toolCallId
@@ -826,7 +837,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
               index: this.toolCallsMap.size,
               name: toolName,
               inputStarted: true,
-              inputAvailable: true,
+              inputAvailable: false,
             };
             this.toolCallsMap.set(toolCallId, toolInfo);
             controller.enqueue({
@@ -855,7 +866,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
               input: JSON.stringify({
                 toolCallId,
                 toolName: toolInfo.name,
-                args: {},
+                args: updateInput,
               }),
             });
           }
@@ -884,7 +895,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
             type: "tool-call",
             toolCallId,
             toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
-            input: JSON.stringify({ toolCallId, toolName }), // Note: input args are missing
+            input: JSON.stringify({ toolCallId, toolName, args: updateInput }),
           });
         } else if (!toolInfo.inputAvailable) {
           // We got tool-input-start but tool-call was never emitted
@@ -905,7 +916,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
             input: JSON.stringify({
               toolCallId,
               toolName: toolInfo.name,
-              args: {},
+              args: updateInput,
             }),
           });
         }
