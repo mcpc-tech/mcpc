@@ -1328,7 +1328,8 @@
       "integrity": "sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==",
       "dependencies": [
         "iconv-lite@0.6.3"
-      ]
+      ],
+      "deprecated": true
     },
     "whatwg-mimetype@4.0.0": {
       "integrity": "sha512-QaKxh0eNIi2mE9p2vEdzfagOKHCcj1pJ56EEHGQOVxp8r9/iszLUUV7v89x9O1p/T+NlTM5W7jW6+cz4Fq1YVg=="
@@ -1367,7 +1368,6 @@
     "members": {
       "packages/acp-ai-provider": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.10",
           "jsr:@std/assert@1",
           "npm:@agentclientprotocol/sdk@~0.4.8",
           "npm:@ai-sdk/provider-utils@^2.2.8",
