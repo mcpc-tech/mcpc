@@ -17,7 +17,7 @@
     "jsr:@std/path@^1.1.4": "1.1.4",
     "jsr:@std/streams@^1.0.16": "1.0.17",
     "jsr:@std/yaml@^1.0.5": "1.0.11",
-    "npm:@agentclientprotocol/sdk@~0.4.8": "0.4.9",
+    "npm:@agentclientprotocol/sdk@~0.14.1": "0.14.1_zod@3.25.76",
     "npm:@ai-sdk/provider-utils@4": "4.0.8_zod@3.25.76",
     "npm:@ai-sdk/provider-utils@^2.2.8": "2.2.8_zod@3.25.76",
     "npm:@ai-sdk/provider@2": "2.0.1",
@@ -119,6 +119,12 @@
     }
   },
   "npm": {
+    "@agentclientprotocol/sdk@0.14.1_zod@3.25.76": {
+      "integrity": "sha512-b6r3PS3Nly+Wyw9U+0nOr47bV8tfS476EgyEMhoKvJCZLbgqoDFN7DJwkxL88RR0aiOqOYV1ZnESHqb+RmdH8w==",
+      "dependencies": [
+        "zod"
+      ]
+    },
     "@agentclientprotocol/sdk@0.4.9": {
       "integrity": "sha512-ExwH828LaTGoTTjxuw49l+fwOLA+Yx0+qkWn1TcHMOsY5mVI9CUfkj7ZDhv2klgZ7mJeT+lxX/Dn/KINv1AkNQ==",
       "dependencies": [
@@ -282,7 +288,7 @@
     "@mcpc-tech/acp-ai-provider@0.1.50_zod@3.25.76_hono@4.11.5": {
       "integrity": "sha512-BRZkTKd2F/XB0gcap9+Xgq6ajOQAKoTd4jrAT7j2Cr3nqSPElwp/B8xBGtSc68tiXDh53KAipyu3IsubUz+Ftw==",
       "dependencies": [
-        "@agentclientprotocol/sdk",
+        "@agentclientprotocol/sdk@0.4.9",
         "@ai-sdk/provider@2.0.1",
         "@modelcontextprotocol/sdk",
         "ai@5.0.123_zod@3.25.76",
@@ -1425,7 +1431,7 @@
       "packages/acp-ai-provider": {
         "dependencies": [
           "jsr:@std/assert@1",
-          "npm:@agentclientprotocol/sdk@~0.4.8",
+          "npm:@agentclientprotocol/sdk@~0.14.1",
           "npm:@ai-sdk/provider-utils@4",
           "npm:@ai-sdk/provider@3",
           "npm:@modelcontextprotocol/sdk@^1.8.0",

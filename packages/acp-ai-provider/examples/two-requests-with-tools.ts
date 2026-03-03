@@ -6,7 +6,7 @@ import process from "node:process";
 
 // Create provider for an ACP agent with session persistence
 const provider = createACPProvider({
-  command: "claude-code-acp",
+  command: "claude-agent-acp",
   args: [],
   session: {
     cwd: process.cwd(),

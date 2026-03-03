@@ -23,6 +23,9 @@ import {
   type WriteTextFileResponse,
 } from "@agentclientprotocol/sdk";
 import { type ChildProcess, spawn } from "node:child_process";
+import { appendFileSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 import { Readable, Writable } from "node:stream";
 import type { ACPProviderSettings } from "./types.ts";
@@ -163,6 +166,8 @@ export class ACPLanguageModel implements LanguageModelV3 {
     resolve: () => void;
   } | null = null;
 
+  private debugLogFilePath: string | null = null;
+
   constructor(
     modelId: string | undefined,
     modeId: string | undefined,
@@ -171,6 +176,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
     this.modelId = modelId!;
     this.modeId = modeId;
     this.config = config;
+    this.ensureDebugLogFile();
   }
 
   /**
@@ -183,6 +189,58 @@ export class ACPLanguageModel implements LanguageModelV3 {
     this.currentThinkingId = null; // Added this line to match state
     this.toolCallsMap.clear();
     this.clientToolAbort = null;
+  }
+
+  private ensureDebugLogFile(): void {
+    if (this.debugLogFilePath) {
+      return;
+    }
+
+    const debugDir = mkdtempSync(join(tmpdir(), "acp-ai-provider-"));
+    this.debugLogFilePath = join(debugDir, "agent-messages.ndjson");
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[acp-ai-provider] Agent message log: ${this.debugLogFilePath}`,
+    );
+  }
+
+  private appendDebugAgentMessage(notification: SessionNotification): void {
+    this.ensureDebugLogFile();
+    if (!this.debugLogFilePath) {
+      return;
+    }
+
+    try {
+      appendFileSync(
+        this.debugLogFilePath,
+        `${
+          JSON.stringify({
+            timestamp: new Date().toISOString(),
+            notification,
+          })
+        }\n`,
+      );
+    } catch {
+      // Best-effort debug logging only.
+    }
+  }
+
+  private hasToolInput(input: unknown): boolean {
+    if (input === null || input === undefined) {
+      return false;
+    }
+    if (typeof input === "object") {
+      return Object.keys(input as object).length > 0;
+    }
+    if (typeof input === "string") {
+      return input.length > 0;
+    }
+    return true;
+  }
+
+  private normalizeToolInput(input: unknown): unknown {
+    return input ?? {};
   }
 
   /**
@@ -216,7 +274,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
     toolName: string;
     toolResult: ToolCallContent[];
     isError: boolean;
-    status: ToolCallStatus;
+    status: ToolCallStatus | undefined;
   } {
     if (update.sessionUpdate !== "tool_call_update") {
       throw new Error("Invalid update type for parseToolResult");
@@ -300,6 +358,8 @@ export class ACPLanguageModel implements LanguageModelV3 {
    * Does NOT start a session.
    */
   async connectClient(): Promise<void> {
+    this.ensureDebugLogFile();
+
     if (this.connection) {
       return;
     }
@@ -582,7 +642,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
       }
     }
 
-    await this.connection.setSessionModel({
+    await this.connection.unstable_setSessionModel({
       sessionId: this.sessionId,
       modelId,
     });
@@ -677,6 +737,8 @@ export class ACPLanguageModel implements LanguageModelV3 {
     controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>,
     notification: SessionNotification,
   ): void {
+    this.appendDebugAgentMessage(notification);
+
     const update = notification.update;
     switch (update.sessionUpdate) {
       case "plan":
@@ -750,9 +812,8 @@ export class ACPLanguageModel implements LanguageModelV3 {
 
         const existingToolCall = this.toolCallsMap.get(toolCallId);
 
-        // Check if rawInput has actual data (not empty object)
-        const hasInput = toolInput && typeof toolInput === "object" &&
-          Object.keys(toolInput as object).length > 0;
+        // Check if rawInput has actual data
+        const hasInput = this.hasToolInput(toolInput);
 
         if (!existingToolCall) {
           // First time seeing this toolCallId
@@ -812,8 +873,9 @@ export class ACPLanguageModel implements LanguageModelV3 {
       }
 
       case "tool_call_update": {
-        const { toolCallId, toolName, toolResult, isError, status } = this
+        const { toolCallId, toolName, toolResult, isError } = this
           .parseToolResult(update);
+        const effectiveStatus = update.status ?? "in_progress";
 
         let toolInfo = this.toolCallsMap.get(toolCallId);
         // ACP allows incremental tool updates and rawInput can be provided on
@@ -821,16 +883,14 @@ export class ACPLanguageModel implements LanguageModelV3 {
         // recover args from update.rawInput when available.
         // Ref: https://agentclientprotocol.com/protocol/tool-calls
         // Ref: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol
-        const updateInput = "rawInput" in update &&
-            update.rawInput &&
-            typeof update.rawInput === "object"
-          ? update.rawInput
-          : {};
+        const updateInput = this.normalizeToolInput(
+          "rawInput" in update ? update.rawInput : undefined,
+        );
 
         // On in_progress: emit tool-call if we haven't already.
         // This keeps AI SDK tool-call payloads stable even when the agent
         // sends args later via tool_call_update.
-        if (status === "in_progress") {
+        if (effectiveStatus === "in_progress") {
           if (!toolInfo) {
             // First time seeing this toolCallId
             toolInfo = {
@@ -847,8 +907,11 @@ export class ACPLanguageModel implements LanguageModelV3 {
             });
           }
 
-          if (!toolInfo.inputAvailable) {
-            // Tool is executing, so input is now available (even if empty)
+          // Emit tool-call if input wasn't available before, or if we have new input data
+          // (handles case where tool_call notification had empty args but tool_call_update has rawInput)
+          const hasNewInput = this.hasToolInput(updateInput);
+          if (!toolInfo.inputAvailable || hasNewInput) {
+            // Input is now available (either wasn't before, or we got new data from update)
             toolInfo.inputAvailable = true;
 
             // Update the stored name if we now have a better one (title vs toolCallId)
@@ -878,7 +941,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
           break;
         }
 
-        if (!["completed", "failed"].includes(status)) {
+        if (!["completed", "failed"].includes(effectiveStatus)) {
           // Ignore other intermediate statuses (e.g., pending)
           break;
         }
@@ -897,28 +960,32 @@ export class ACPLanguageModel implements LanguageModelV3 {
             toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
             input: JSON.stringify({ toolCallId, toolName, args: updateInput }),
           });
-        } else if (!toolInfo.inputAvailable) {
-          // We got tool-input-start but tool-call was never emitted
-          toolInfo.inputAvailable = true;
+        } else {
+          // Emit tool-call if input wasn't available before, or if we have new input data
+          const hasNewInput = this.hasToolInput(updateInput);
+          if (!toolInfo.inputAvailable || hasNewInput) {
+            // Input is now available (either wasn't before, or we got new data from update)
+            toolInfo.inputAvailable = true;
 
-          // Update the stored name if we now have a better one (title vs toolCallId)
-          if (
-            update.title && toolInfo.name !== update.title &&
-            update.title !== toolCallId
-          ) {
-            toolInfo.name = update.title;
-          }
+            // Update the stored name if we now have a better one (title vs toolCallId)
+            if (
+              update.title && toolInfo.name !== update.title &&
+              update.title !== toolCallId
+            ) {
+              toolInfo.name = update.title;
+            }
 
-          controller.enqueue({
-            type: "tool-call",
-            toolCallId,
-            toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
-            input: JSON.stringify({
+            controller.enqueue({
+              type: "tool-call",
               toolCallId,
-              toolName: toolInfo.name,
-              args: updateInput,
-            }),
-          });
+              toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
+              input: JSON.stringify({
+                toolCallId,
+                toolName: toolInfo.name,
+                args: updateInput,
+              }),
+            });
+          }
         }
 
         // Check if this is a client-side tool (no execute function)

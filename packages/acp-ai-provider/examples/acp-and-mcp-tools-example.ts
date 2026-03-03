@@ -5,7 +5,7 @@ import { z } from "zod";
 import process from "node:process";
 
 const provider = createACPProvider({
-  command: "claude-code-acp",
+  command: "claude-agent-acp",
   args: [],
   session: {
     cwd: process.cwd(),

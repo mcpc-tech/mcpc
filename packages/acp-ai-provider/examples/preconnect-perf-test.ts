@@ -12,7 +12,7 @@ async function runScenario(
 
   // Create a fresh provider for each scenario to ensure isolation
   const provider = createACPProvider({
-    command: "claude-code-acp",
+    command: "claude-agent-acp",
     args: [],
     session: {
       cwd: process.cwd(),

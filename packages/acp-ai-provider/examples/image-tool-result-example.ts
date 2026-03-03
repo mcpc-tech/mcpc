@@ -17,7 +17,7 @@ import { Buffer } from "node:buffer";
 
 // Create provider for an ACP agent
 const provider = createACPProvider({
-  command: "claude-code-acp",
+  command: "claude-agent-acp",
   args: [],
   session: {
     cwd: process.cwd(),

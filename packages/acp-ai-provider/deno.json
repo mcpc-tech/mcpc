@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/acp-ai-provider",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -12,7 +12,7 @@
     "test": "deno test --allow-all tests/"
   },
   "imports": {
-    "@agentclientprotocol/sdk": "npm:@agentclientprotocol/sdk@^0.4.8",
+    "@agentclientprotocol/sdk": "npm:@agentclientprotocol/sdk@^0.14.1",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
     "@ai-sdk/provider": "npm:@ai-sdk/provider@^3.0.0",
     "@ai-sdk/provider-utils": "npm:@ai-sdk/provider-utils@^4.0.0",

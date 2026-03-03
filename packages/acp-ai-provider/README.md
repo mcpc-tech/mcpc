@@ -82,7 +82,7 @@ import { streamText } from "ai";
 import process from "node:process";
 
 const provider = createACPProvider({
-  command: "claude-code-acp",
+  command: "claude-agent-acp",
   args: [],
   session: {
     cwd: process.cwd(),
@@ -141,7 +141,7 @@ import { streamText, tool } from "ai";
 import { z } from "zod";
 
 const provider = createACPProvider({
-  command: "claude-code-acp",
+  command: "claude-agent-acp",
   session: { cwd: process.cwd(), mcpServers: [] },
 });
 
@@ -287,7 +287,7 @@ message listing available options):
 
 ```typescript
 const provider = createACPProvider({
-  command: "claude-code-acp",
+  command: "claude-agent-acp",
   args: [],
   session: { cwd: process.cwd(), mcpServers: [] },
   persistSession: true,

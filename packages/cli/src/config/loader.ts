@@ -688,7 +688,7 @@ function applyModeOverride(config: MCPCConfig, mode?: string): MCPCConfig {
     // Add default acpSettings for ai_acp mode if not provided
     if (mode === "ai_acp" && !agent.options.acpSettings) {
       agent.options.acpSettings = {
-        command: "claude-code-acp",
+        command: "claude-agent-acp",
         args: [],
         session: {},
       };

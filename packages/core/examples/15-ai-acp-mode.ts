@@ -11,7 +11,7 @@
  * - Session management for coding tasks
  *
  * Prerequisites:
- * - Install claude-code-acp CLI
+ * - Install claude-agent-acp CLI
  *
  * Run with:
  * deno run --allow-all examples/15-ai-acp-mode.ts
@@ -46,7 +46,7 @@ I can help with:
     options: {
       mode: "ai_acp",
       acpSettings: {
-        command: "claude-code-acp",
+        command: "claude-agent-acp",
         args: [],
         session: {},
       },

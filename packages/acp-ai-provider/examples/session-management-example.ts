@@ -121,7 +121,7 @@ async function main() {
   console.log("\n=== ACP Session Management Demo ===\n");
 
   // 1. Initialize a session
-  const sessionId = await initSession("claude-code-acp", []);
+  const sessionId = await initSession("claude-agent-acp", []);
 
   try {
     // 2. First conversation turn

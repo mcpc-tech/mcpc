@@ -4,9 +4,9 @@ import { streamText, tool } from "ai";
 import { z } from "zod";
 import process from "node:process";
 
-// Create provider for an ACP agent (using claude-code-acp as example)
+// Create provider for an ACP agent (using claude-agent-acp as example)
 const provider = createACPProvider({
-  command: "claude-code-acp",
+  command: "claude-agent-acp",
   args: [],
   session: {
     cwd: process.cwd(),

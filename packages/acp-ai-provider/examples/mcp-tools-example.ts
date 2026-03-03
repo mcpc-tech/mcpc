@@ -2,9 +2,9 @@ import { createACPProvider } from "../src/provider.ts";
 import { streamText } from "ai";
 import process from "node:process";
 
-// Create provider for an ACP agent (using claude-code-acp as example)
+// Create provider for an ACP agent (using claude-agent-acp as example)
 const provider = createACPProvider({
-  command: "claude-code-acp",
+  command: "claude-agent-acp",
   args: [],
   session: {
     cwd: process.cwd(),

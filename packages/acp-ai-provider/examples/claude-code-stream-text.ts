@@ -22,7 +22,7 @@ import { logChunkToConsole } from "../src/utils.ts";
 async function main() {
   // Create ACP provider for Gemini
   const provider = createACPProvider({
-    command: "claude-code-acp",
+    command: "claude-agent-acp",
     env: {
       ...(process.env as Record<string, string>),
     },
