@@ -23,7 +23,7 @@
     "npm:@ai-sdk/provider@2": "2.0.1",
     "npm:@ai-sdk/provider@3": "3.0.4",
     "npm:@hono/zod-openapi@~0.19.2": "0.19.10_hono@4.11.5_zod@3.25.76",
-    "npm:@mcpc-tech/acp-ai-provider@~0.1.20": "0.1.50_zod@3.25.76_hono@4.11.5",
+    "npm:@mcpc-tech/acp-ai-provider@~0.1.52": "0.1.52_zod@3.25.76_hono@4.11.5",
     "npm:@mcpc-tech/handle-sandbox@^0.0.8": "0.0.8",
     "npm:@mcpc-tech/plugin-code-execution@^0.0.8": "0.0.8_zod@3.25.76_@opentelemetry+api@1.9.0_ajv@8.17.1_hono@4.11.5",
     "npm:@mcpc-tech/ripgrep-napi@^0.0.4": "0.0.4",
@@ -285,8 +285,8 @@
         "jsep"
       ]
     },
-    "@mcpc-tech/acp-ai-provider@0.1.50_zod@3.25.76_hono@4.11.5": {
-      "integrity": "sha512-BRZkTKd2F/XB0gcap9+Xgq6ajOQAKoTd4jrAT7j2Cr3nqSPElwp/B8xBGtSc68tiXDh53KAipyu3IsubUz+Ftw==",
+    "@mcpc-tech/acp-ai-provider@0.1.52_zod@3.25.76_hono@4.11.5": {
+      "integrity": "sha512-xo4Ce67Z1L7KCnewzJP73Ri3VHp4FGBOZMQ3HZnDa6naQxqVWrkCuBMJ47NwJocw8i0ephsBvDOKsuy3hUFeoQ==",
       "dependencies": [
         "@agentclientprotocol/sdk@0.4.9",
         "@ai-sdk/provider@2.0.1",
@@ -1441,7 +1441,7 @@
       },
       "packages/cli": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.40",
+          "jsr:@mcpc/core@~0.3.41",
           "jsr:@mcpc/plugin-markdown-loader@^0.0.12",
           "jsr:@mcpc/utils@~0.2.12",
           "jsr:@std/assert@^1.0.14",
@@ -1463,7 +1463,7 @@
           "jsr:@std/assert@1",
           "npm:@ai-sdk/provider-utils@^2.2.8",
           "npm:@ai-sdk/provider@2",
-          "npm:@mcpc-tech/acp-ai-provider@~0.1.20",
+          "npm:@mcpc-tech/acp-ai-provider@~0.1.52",
           "npm:@mcpc-tech/ripgrep-napi@^0.0.4",
           "npm:@modelcontextprotocol/sdk@^1.25.1",
           "npm:@opentelemetry/api@^1.9.0",
@@ -1493,7 +1493,7 @@
       },
       "packages/mcpc-builder": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.40",
+          "jsr:@mcpc/core@~0.3.41",
           "jsr:@mcpc/plugin-markdown-loader@^0.0.12",
           "jsr:@std/assert@^1.0.14",
           "npm:@modelcontextprotocol/sdk@^1.8.0",
@@ -1502,7 +1502,7 @@
       },
       "packages/plugin-code-execution": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.40",
+          "jsr:@mcpc/core@~0.3.41",
           "jsr:@mcpc/utils@~0.2.12",
           "jsr:@std/assert@1",
           "npm:@mcpc-tech/handle-sandbox@^0.0.8",
@@ -1511,7 +1511,7 @@
       },
       "packages/plugin-markdown-loader": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.40",
+          "jsr:@mcpc/core@~0.3.41",
           "jsr:@std/assert@1",
           "jsr:@std/yaml@^1.0.5"
         ]
