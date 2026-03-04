@@ -444,6 +444,24 @@ try {
 
 </details>
 
+## Debugging
+
+Set the `ACP_AI_PROVIDER_DEBUG` environment variable to enable debug logging:
+
+```bash
+# Enable debug logging
+export ACP_AI_PROVIDER_DEBUG=1
+
+# Run your script
+npx tsx example.ts
+```
+
+When enabled, raw ACP messages are logged to a temporary file:
+
+```
+[acp-ai-provider] Agent message log: /tmp/acp-ai-provider-xxx/agent-messages.ndjson
+```
+
 ## Limitations
 
 - **No token counting** — ACP doesn't provide token usage information (it always
