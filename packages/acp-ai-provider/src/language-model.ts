@@ -24,6 +24,9 @@ import {
   type WriteTextFileResponse,
 } from "@agentclientprotocol/sdk";
 import { type ChildProcess, spawn } from "node:child_process";
+import { appendFileSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 import { Readable, Writable } from "node:stream";
 import type { ACPProviderSettings } from "./types.ts";
@@ -164,6 +167,9 @@ export class ACPLanguageModel implements LanguageModelV2 {
     resolve: () => void;
   } | null = null;
 
+  // Debug logging
+  private debugLogFilePath: string | null = null;
+
   constructor(
     modelId: string | undefined,
     modeId: string | undefined,
@@ -172,6 +178,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
     this.modelId = modelId!;
     this.modeId = modeId;
     this.config = config;
+    this.ensureDebugLogFile();
   }
 
   /**
@@ -184,6 +191,50 @@ export class ACPLanguageModel implements LanguageModelV2 {
     this.currentThinkingId = null; // Added this line to match state
     this.toolCallsMap.clear();
     this.clientToolAbort = null;
+  }
+
+  private isDebugEnabled(): boolean {
+    const value = process.env.ACP_AI_PROVIDER_DEBUG;
+    return value === "1" || value === "true";
+  }
+
+  private ensureDebugLogFile(): void {
+    if (this.debugLogFilePath) {
+      return;
+    }
+
+    if (!this.isDebugEnabled()) {
+      return;
+    }
+
+    const debugDir = mkdtempSync(join(tmpdir(), "acp-ai-provider-"));
+    this.debugLogFilePath = join(debugDir, "agent-messages.ndjson");
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[acp-ai-provider] Agent message log: ${this.debugLogFilePath}`,
+    );
+  }
+
+  private appendDebugAgentMessage(notification: SessionNotification): void {
+    this.ensureDebugLogFile();
+    if (!this.debugLogFilePath) {
+      return;
+    }
+
+    try {
+      appendFileSync(
+        this.debugLogFilePath,
+        `${
+          JSON.stringify({
+            timestamp: new Date().toISOString(),
+            notification,
+          })
+        }\n`,
+      );
+    } catch {
+      // Best-effort debug logging only.
+    }
   }
 
   private hasToolInput(input: unknown): boolean {
@@ -694,6 +745,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
     controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>,
     notification: SessionNotification,
   ): void {
+    this.appendDebugAgentMessage(notification);
     const update = notification.update;
     switch (update.sessionUpdate) {
       case "plan":
