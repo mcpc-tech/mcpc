@@ -191,8 +191,17 @@ export class ACPLanguageModel implements LanguageModelV3 {
     this.clientToolAbort = null;
   }
 
+  private isDebugEnabled(): boolean {
+    const value = process.env.ACP_AI_PROVIDER_DEBUG;
+    return value === "1" || value === "true";
+  }
+
   private ensureDebugLogFile(): void {
     if (this.debugLogFilePath) {
+      return;
+    }
+
+    if (!this.isDebugEnabled()) {
       return;
     }
 
