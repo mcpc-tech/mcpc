@@ -41,6 +41,7 @@ export class ComposableMCPServer extends Server {
   private toolManager: ToolManager;
   private logger = createLogger("mcpc.compose");
   private fileLoaders = new Map<string, FileLoader>();
+  private pluginsDisposed = false;
 
   // Legacy property for backward compatibility
   get toolNameMapping(): Map<string, string> {
@@ -711,10 +712,21 @@ export class ComposableMCPServer extends Server {
   }
 
   /**
+   * Dispose plugins only once to avoid duplicated cleanup in chained handlers.
+   */
+  private async disposePluginsOnce(): Promise<void> {
+    if (this.pluginsDisposed) {
+      return;
+    }
+    this.pluginsDisposed = true;
+    await this.disposePlugins();
+  }
+
+  /**
    * Close the server and ensure all plugins are disposed
    */
   override async close(): Promise<void> {
-    await this.disposePlugins();
+    await this.disposePluginsOnce();
     await super.close();
   }
 
@@ -878,24 +890,29 @@ export class ComposableMCPServer extends Server {
       toolNames: Object.keys(allTools),
     });
 
-    // Cleanup clients when server is closed (pretty-printed to match logging plugin)
+    // Cleanup clients when server is closed.
+    // Chain existing handlers so every compose() cleanup closure can run.
+    const previousOnClose = this.onclose;
     this.onclose = async () => {
       await cleanupClients();
-      await this.disposePlugins();
+      await this.disposePluginsOnce();
       await this.logger.info(
         `[${name}] Event: closed - cleaned up dependent clients and plugins`,
       );
+      previousOnClose?.();
     };
 
+    const previousOnError = this.onerror;
     this.onerror = async (error) => {
       await this.logger.error(
         `[${name}] Event: error - ${error?.stack ?? String(error)}`,
       );
       await cleanupClients();
-      await this.disposePlugins();
+      await this.disposePluginsOnce();
       await this.logger.info(
         `[${name}] Action: cleaned up dependent clients and plugins`,
       );
+      previousOnError?.(error);
     };
 
     const toolNameToDetailList = Object.entries(allTools);
