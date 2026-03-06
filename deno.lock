@@ -1441,9 +1441,9 @@
       },
       "packages/cli": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.41",
-          "jsr:@mcpc/plugin-markdown-loader@^0.0.12",
-          "jsr:@mcpc/utils@~0.2.12",
+          "jsr:@mcpc/core@~0.3.42",
+          "jsr:@mcpc/plugin-markdown-loader@^0.0.13",
+          "jsr:@mcpc/utils@~0.2.13",
           "jsr:@std/assert@^1.0.14",
           "jsr:@std/cli@^1.0.26",
           "jsr:@std/http@^1.0.14",
@@ -1458,8 +1458,8 @@
       },
       "packages/core": {
         "dependencies": [
-          "jsr:@mcpc/mcp-sampling-ai-provider@~0.1.21",
-          "jsr:@mcpc/utils@~0.2.12",
+          "jsr:@mcpc/mcp-sampling-ai-provider@~0.1.22",
+          "jsr:@mcpc/utils@~0.2.13",
           "jsr:@std/assert@1",
           "npm:@ai-sdk/provider-utils@^2.2.8",
           "npm:@ai-sdk/provider@2",
@@ -1493,8 +1493,8 @@
       },
       "packages/mcpc-builder": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.41",
-          "jsr:@mcpc/plugin-markdown-loader@^0.0.12",
+          "jsr:@mcpc/core@~0.3.42",
+          "jsr:@mcpc/plugin-markdown-loader@^0.0.13",
           "jsr:@std/assert@^1.0.14",
           "npm:@modelcontextprotocol/sdk@^1.8.0",
           "npm:zod@^3.24.2"
@@ -1502,8 +1502,8 @@
       },
       "packages/plugin-code-execution": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.41",
-          "jsr:@mcpc/utils@~0.2.12",
+          "jsr:@mcpc/core@~0.3.42",
+          "jsr:@mcpc/utils@~0.2.13",
           "jsr:@std/assert@1",
           "npm:@mcpc-tech/handle-sandbox@^0.0.8",
           "npm:@modelcontextprotocol/sdk@^1.8.0"
@@ -1511,7 +1511,7 @@
       },
       "packages/plugin-markdown-loader": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.41",
+          "jsr:@mcpc/core@~0.3.42",
           "jsr:@std/assert@1",
           "jsr:@std/yaml@^1.0.5"
         ]
