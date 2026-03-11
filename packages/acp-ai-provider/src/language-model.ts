@@ -380,6 +380,10 @@ export class ACPLanguageModel implements LanguageModelV2 {
         stdio: ["pipe", "pipe", "inherit"],
         env: { ...process.env, ...this.config.env },
         cwd: sessionCwd,
+        // Windows GUI hosts (e.g. Electron, /SUBSYSTEM:WINDOWS) have no parent console.
+        // `windowsHide: true` prevents CreateProcess from showing an auto-created console window.
+        // Ref: https://github.com/nodejs/node/issues/21825
+        ...(process.platform === "win32" ? { windowsHide: true } : {}),
       });
 
       if (!this.agentProcess.stdout || !this.agentProcess.stdin) {
