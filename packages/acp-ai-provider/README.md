@@ -10,7 +10,7 @@
 >   branch)
 > - For **AI SDK v5**, use the
 >   [`release-v5`](https://github.com/mcpc-tech/mcpc/tree/release-v5/packages/acp-ai-provider)
->   branch or install `@mcpc-tech/acp-ai-provider@0.1.x`
+>   branch or install `@mcpc-tech/acp-ai-provider@ai-v5`
 
 Use [ACP (Agent Client Protocol)](https://agentclientprotocol.com/) agents with
 the [AI SDK](https://ai-sdk.dev/).
@@ -37,7 +37,7 @@ For **AI SDK v5** users:
 
 ```bash
 # npm (v5)
-npm i @mcpc-tech/acp-ai-provider@0.1
+npm i @mcpc-tech/acp-ai-provider@ai-v5
 
 # deno (v5)
 deno add jsr:@mcpc/acp-ai-provider@0.1
