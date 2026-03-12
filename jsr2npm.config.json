@@ -6,7 +6,7 @@
       "packageJson": {
         "name": "@mcpc-tech/acp-ai-provider",
         "publishConfig": {
-          "tag": "v5"
+          "tag": "ai-v5"
         }
       }
     }
