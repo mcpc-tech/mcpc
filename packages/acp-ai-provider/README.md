@@ -98,8 +98,8 @@ To explicitly control this flow, set `authMethodId`:
 
 ```typescript
 const provider = createACPProvider({
-  command: "codebuddy",
-  args: ["--acp"],
+  command: "gemini",
+  args: ["--experimental-acp"],
   authMethodId: process.env.AUTH_METHOD_ID ?? "iOA",
   session: { cwd: process.cwd(), mcpServers: [] },
 });
