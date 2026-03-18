@@ -23,9 +23,6 @@ import {
   type WriteTextFileResponse,
 } from "@agentclientprotocol/sdk";
 import { type ChildProcess, spawn } from "node:child_process";
-import { appendFileSync, mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import process from "node:process";
 import { Readable, Writable } from "node:stream";
 import type { ACPProviderSettings } from "./types.ts";
@@ -43,6 +40,7 @@ import {
   ACP_AUTH_REQUIRED_ERROR_CODE,
   isAuthRequiredError,
 } from "./lazy-auth.ts";
+import { ACPDebugLogger } from "./debug.ts";
 
 type ACPJsonRpcError = {
   code: number;
@@ -215,7 +213,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
     resolve: () => void;
   } | null = null;
 
-  private debugLogFilePath: string | null = null;
+  private debug = new ACPDebugLogger();
   private availableAuthMethodIds: string[] = [];
 
   constructor(
@@ -226,7 +224,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
     this.modelId = modelId!;
     this.modeId = modeId;
     this.config = config;
-    this.ensureDebugLogFile();
+    this.debug.ensureAgentMessageLogFile();
   }
 
   /**
@@ -239,50 +237,6 @@ export class ACPLanguageModel implements LanguageModelV3 {
     this.currentThinkingId = null; // Added this line to match state
     this.toolCallsMap.clear();
     this.clientToolAbort = null;
-  }
-
-  private isDebugEnabled(): boolean {
-    const value = process.env.ACP_AI_PROVIDER_DEBUG;
-    return value === "1" || value === "true";
-  }
-
-  private ensureDebugLogFile(): void {
-    if (this.debugLogFilePath) {
-      return;
-    }
-
-    if (!this.isDebugEnabled()) {
-      return;
-    }
-
-    const debugDir = mkdtempSync(join(tmpdir(), "acp-ai-provider-"));
-    this.debugLogFilePath = join(debugDir, "agent-messages.ndjson");
-
-    // eslint-disable-next-line no-console
-    console.log(
-      `[acp-ai-provider] Agent message log: ${this.debugLogFilePath}`,
-    );
-  }
-
-  private appendDebugAgentMessage(notification: SessionNotification): void {
-    this.ensureDebugLogFile();
-    if (!this.debugLogFilePath) {
-      return;
-    }
-
-    try {
-      appendFileSync(
-        this.debugLogFilePath,
-        `${
-          JSON.stringify({
-            timestamp: new Date().toISOString(),
-            notification,
-          })
-        }\n`,
-      );
-    } catch {
-      // Best-effort debug logging only.
-    }
   }
 
   private hasToolInput(input: unknown): boolean {
@@ -417,7 +371,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
    * Does NOT start a session.
    */
   async connectClient(): Promise<void> {
-    this.ensureDebugLogFile();
+    this.debug.ensureAgentMessageLogFile();
 
     if (this.connection) {
       return;
@@ -531,7 +485,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
 
       // Set up tool proxy if tools are present and proxy doesn't exist
       if (acpTools && acpTools.length > 0 && !this.toolProxyHost) {
-        console.log(
+        this.debug.log(
           "[acp-ai-provider] Setting up tool proxy for client-side tools...",
           acpTools.map((t) => t.name),
         );
@@ -623,7 +577,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
 
   private async applySessionDelay() {
     if (this.config.sessionDelayMs) {
-      console.log(
+      this.debug.log(
         `[acp-ai-provider] Waiting ${this.config.sessionDelayMs}ms after session setup...`,
       );
       await new Promise((resolve) =>
@@ -667,7 +621,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
         throw error;
       }
 
-      console.log(
+      this.debug.log(
         `[acp-ai-provider] Authentication required during ${stage} (code ${ACP_AUTH_REQUIRED_ERROR_CODE}). Running lazy authenticate with methodId="${methodId}" and retrying once...`,
       );
 
@@ -903,7 +857,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
     controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>,
     notification: SessionNotification,
   ): void {
-    this.appendDebugAgentMessage(notification);
+    this.debug.appendAgentMessage(notification);
 
     const update = notification.update;
     switch (update.sessionUpdate) {
@@ -1160,7 +1114,7 @@ export class ACPLanguageModel implements LanguageModelV3 {
           // For client tools, we need to STOP the stream immediately
           // The client application must handle the tool execution
           // and submit the result in a subsequent request
-          console.log(
+          this.debug.log(
             `[acp-ai-provider] Detected client tool: ${clientToolInfo.toolName}, stopping stream`,
           );
 
