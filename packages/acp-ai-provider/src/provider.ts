@@ -86,6 +86,26 @@ export class ACPProvider {
   }
 
   /**
+   * Runs authentication manually.
+   *
+   * If `methodId` is omitted, falls back to `config.authMethodId`.
+   */
+  authenticate(methodId?: string): Promise<void> {
+    if (!this.model) {
+      this.languageModel();
+    }
+
+    const resolvedMethodId = methodId ?? this.config.authMethodId;
+    if (!resolvedMethodId) {
+      throw new Error(
+        "No auth method configured. Pass methodId or set authMethodId in ACPProviderSettings.",
+      );
+    }
+
+    return this.model!.authenticate(resolvedMethodId);
+  }
+
+  /**
    * Sets the session mode (e.g., "ask", "plan").
    */
   setMode(modeId: string): Promise<void> {

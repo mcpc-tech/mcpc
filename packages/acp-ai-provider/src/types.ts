@@ -44,9 +44,14 @@ export interface ACPProviderSettings {
   initialize?: ACPInitializeConfig;
 
   /**
-   * Authentication method ID to use (if required by the ACP agent)
+   * Authentication method ID used by lazy auth.
    *
-   * Set to undefined to use the first available method, and you can see a warning of all available methods.
+   * The provider does NOT authenticate during initialize.
+   * If a request fails with an auth-required error,
+   * it will call `authenticate(authMethodId)` and retry once automatically.
+   *
+   * If undefined, lazy auth defaults to the first method from `initialize.authMethods` (when available).
+   * You can still call `provider.authenticate()` manually.
    */
   authMethodId?: string;
 
