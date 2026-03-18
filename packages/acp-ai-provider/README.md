@@ -82,6 +82,35 @@ for await (const chunk of textStream) {
 }
 ```
 
+### Authentication (Lazy by Default)
+
+Authentication is **lazy** by default: the provider does not authenticate during
+`initialize`. If an ACP request fails with an auth-required error, the provider
+will:
+
+1. call `authenticate(authMethodId)`
+2. retry the request **once**
+
+By default, if `authMethodId` is not set and `initialize.authMethods` is
+available, the provider will use the first method and print a warning.
+
+To explicitly control this flow, set `authMethodId`:
+
+```typescript
+const provider = createACPProvider({
+  command: "codebuddy",
+  args: ["--acp"],
+  authMethodId: process.env.AUTH_METHOD_ID ?? "iOA",
+  session: { cwd: process.cwd(), mcpServers: [] },
+});
+```
+
+You can also authenticate manually:
+
+```typescript
+await provider.authenticate("iOA");
+```
+
 ### With Tools (MCP Servers)
 
 Tools are defined through MCP (Model Context Protocol) servers, not AI SDK's

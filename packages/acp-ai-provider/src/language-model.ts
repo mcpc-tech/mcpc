@@ -24,9 +24,6 @@ import {
   type WriteTextFileResponse,
 } from "@agentclientprotocol/sdk";
 import { type ChildProcess, spawn } from "node:child_process";
-import { appendFileSync, mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import process from "node:process";
 import { Readable, Writable } from "node:stream";
 import type { ACPProviderSettings } from "./types.ts";
@@ -40,6 +37,53 @@ import {
   extractACPTools,
   type ToolsInput,
 } from "./convert-utils.ts";
+import {
+  ACP_AUTH_REQUIRED_ERROR_CODE,
+  isAuthRequiredError,
+} from "./lazy-auth.ts";
+import { ACPDebugLogger } from "./debug.ts";
+
+type ACPJsonRpcError = {
+  code: number;
+  message: string;
+  data?: unknown;
+};
+
+type ACPPromptResponse = Awaited<ReturnType<ClientSideConnection["prompt"]>>;
+
+function toCatchableError(error: unknown, stderrText?: string): Error {
+  if (
+    error !== null &&
+    typeof error === "object" &&
+    "code" in error &&
+    "message" in error &&
+    typeof (error as { code?: unknown }).code === "number" &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    const jsonRpcError = error as ACPJsonRpcError;
+    const err = new Error(jsonRpcError.message) as Error & ACPJsonRpcError;
+    err.name = "ACPError";
+    err.code = jsonRpcError.code;
+    err.data = jsonRpcError.data;
+    if (stderrText) {
+      err.message = `${err.message}\n[agent stderr]\n${stderrText}`;
+    }
+    return err;
+  }
+
+  if (error instanceof Error) {
+    if (stderrText) {
+      error.message = `${error.message}\n[agent stderr]\n${stderrText}`;
+    }
+    return error;
+  }
+
+  const err = new Error(String(error));
+  if (stderrText) {
+    err.message = `${err.message}\n[agent stderr]\n${stderrText}`;
+  }
+  return err;
+}
 
 /**
  * The name of the provider tool used to represent ACP agent tool calls.
@@ -143,6 +187,9 @@ export class ACPLanguageModel implements LanguageModelV2 {
   private currentModeId: string | null = null;
   private isFreshSession = true;
 
+  // Captured stderr output from the agent process.
+  private stderrChunks: string[] = [];
+
   // State for managing stream conversion
   private textBlockIndex = 0;
   private thinkBlockIndex = 0;
@@ -168,7 +215,8 @@ export class ACPLanguageModel implements LanguageModelV2 {
   } | null = null;
 
   // Debug logging
-  private debugLogFilePath: string | null = null;
+  private debug = new ACPDebugLogger();
+  private availableAuthMethodIds: string[] = [];
 
   constructor(
     modelId: string | undefined,
@@ -178,7 +226,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
     this.modelId = modelId!;
     this.modeId = modeId;
     this.config = config;
-    this.ensureDebugLogFile();
+    this.debug.ensureAgentMessageLogFile();
   }
 
   /**
@@ -191,50 +239,6 @@ export class ACPLanguageModel implements LanguageModelV2 {
     this.currentThinkingId = null; // Added this line to match state
     this.toolCallsMap.clear();
     this.clientToolAbort = null;
-  }
-
-  private isDebugEnabled(): boolean {
-    const value = process.env.ACP_AI_PROVIDER_DEBUG;
-    return value === "1" || value === "true";
-  }
-
-  private ensureDebugLogFile(): void {
-    if (this.debugLogFilePath) {
-      return;
-    }
-
-    if (!this.isDebugEnabled()) {
-      return;
-    }
-
-    const debugDir = mkdtempSync(join(tmpdir(), "acp-ai-provider-"));
-    this.debugLogFilePath = join(debugDir, "agent-messages.ndjson");
-
-    // eslint-disable-next-line no-console
-    console.log(
-      `[acp-ai-provider] Agent message log: ${this.debugLogFilePath}`,
-    );
-  }
-
-  private appendDebugAgentMessage(notification: SessionNotification): void {
-    this.ensureDebugLogFile();
-    if (!this.debugLogFilePath) {
-      return;
-    }
-
-    try {
-      appendFileSync(
-        this.debugLogFilePath,
-        `${
-          JSON.stringify({
-            timestamp: new Date().toISOString(),
-            notification,
-          })
-        }\n`,
-      );
-    } catch {
-      // Best-effort debug logging only.
-    }
   }
 
   private hasToolInput(input: unknown): boolean {
@@ -377,7 +381,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         (typeof process.cwd === "function" ? process.cwd() : "/");
 
       this.agentProcess = spawn(this.config.command, this.config.args ?? [], {
-        stdio: ["pipe", "pipe", "inherit"],
+        stdio: ["pipe", "pipe", "pipe"],
         env: { ...process.env, ...this.config.env },
         cwd: sessionCwd,
         // Windows GUI hosts (e.g. Electron, /SUBSYSTEM:WINDOWS) have no parent console.
@@ -389,6 +393,14 @@ export class ACPLanguageModel implements LanguageModelV2 {
       if (!this.agentProcess.stdout || !this.agentProcess.stdin) {
         throw new Error("Failed to spawn agent process with stdio");
       }
+
+      this.stderrChunks = [];
+      this.agentProcess.stderr?.on("data", (chunk: Uint8Array) => {
+        const text = new TextDecoder().decode(chunk);
+        this.stderrChunks.push(text);
+        // Keep previous terminal visibility behavior
+        process.stderr.write(chunk);
+      });
 
       const input = Writable.toWeb(this.agentProcess.stdin) as WritableStream<
         Uint8Array
@@ -422,25 +434,35 @@ export class ACPLanguageModel implements LanguageModelV2 {
       },
     };
 
-    const initResult = await this.connection.initialize(initConfig);
-    const validAuthMethods = initResult.authMethods?.find(
-      (a) => a.id === this.config.authMethodId,
-    )?.id;
+    try {
+      const initResult = await this.connection.initialize(initConfig);
+      const authMethods = initResult.authMethods ?? [];
+      this.availableAuthMethodIds = authMethods.map((a) => a.id);
 
-    if ((initResult.authMethods?.length ?? 0) > 0) {
-      if (!this.config.authMethodId || !validAuthMethods) {
-        console.log(
-          "[acp-ai-provider] Warning: No authMethodId specified in config, skipping authentication step. If this is not desired, please set one of the authMethodId in the ACPProviderSettings.",
-          JSON.stringify(initResult.authMethods, null, 2),
-        );
-      }
+      if (authMethods.length > 0) {
+        const configuredAuthMethodId = this.config.authMethodId;
 
-      // Some agents never implement authentication, so we skip this unless user specifies it.
-      if (this.config.authMethodId && validAuthMethods) {
-        await this.connection.authenticate({
-          methodId: this.config.authMethodId ?? initResult.authMethods?.[0].id!,
-        });
+        if (!configuredAuthMethodId) {
+          const defaultAuthMethodId = this.availableAuthMethodIds[0];
+          console.log(
+            `[acp-ai-provider] Warning: authMethodId is not configured. Lazy auth will default to the first auth method \"${defaultAuthMethodId}\".`,
+            JSON.stringify(authMethods, null, 2),
+          );
+        } else if (
+          !this.availableAuthMethodIds.includes(configuredAuthMethodId)
+        ) {
+          console.log(
+            `[acp-ai-provider] Warning: authMethodId \"${configuredAuthMethodId}\" is not in initialize.authMethods. Lazy auth auto-retry will be skipped unless you call authenticate() with a valid method.`,
+            JSON.stringify(authMethods, null, 2),
+          );
+        } else {
+          console.log(
+            `[acp-ai-provider] Lazy auth enabled with authMethodId=\"${configuredAuthMethodId}\". Authentication will run only when required (code ${ACP_AUTH_REQUIRED_ERROR_CODE}).`,
+          );
+        }
       }
+    } catch (error) {
+      throw toCatchableError(error, this.stderrChunks.join(""));
     }
   }
 
@@ -455,97 +477,101 @@ export class ACPLanguageModel implements LanguageModelV2 {
       throw new Error("Not connected");
     }
 
-    // Prepare MCP servers list foundation
-    const mcpServers = [...(this.config.session?.mcpServers ?? [])];
-    let toolsAdded = false;
+    try {
+      // Prepare MCP servers list foundation
+      const mcpServers = [...(this.config.session?.mcpServers ?? [])];
+      let toolsAdded = false;
 
-    // Set up tool proxy if tools are present and proxy doesn't exist
-    if (acpTools && acpTools.length > 0 && !this.toolProxyHost) {
-      console.log(
-        "[acp-ai-provider] Setting up tool proxy for client-side tools...",
-        acpTools.map((t) => t.name),
-      );
-      this.toolProxyHost = new ToolProxyHost("acp-ai-sdk-tools");
-      for (const t of acpTools) {
-        this.toolProxyHost.registerTool(t.name, t);
+      // Set up tool proxy if tools are present and proxy doesn't exist
+      if (acpTools && acpTools.length > 0 && !this.toolProxyHost) {
+        console.log(
+          "[acp-ai-provider] Setting up tool proxy for client-side tools...",
+          acpTools.map((t) => t.name),
+        );
+        this.toolProxyHost = new ToolProxyHost("acp-ai-sdk-tools");
+        for (const t of acpTools) {
+          this.toolProxyHost.registerTool(t.name, t);
+        }
+        toolsAdded = true;
       }
-      toolsAdded = true;
-    }
 
-    // Always include proxy config if host is initialized
-    // This starts the server if needed and ensures we don't drop the proxy when updating session
-    if (this.toolProxyHost) {
-      const proxyConfig = await this.toolProxyHost.start();
-      mcpServers.push(proxyConfig);
-    }
+      // Always include proxy config if host is initialized
+      // This starts the server if needed and ensures we don't drop the proxy when updating session
+      if (this.toolProxyHost) {
+        const proxyConfig = await this.toolProxyHost.start();
+        mcpServers.push(proxyConfig);
+      }
 
-    // Check if we need to update existing session (e.g. to enable tools)
-    if (this.sessionId && toolsAdded) {
-      this.sessionResponse = await this.connection.newSession({
-        ...this.config.session,
-        cwd: this.config.session?.cwd ?? process.cwd(),
-        mcpServers,
-      });
-      this.sessionId = this.sessionResponse.sessionId;
-      // Treat as fresh since we are establishing a new session.
-      this.isFreshSession = true;
+      // Check if we need to update existing session (e.g. to enable tools)
+      if (this.sessionId && toolsAdded) {
+        this.sessionResponse = await this.connection.newSession({
+          ...this.config.session,
+          cwd: this.config.session?.cwd ?? process.cwd(),
+          mcpServers,
+        });
+        this.sessionId = this.sessionResponse.sessionId;
+        // Treat as fresh since we are establishing a new session.
+        this.isFreshSession = true;
+
+        await this.applySessionDelay();
+        return;
+      }
+
+      // If session already exists and we didn't just update it, do nothing
+      if (this.sessionId) {
+        return;
+      }
+
+      // Start a fresh session
+      if (this.config.existingSessionId) {
+        // Note: loadSession typically assumes servers are already known or config is separate?
+        // Protocol says loadSession usually just resumes.
+        // But if we want to Add tools to a loaded session, we might need newSession logic?
+        // For now, preserving original logic: loadSession takes mcpServers.
+        await this.connection.loadSession({
+          sessionId: this.config.existingSessionId,
+          cwd: this.config.session?.cwd ?? process.cwd(),
+          mcpServers,
+        });
+        this.sessionId = this.config.existingSessionId;
+        this.sessionResponse = { sessionId: this.config.existingSessionId };
+        this.isFreshSession = false;
+      } else {
+        this.sessionResponse = await this.connection.newSession({
+          ...this.config.session,
+          cwd: this.config.session?.cwd ?? process.cwd(),
+          mcpServers,
+        });
+        this.sessionId = this.sessionResponse.sessionId;
+        this.isFreshSession = true;
+      }
+
+      // Init models/modes after session creation
+      const { models, modes } = this.sessionResponse ?? {};
+
+      if (models?.currentModelId) {
+        this.currentModelId = models.currentModelId;
+      }
+      if (modes?.currentModeId) {
+        this.currentModeId = modes.currentModeId;
+      }
+
+      // Update model if needed
+      if (this.modelId && this.modelId !== this.currentModelId) {
+        await this.setModel(this.modelId);
+        this.currentModelId = this.modelId;
+      }
+
+      // Update mode if needed
+      if (this.modeId && this.modeId !== this.currentModeId) {
+        await this.setMode(this.modeId);
+        this.currentModeId = this.modeId;
+      }
 
       await this.applySessionDelay();
-      return;
+    } catch (error) {
+      throw toCatchableError(error, this.stderrChunks.join(""));
     }
-
-    // If session already exists and we didn't just update it, do nothing
-    if (this.sessionId) {
-      return;
-    }
-
-    // Start a fresh session
-    if (this.config.existingSessionId) {
-      // Note: loadSession typically assumes servers are already known or config is separate?
-      // Protocol says loadSession usually just resumes.
-      // But if we want to Add tools to a loaded session, we might need newSession logic?
-      // For now, preserving original logic: loadSession takes mcpServers.
-      await this.connection.loadSession({
-        sessionId: this.config.existingSessionId,
-        cwd: this.config.session?.cwd ?? process.cwd(),
-        mcpServers,
-      });
-      this.sessionId = this.config.existingSessionId;
-      this.sessionResponse = { sessionId: this.config.existingSessionId };
-      this.isFreshSession = false;
-    } else {
-      this.sessionResponse = await this.connection.newSession({
-        ...this.config.session,
-        cwd: this.config.session?.cwd ?? process.cwd(),
-        mcpServers,
-      });
-      this.sessionId = this.sessionResponse.sessionId;
-      this.isFreshSession = true;
-    }
-
-    // Init models/modes after session creation
-    const { models, modes } = this.sessionResponse ?? {};
-
-    if (models?.currentModelId) {
-      this.currentModelId = models.currentModelId;
-    }
-    if (modes?.currentModeId) {
-      this.currentModeId = modes.currentModeId;
-    }
-
-    // Update model if needed
-    if (this.modelId && this.modelId !== this.currentModelId) {
-      await this.setModel(this.modelId);
-      this.currentModelId = this.modelId;
-    }
-
-    // Update mode if needed
-    if (this.modeId && this.modeId !== this.currentModeId) {
-      await this.setMode(this.modeId);
-      this.currentModeId = this.modeId;
-    }
-
-    await this.applySessionDelay();
   }
 
   private async applySessionDelay() {
@@ -560,14 +586,65 @@ export class ACPLanguageModel implements LanguageModelV2 {
   }
 
   /**
+   * Resolves the auth method ID to use for lazy authentication.
+   * Returns null if no valid method is available.
+   */
+  private resolveLazyAuthMethodId(): string | null {
+    const configured = this.config.authMethodId;
+    if (!configured) {
+      return this.availableAuthMethodIds[0] ?? null;
+    }
+    if (this.availableAuthMethodIds.length === 0) {
+      return configured;
+    }
+    return this.availableAuthMethodIds.includes(configured) ? configured : null;
+  }
+
+  /**
+   * Runs an operation with lazy auth: try once, and if an auth-required error
+   * is thrown, authenticate and retry exactly once.
+   */
+  private async withLazyAuthRetry<T>(
+    stage: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!isAuthRequiredError(error)) {
+        throw error;
+      }
+
+      const methodId = this.resolveLazyAuthMethodId();
+      if (!methodId) {
+        throw error;
+      }
+
+      console.log(
+        `[acp-ai-provider] Authentication required during ${stage} (code ${ACP_AUTH_REQUIRED_ERROR_CODE}). Running lazy authenticate with methodId="${methodId}" and retrying once...`,
+      );
+
+      await this.authenticate(methodId);
+      return await operation();
+    }
+  }
+
+  /**
    * Ensures the ACP agent process is running and a session is established.
+   *
+   * Lazy auth behavior:
+   * - first try connect + start session without authenticating
+   * - if auth is required (ACP auth-required error), authenticate once and retry once
+   *
    * @param acpTools - Tools from streamText options to proxy
    */
   private async ensureConnected(
     acpTools?: Array<Tool<any, any> & { name: string }>,
   ): Promise<void> {
-    await this.connectClient();
-    await this.startSession(acpTools);
+    await this.withLazyAuthRetry("session setup", async () => {
+      await this.connectClient();
+      await this.startSession(acpTools);
+    });
   }
 
   /**
@@ -588,12 +665,8 @@ export class ACPLanguageModel implements LanguageModelV2 {
   /**
    * Initializes the session and returns session info (models, modes, meta).
    * Call this before prompting to discover available options.
-   */
-  /**
-   * Initializes the session and returns session info (models, modes, meta).
-   * Call this before prompting to discover available options.
    *
-   * @param acpTools - Optional list of tools to register during session initialization.
+   * @param tools - Optional tools to register during session initialization.
    */
   async initSession(tools?: ToolsInput): Promise<NewSessionResponse> {
     // This ensures tools have registered execute handlers attached
@@ -601,6 +674,37 @@ export class ACPLanguageModel implements LanguageModelV2 {
 
     await this.ensureConnected(acpTools.length > 0 ? acpTools : undefined);
     return this.sessionResponse!;
+  }
+
+  /**
+   * Triggers ACP authentication manually.
+   * Useful when callers catch an auth-required error and want to authenticate then retry.
+   */
+  async authenticate(methodId: string): Promise<void> {
+    await this.connectClient();
+
+    if (!this.connection) {
+      throw new Error("Not connected");
+    }
+
+    try {
+      await this.connection.authenticate({ methodId });
+    } catch (error) {
+      throw toCatchableError(error, this.stderrChunks.join(""));
+    }
+  }
+
+  private async promptWithLazyAuthRetry(
+    request: { sessionId: string; prompt: unknown },
+  ): Promise<ACPPromptResponse> {
+    if (!this.connection) {
+      throw new Error("Not connected");
+    }
+
+    return await this.withLazyAuthRetry("prompt", () =>
+      this.connection!.prompt(
+        request as Parameters<ClientSideConnection["prompt"]>[0],
+      ));
   }
 
   /**
@@ -675,12 +779,15 @@ export class ACPLanguageModel implements LanguageModelV2 {
       this.agentProcess.kill();
       this.agentProcess.stdin?.end();
       this.agentProcess.stdout?.destroy();
+      this.agentProcess.stderr?.destroy();
       this.agentProcess = null;
     }
     this.connection = null;
     this.sessionId = null;
     this.sessionResponse = null;
     this.client = null;
+    this.stderrChunks = [];
+    this.availableAuthMethodIds = [];
   }
 
   /**
@@ -749,7 +856,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
     controller: ReadableStreamDefaultController<LanguageModelV2StreamPart>,
     notification: SessionNotification,
   ): void {
-    this.appendDebugAgentMessage(notification);
+    this.debug.appendAgentMessage(notification);
     const update = notification.update;
     switch (update.sessionUpdate) {
       case "plan":
@@ -1155,7 +1262,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
         });
       }
 
-      const response = await this.connection!.prompt({
+      const response = await this.promptWithLazyAuthRetry({
         sessionId: this.sessionId!,
         prompt: promptContent,
       });
@@ -1216,7 +1323,14 @@ export class ACPLanguageModel implements LanguageModelV2 {
     const acpTools = extractACPTools(options.tools);
 
     // Now connect with the registered tools
-    await this.ensureConnected(acpTools.length > 0 ? acpTools : undefined);
+    try {
+      await this.ensureConnected(acpTools.length > 0 ? acpTools : undefined);
+    } catch (error) {
+      // If connection/session setup fails before stream starts,
+      // ensure child process does not keep the event loop alive.
+      this.forceCleanup();
+      throw error;
+    }
 
     /*
       If we just created the session (isFreshSession=true), we send full prompt.
@@ -1229,7 +1343,6 @@ export class ACPLanguageModel implements LanguageModelV2 {
     );
     this.isFreshSession = false;
 
-    const connection = this.connection!;
     const sessionId = this.sessionId!;
     const client = this.client;
     const cleanup = () => this.cleanup();
@@ -1262,7 +1375,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
           }
 
           // Race between normal completion and client tool abort
-          const promptPromise = connection.prompt({
+          const promptPromise = this.promptWithLazyAuthRetry({
             sessionId,
             prompt: promptContent,
           });
@@ -1298,7 +1411,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
           cleanup();
           controller.enqueue({
             type: "error",
-            error: error,
+            error: toCatchableError(error, this.stderrChunks.join("")),
           });
         }
       },
