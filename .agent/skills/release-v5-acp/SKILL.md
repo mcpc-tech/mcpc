@@ -5,14 +5,15 @@ description: Release @mcpc/acp-ai-provider package for AI SDK v5 (0.1.x versions
 
 # Release ACP AI Provider for AI SDK v5
 
-Release `@mcpc/acp-ai-provider` package for the AI SDK v5 compatibility line (version 0.1.x).
+Release `@mcpc/acp-ai-provider` package for the AI SDK v5 compatibility line
+(version 0.1.x).
 
 ## Version Compatibility
 
-| ACP Version | AI SDK Version | Branch |
-|-------------|----------------|--------|
-| `0.2.x` | v6 | `main` |
-| `0.1.x` | v5 | `release-v5` |
+| ACP Version | AI SDK Version | Branch       |
+| ----------- | -------------- | ------------ |
+| `0.2.x`     | v6             | `main`       |
+| `0.1.x`     | v5             | `release-v5` |
 
 ## When to Use
 
@@ -37,7 +38,8 @@ Cherry-pick fixes from main:
 git cherry-pick <commit-hash>
 ```
 
-Or manually apply changes. Note: release-v5 uses AI SDK V2 types (`LanguageModelV2StreamPart`), main uses V3 (`LanguageModelV3StreamPart`).
+Or manually apply changes. Note: release-v5 uses AI SDK V2 types
+(`LanguageModelV2StreamPart`), main uses V3 (`LanguageModelV3StreamPart`).
 
 ### 3. Update Version
 
@@ -45,7 +47,7 @@ Edit `packages/acp-ai-provider/deno.json`:
 
 ```json
 {
-  "version": "0.1.x"  // Increment patch version
+  "version": "0.1.x" // Increment patch version
 }
 ```
 
@@ -89,12 +91,12 @@ If core or other packages need to use the new version:
 
 ## Key Differences from Main
 
-| Aspect | release-v5 | main |
-|--------|-----------|------|
-| AI SDK | V2 | V3 |
-| Version | 0.1.x | 0.2.x |
-| Types | `LanguageModelV2StreamPart` | `LanguageModelV3StreamPart` |
-| ACP SDK | ^0.4.8 | ^0.14.1 |
+| Aspect  | release-v5                  | main                        |
+| ------- | --------------------------- | --------------------------- |
+| AI SDK  | V2                          | V3                          |
+| Version | 0.1.x                       | 0.2.x                       |
+| Types   | `LanguageModelV2StreamPart` | `LanguageModelV3StreamPart` |
+| ACP SDK | ^0.4.8                      | ^0.14.1                     |
 
 ## Tips
 

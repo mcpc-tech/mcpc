@@ -19,7 +19,7 @@ the [AI SDK](https://ai-sdk.dev/).
 
 This package bridges ACP agents to the AI SDK. It spawns ACP agents (Claude
 Code, Gemini, Codex CLI, and more) as child processes and exposes them through
-the AI SDK's `LanguageModelV2` protocol.
+the AI SDK's `LanguageModelV3`/`LanguageModelV2` protocol.
 
 [Try a full stack web ACP example here](https://github.com/mcpc-tech/dev-inspector-mcp)
 
@@ -189,6 +189,54 @@ const result = await streamText({
   }),
 });
 ```
+
+#### Tool Result Format
+
+By default, tools can return simple values like strings or objects:
+
+```typescript
+execute: async ({ name }) => `Hello, ${name}!`,
+execute: async () => ({ status: "ok" }),
+```
+
+These are automatically wrapped into the MCP `CallToolResult` format with a
+`text` content block.
+
+However, for tools that return rich content like images or audio, you should
+return the MCP
+[`CallToolResult`](https://spec.modelcontextprotocol.io/specification/2025-03-26/server/tools/#tool-result)
+format directly:
+
+```typescript
+execute: async ({ url }) => {
+  const response = await fetch(url);
+  const buffer = Buffer.from(await response.arrayBuffer());
+
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: `Fetched image from ${url}`,
+      },
+      {
+        type: "image" as const,
+        data: buffer.toString("base64"),
+        mimeType: response.headers.get("content-type") || "image/jpeg",
+      },
+    ],
+  };
+},
+```
+
+**Why?** Under the hood, `acpTools()` are implemented as MCP tools. Simple
+returns get wrapped as `{ content: [{ type: "text", text: ... }] }`. If you
+return an object with `image` or `audio` blocks without the MCP wrapper, those
+media blocks get JSON-stringified into a text block and lost. By returning the
+MCP `CallToolResult` format explicitly, the media data is preserved and sent to
+the agent as proper MCP content blocks.
+
+See [image-tool-result-example.ts](./examples/image-tool-result-example.ts) for
+a complete working example.
 
 #### How It Works (TCP Socket Callback)
 
