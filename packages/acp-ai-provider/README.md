@@ -195,6 +195,61 @@ for the runtime to call back to the host for tool execution:
 └─────────────────────────────────────────────────────────┘
 ```
 
+### Structured JSON Output (Experimental)
+
+Generate structured objects from ACP agents using AI SDK's
+`experimental_output`:
+
+```typescript
+import { createACPProvider } from "@mcpc/acp-ai-provider";
+import { generateText, Output } from "ai";
+import { z } from "zod";
+
+const provider = createACPProvider({
+  command: "gemini",
+  args: ["--experimental-acp"],
+  session: { cwd: process.cwd(), mcpServers: [] },
+});
+
+const result = await generateText({
+  model: provider.languageModel(),
+  prompt: "Give me a recipe for chocolate chip cookies.",
+  experimental_output: Output.object({
+    schema: z.object({
+      name: z.string(),
+      ingredients: z.array(z.object({ item: z.string(), amount: z.string() })),
+      steps: z.array(z.string()),
+    }),
+  }),
+});
+
+console.log(result.experimental_output); // Typed object
+```
+
+Streaming works too — partial objects arrive incrementally:
+
+```typescript
+import { Output, streamText } from "ai";
+
+const stream = streamText({
+  model: provider.languageModel(),
+  prompt: "Tell me about Tokyo.",
+  experimental_output: Output.object({
+    schema: CityInfoSchema,
+  }),
+});
+
+for await (const partial of stream.experimental_partialOutputStream) {
+  console.log(partial); // Incrementally parsed partial object
+}
+```
+
+> **Note**: In AI SDK v5, structured output via `generateText`/`streamText` uses
+> the `experimental_output` parameter. The standalone `generateObject` and
+> `streamObject` functions are also available as stable alternatives, but they
+> use a different code path that may not benefit from the ACP provider's
+> streaming fence cleanup.
+
 ### Session Persistence
 
 Keep sessions alive for multi-turn conversations:

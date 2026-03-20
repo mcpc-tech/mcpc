@@ -42,6 +42,12 @@ import {
   isAuthRequiredError,
 } from "./lazy-auth.ts";
 import { ACPDebugLogger } from "./debug.ts";
+import {
+  buildJsonSchemaPrompt,
+  createJsonCleanupTransform,
+  isJsonResponseFormat,
+  stripMarkdownFences,
+} from "./json-output.ts";
 
 type ACPJsonRpcError = {
   code: number;
@@ -1179,6 +1185,14 @@ export class ACPLanguageModel implements LanguageModelV2 {
     warnings: LanguageModelV2CallWarning[];
   }> {
     try {
+      // Build JSON schema prompt if responseFormat requests JSON output
+      const jsonResponseFormat = isJsonResponseFormat(options.responseFormat)
+        ? options.responseFormat
+        : null;
+      const jsonSchemaPrompt = jsonResponseFormat
+        ? buildJsonSchemaPrompt(jsonResponseFormat)
+        : undefined;
+
       await this.ensureConnected();
       /*
         If we just created the session (isFreshSession=true), we send full prompt.
@@ -1188,6 +1202,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
       const promptContent = convertAiSdkMessagesToAcp(
         options,
         this.isFreshSession,
+        jsonSchemaPrompt,
       );
       this.isFreshSession = false;
 
@@ -1269,10 +1284,15 @@ export class ACPLanguageModel implements LanguageModelV2 {
 
       const content: LanguageModelV2Content[] = [];
 
-      if (accumulatedText.trim()) {
+      // In structured JSON mode, strip markdown fences if present.
+      const finalText = jsonResponseFormat
+        ? stripMarkdownFences(accumulatedText)
+        : accumulatedText;
+
+      if (finalText.trim()) {
         content.push({
           type: "text",
-          text: accumulatedText,
+          text: finalText,
         });
       }
 
@@ -1322,6 +1342,14 @@ export class ACPLanguageModel implements LanguageModelV2 {
     // This ensures Tool Proxy can discover them when it starts
     const acpTools = extractACPTools(options.tools);
 
+    // Detect JSON output mode and build schema prompt if needed
+    const jsonResponseFormat = isJsonResponseFormat(options.responseFormat)
+      ? options.responseFormat
+      : null;
+    const jsonSchemaPrompt = jsonResponseFormat
+      ? buildJsonSchemaPrompt(jsonResponseFormat)
+      : undefined;
+
     // Now connect with the registered tools
     try {
       await this.ensureConnected(acpTools.length > 0 ? acpTools : undefined);
@@ -1340,6 +1368,7 @@ export class ACPLanguageModel implements LanguageModelV2 {
     const promptContent = convertAiSdkMessagesToAcp(
       options,
       this.isFreshSession,
+      jsonSchemaPrompt,
     );
     this.isFreshSession = false;
 
@@ -1420,7 +1449,17 @@ export class ACPLanguageModel implements LanguageModelV2 {
       },
     });
 
-    return { stream, warnings: [] as LanguageModelV2CallWarning[] };
+    // In structured JSON mode, wrap the stream with a transform that strips
+    // markdown fences from text content (models sometimes wrap JSON in ```json blocks
+    // despite being instructed not to).
+    const outputStream = jsonResponseFormat
+      ? stream.pipeThrough(createJsonCleanupTransform())
+      : stream;
+
+    return {
+      stream: outputStream,
+      warnings: [] as LanguageModelV2CallWarning[],
+    };
   }
 
   get tools(): Record<string, ReturnType<typeof tool>> {

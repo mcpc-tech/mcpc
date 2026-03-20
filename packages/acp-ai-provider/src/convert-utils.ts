@@ -10,10 +10,12 @@ import { getExecuteByName, hasRegisteredExecute } from "./acp-tool.ts";
  *
  * @param options - The call options from the language model
  * @param isFreshSession - Whether this is a fresh session (send full history) or reused (send only latest user message)
+ * @param jsonSchemaPrompt - Optional JSON schema instruction to prepend to the prompt
  */
 export function convertAiSdkMessagesToAcp(
   options: LanguageModelV2CallOptions,
   isFreshSession: boolean,
+  jsonSchemaPrompt?: string,
 ): ContentBlock[] {
   // If not a fresh session (meaning persistent session reused), only send the latest user message
   const messages = !isFreshSession
@@ -21,6 +23,11 @@ export function convertAiSdkMessagesToAcp(
     : options.prompt;
 
   const contentBlocks: ContentBlock[] = [];
+
+  // Prepend JSON schema instruction if provided
+  if (jsonSchemaPrompt) {
+    contentBlocks.push({ type: "text", text: jsonSchemaPrompt });
+  }
 
   for (const msg of messages) {
     // Prefix to identify role since ACP has no role field
