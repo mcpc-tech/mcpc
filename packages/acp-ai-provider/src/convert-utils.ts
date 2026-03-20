@@ -30,16 +30,23 @@ function getMediaType(mimeType: string): "image" | "audio" | null {
  *
  * @param options - The call options from the language model
  * @param isFreshSession - Whether this is a fresh session (send full history) or reused (send only latest user message)
+ * @param jsonSchemaPrompt - Optional JSON schema instruction to prepend to the prompt
  */
 export function convertAiSdkMessagesToAcp(
   options: LanguageModelV3CallOptions,
   isFreshSession: boolean,
+  jsonSchemaPrompt?: string,
 ): ContentBlock[] {
   const messages = !isFreshSession
     ? options.prompt.filter((m) => m.role === "user").slice(-1)
     : options.prompt;
 
   const contentBlocks: ContentBlock[] = [];
+
+  // Prepend JSON schema instruction if provided
+  if (jsonSchemaPrompt) {
+    contentBlocks.push({ type: "text", text: jsonSchemaPrompt });
+  }
 
   for (const msg of messages) {
     const prefix = getRolePrefix(msg.role);
