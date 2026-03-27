@@ -101,6 +101,67 @@ for await (const chunk of textStream) {
 }
 ```
 
+### Structured JSON Output
+
+Use AI SDK's `Output.object()` to get structured JSON from ACP agents. The
+provider automatically injects JSON schema instructions into the prompt and
+strips markdown fences from the response if needed.
+
+```typescript
+import { createACPProvider } from "@mcpc/acp-ai-provider";
+import { generateText, Output, streamText } from "ai";
+import process from "node:process";
+import { z } from "zod";
+
+const provider = createACPProvider({
+  command: "gemini",
+  args: ["--experimental-acp"],
+  session: { cwd: process.cwd(), mcpServers: [] },
+});
+
+const result = await generateText({
+  model: provider.languageModel(),
+  prompt: "Give me a recipe for chocolate chip cookies.",
+  output: Output.object({
+    schema: z.object({
+      name: z.string(),
+      ingredients: z.array(z.object({ item: z.string(), amount: z.string() })),
+      steps: z.array(z.string()),
+    }),
+  }),
+});
+
+console.log(result.output); // Typed object matching the schema
+```
+
+This also works with `streamText`:
+
+```typescript
+const stream = streamText({
+  model: provider.languageModel(),
+  prompt: "Tell me about Tokyo",
+  output: Output.object({
+    schema: z.object({
+      name: z.string(),
+      country: z.string(),
+      landmarks: z.array(z.string()),
+    }),
+  }),
+});
+
+const output = await stream.output; // Parsed object
+```
+
+> **How it works**: When `Output.object()` (or `Output.array()`,
+> `Output.json()`, `Output.choice()`) is used, AI SDK sets
+> `responseFormat.type = "json"` with an optional JSON Schema. The ACP provider
+> detects this and:
+>
+> 1. Prepends a structured-output instruction (with the schema) to the prompt
+> 2. Strips markdown code fences from the response (in both generate and stream
+>    modes)
+> 3. Passes clean JSON text to AI SDK for validation and parsing
+
 ### Authentication (Lazy by Default)
 
 Authentication is **lazy** by default: the provider does not authenticate during

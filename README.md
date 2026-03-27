@@ -139,6 +139,18 @@ const server = await mcpc(
 > **Complete Example**: See the full
 > [Codex fork tutorial](docs/examples/creating-a-codex-fork.md).
 
+### Install the MCPC Core Skill
+
+Install the `mcpc-core` skill into your project using [skills.sh](https://skills.sh):
+
+```bash
+npx skills add mcpc-tech/mcpc
+```
+
+This installs the skill into `.agent/skills/mcpc-core/`, giving your agent on-demand access to the full `@mcpc/core` API reference, usage patterns, plugin guide, and gotchas.
+
+---
+
 ### Examples: Load Agent Skills
 
 For complex agents where inline `description` becomes unwieldy, use
