@@ -141,13 +141,16 @@ const server = await mcpc(
 
 ### Install the MCPC Core Skill
 
-Install the `mcpc-core` skill into your project using [skills.sh](https://skills.sh):
+Install the `mcpc-core` skill into your project using
+[skills.sh](https://skills.sh):
 
 ```bash
 npx skills add mcpc-tech/mcpc
 ```
 
-This installs the skill into `.agent/skills/mcpc-core/`, giving your agent on-demand access to the full `@mcpc/core` API reference, usage patterns, plugin guide, and gotchas.
+This installs the skill into `.agent/skills/mcpc-core/`, giving your agent
+on-demand access to the full `@mcpc/core` API reference, usage patterns, plugin
+guide, and gotchas.
 
 ---
 

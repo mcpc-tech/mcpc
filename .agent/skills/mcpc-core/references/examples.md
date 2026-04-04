@@ -28,8 +28,9 @@ Available tools:
 }];
 
 const server = await mcpc(
-  [{ name: "basic-file-manager", version: "1.0.0" },
-   { capabilities: { tools: { listChanged: true } } }],
+  [{ name: "basic-file-manager", version: "1.0.0" }, {
+    capabilities: { tools: { listChanged: true } },
+  }],
   toolDefinitions,
 );
 
@@ -43,8 +44,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { mcpc } from "@mcpc/core";
 
 const server = await mcpc(
-  [{ name: "agentic-data-analyst", version: "1.0.0" },
-   { capabilities: { tools: { listChanged: true } } }],
+  [{ name: "agentic-data-analyst", version: "1.0.0" }, {
+    capabilities: { tools: { listChanged: true } },
+  }],
   [{
     name: "data-analyst",
     options: { mode: "agentic" },
@@ -76,7 +78,7 @@ await server.connect(new StdioServerTransport());
 ## 07 · Runtime Transformation Plugins
 
 ```typescript
-import { mcpc, jsonSchema } from "@mcpc/core";
+import { jsonSchema, mcpc } from "@mcpc/core";
 import type { ToolPlugin } from "@mcpc/core";
 
 const loggingPlugin: ToolPlugin = {
@@ -100,8 +102,14 @@ const server = await mcpc(
       server.tool(
         "greet",
         "Greet a user",
-        jsonSchema({ type: "object", properties: { name: { type: "string" } }, required: ["name"] }),
-        (args) => ({ content: [{ type: "text", text: `Hello, ${args.name}!` }] }),
+        jsonSchema({
+          type: "object",
+          properties: { name: { type: "string" } },
+          required: ["name"],
+        }),
+        (args) => ({
+          content: [{ type: "text", text: `Hello, ${args.name}!` }],
+        }),
       );
     },
   },
@@ -121,8 +129,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, "../../..");
 
 const server = await mcpc(
-  [{ name: "skills-demo", version: "1.0.0" },
-   { capabilities: { tools: { listChanged: true } } }],
+  [{ name: "skills-demo", version: "1.0.0" }, {
+    capabilities: { tools: { listChanged: true } },
+  }],
   [{
     name: "slide-agent",
     options: { mode: "agentic" },
@@ -143,8 +152,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { mcpc } from "@mcpc/core";
 
 const server = await mcpc(
-  [{ name: "ai-acp-demo", version: "1.0.0" },
-   { capabilities: { tools: {}, sampling: {} } }],
+  [{ name: "ai-acp-demo", version: "1.0.0" }, {
+    capabilities: { tools: {}, sampling: {} },
+  }],
   [{
     name: "coding-agent",
     options: {
@@ -181,7 +191,9 @@ import { mcpc } from "@mcpc/core";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 const server = await mcpc(
-  [{ name: "mcpc-markdown-example", version: "1.0.0" }, { capabilities: { tools: {} } }],
+  [{ name: "mcpc-markdown-example", version: "1.0.0" }, {
+    capabilities: { tools: {} },
+  }],
   ["./agents/my-agent.md"],
   { plugins: ["@mcpc/plugin-markdown-loader"] },
 );
@@ -197,7 +209,9 @@ import { createBashPlugin, createSkillsPlugin } from "@mcpc/core/plugins";
 import { join } from "node:path";
 
 const server = await mcpc(
-  [{ name: "skills-bash-demo", version: "1.0.0" }, { capabilities: { tools: { listChanged: true } } }],
+  [{ name: "skills-bash-demo", version: "1.0.0" }, {
+    capabilities: { tools: { listChanged: true } },
+  }],
   [{
     name: "dev-assistant",
     options: { mode: "agentic" },

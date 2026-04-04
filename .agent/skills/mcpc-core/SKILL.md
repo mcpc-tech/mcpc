@@ -5,7 +5,9 @@ description: Build agentic MCP servers using @mcpc/core by composing existing MC
 
 # @mcpc/core — Build Agentic MCP Servers
 
-`@mcpc/core` lets you compose existing MCP tools into agentic MCP tools. You write a description that references tools via `<tool>` XML tags, and MCPC wires everything up into a working MCP server.
+`@mcpc/core` lets you compose existing MCP tools into agentic MCP tools. You
+write a description that references tools via `<tool>` XML tags, and MCPC wires
+everything up into a working MCP server.
 
 ## Installation
 
@@ -53,11 +55,11 @@ await server.connect(new StdioServerTransport());
 
 ### `mcpc(serverConf, composeConf?, options?)`
 
-| Param | Type | Description |
-|---|---|---|
-| `serverConf` | `[ServerMeta, ServerCapabilities]` | Name/version + capabilities tuple |
-| `composeConf` | `ComposeInput[]` | Array of `ComposeDefinition` objects or `.md` file paths |
-| `options` | `McpcOptions` | Loader plugins + setup callback |
+| Param         | Type                               | Description                                              |
+| ------------- | ---------------------------------- | -------------------------------------------------------- |
+| `serverConf`  | `[ServerMeta, ServerCapabilities]` | Name/version + capabilities tuple                        |
+| `composeConf` | `ComposeInput[]`                   | Array of `ComposeDefinition` objects or `.md` file paths |
+| `options`     | `McpcOptions`                      | Loader plugins + setup callback                          |
 
 Returns `Promise<ComposableMCPServer>`.
 
@@ -113,11 +115,11 @@ Three transport types:
 
 ## Execution Modes
 
-| Mode | Description | Best For |
-|---|---|---|
-| `agentic` | Fully autonomous, uses MCP sampling | Default; most flexible |
-| `ai_sampling` | Uses AI SDK `streamText` + MCP sampling provider | When you control the model |
-| `ai_acp` | AI SDK + ACP protocol for coding agents | Claude Code, Codex-style agents |
+| Mode          | Description                                      | Best For                        |
+| ------------- | ------------------------------------------------ | ------------------------------- |
+| `agentic`     | Fully autonomous, uses MCP sampling              | Default; most flexible          |
+| `ai_sampling` | Uses AI SDK `streamText` + MCP sampling provider | When you control the model      |
+| `ai_acp`      | AI SDK + ACP protocol for coding agents          | Claude Code, Codex-style agents |
 
 ## Plugins
 
@@ -125,10 +127,10 @@ Three transport types:
 
 ```typescript
 import {
-  createLargeResultPlugin,  // Truncate/paginate large tool results
-  createSearchPlugin,       // Add ripgrep-based search tool
-  createSkillsPlugin,       // Lazy-load skill knowledge
-  createBashPlugin,         // Add bash execution tool
+  createBashPlugin, // Add bash execution tool
+  createLargeResultPlugin, // Truncate/paginate large tool results
+  createSearchPlugin, // Add ripgrep-based search tool
+  createSkillsPlugin, // Lazy-load skill knowledge
 } from "@mcpc/core/plugins";
 ```
 
@@ -140,8 +142,8 @@ plugins: [
   createLargeResultPlugin({ maxSize: 8000 }),
   createSkillsPlugin({ paths: [".agent/skills"] }),
   createBashPlugin(),
-  "./my-plugin.ts?param=value",  // File path with query params
-]
+  "./my-plugin.ts?param=value", // File path with query params
+];
 
 // Or in mcpc() options (loader plugins, run before composition)
 await mcpc(serverConf, composeConf, {
@@ -175,15 +177,17 @@ const myPlugin: ToolPlugin = {
 
 ## Skills Plugin
 
-`createSkillsPlugin` adds a `{agent}__load-skill` tool that lazy-loads skill content:
+`createSkillsPlugin` adds a `{agent}__load-skill` tool that lazy-loads skill
+content:
 
 ```typescript
 createSkillsPlugin({
   paths: [join(projectRoot, ".agent/skills")],
-})
+});
 ```
 
 Skills directory structure:
+
 ```
 .agent/skills/
 └── my-skill/
@@ -193,6 +197,7 @@ Skills directory structure:
 ```
 
 Agent calls:
+
 ```
 agent__load-skill({ skill: "my-skill" })
 agent__load-skill({ skill: "my-skill", ref: "references/api.md" })
@@ -200,7 +205,8 @@ agent__load-skill({ skill: "my-skill", ref: "references/api.md" })
 
 ## Markdown Agent Files
 
-Load agent definitions from `.md` files (requires `@mcpc/plugin-markdown-loader`):
+Load agent definitions from `.md` files (requires
+`@mcpc/plugin-markdown-loader`):
 
 ```typescript
 await mcpc(
@@ -211,6 +217,7 @@ await mcpc(
 ```
 
 Markdown format:
+
 ```markdown
 ---
 name: my-agent
@@ -242,7 +249,9 @@ await mcpc(serverConf, composeConf, {
       "my-tool",
       "Description of tool",
       jsonSchema({ type: "object", properties: { input: { type: "string" } } }),
-      async (args) => ({ content: [{ type: "text", text: `Got: ${args.input}` }] }),
+      async (args) => ({
+        content: [{ type: "text", text: `Got: ${args.input}` }],
+      }),
     );
     await server.addPlugin(myPlugin);
   },
@@ -251,13 +260,21 @@ await mcpc(serverConf, composeConf, {
 
 ## Gotchas
 
-- **`transportType` is required** in every `mcpServers` entry — omitting it causes a silent failure.
-- **`name: null`** in `ComposeDefinition` skips creating the composed tool; useful for composition-only (just wiring up deps + plugins).
-- **Plugin load order matters**: `McpcOptions.plugins` run before composition (use for loaders). `ComposeDefinition.plugins` run after composition (use for runtime transforms).
-- **`hide` vs `global` on `<tool>`**: `hide` keeps a tool internal to the agent. `global` exposes it at top-level without a namespace prefix.
-- **`manual` field**: if set, `description` becomes a short summary and full content is behind a `man` tool call — reduces initial context size.
-- **Environment variables in headers**: use `${VAR_NAME}` syntax inside strings in `deps.mcpServers[*].headers` — MCPC expands them at runtime.
-- **`maxSteps` default is 50** for ai_sampling/ai_acp modes — increase for complex multi-step tasks.
+- **`transportType` is required** in every `mcpServers` entry — omitting it
+  causes a silent failure.
+- **`name: null`** in `ComposeDefinition` skips creating the composed tool;
+  useful for composition-only (just wiring up deps + plugins).
+- **Plugin load order matters**: `McpcOptions.plugins` run before composition
+  (use for loaders). `ComposeDefinition.plugins` run after composition (use for
+  runtime transforms).
+- **`hide` vs `global` on `<tool>`**: `hide` keeps a tool internal to the agent.
+  `global` exposes it at top-level without a namespace prefix.
+- **`manual` field**: if set, `description` becomes a short summary and full
+  content is behind a `man` tool call — reduces initial context size.
+- **Environment variables in headers**: use `${VAR_NAME}` syntax inside strings
+  in `deps.mcpServers[*].headers` — MCPC expands them at runtime.
+- **`maxSteps` default is 50** for ai_sampling/ai_acp modes — increase for
+  complex multi-step tasks.
 
 ## References
 
