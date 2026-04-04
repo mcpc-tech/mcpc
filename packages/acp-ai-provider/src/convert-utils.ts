@@ -1,5 +1,6 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type { LanguageModelV2CallOptions } from "@ai-sdk/provider";
+import { convertUint8ArrayToBase64 } from "@ai-sdk/provider-utils";
 import { extractBase64Data } from "./utils.ts";
 import { asSchema, type Tool } from "ai";
 import { getExecuteByName, hasRegisteredExecute } from "./acp-tool.ts";
@@ -58,18 +59,27 @@ export function convertAiSdkMessagesToAcp(
           const text = isFirst ? `${prefix}${resultText} ` : resultText;
           contentBlocks.push({ type: "text" as const, text });
           isFirst = false;
-        } else if (part.type === "file" && typeof part.data === "string") {
+        } else if (part.type === "file") {
           const type = part.mediaType.startsWith("image/")
             ? "image"
             : part.mediaType.startsWith("audio/")
             ? "audio"
             : null;
           if (type) {
-            contentBlocks.push({
-              type,
-              mimeType: part.mediaType,
-              data: extractBase64Data(part.data),
-            });
+            let base64Data: string | undefined;
+            if (typeof part.data === "string") {
+              base64Data = extractBase64Data(part.data);
+            } else if (part.data instanceof Uint8Array) {
+              base64Data = convertUint8ArrayToBase64(part.data);
+            }
+            // URL case: skip (cannot resolve remote URLs synchronously at provider level)
+            if (base64Data !== undefined) {
+              contentBlocks.push({
+                type,
+                mimeType: part.mediaType,
+                data: base64Data,
+              });
+            }
           }
         }
       }
