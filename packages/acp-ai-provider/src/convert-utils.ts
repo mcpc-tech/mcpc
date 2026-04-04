@@ -4,6 +4,7 @@ import type {
   LanguageModelV3FunctionTool,
   LanguageModelV3ProviderTool,
 } from "@ai-sdk/provider";
+import { convertUint8ArrayToBase64 } from "@ai-sdk/provider-utils";
 import { extractBase64Data } from "./utils.ts";
 import { asSchema, type Tool } from "ai";
 import { getExecuteByName, hasRegisteredExecute } from "./acp-tool.ts";
@@ -85,14 +86,23 @@ export function convertAiSdkMessagesToAcp(
         needsPrefix = false;
       }
 
-      if (part.type === "file" && typeof part.data === "string") {
+      if (part.type === "file") {
         const mediaType = getMediaType(part.mediaType);
         if (mediaType) {
-          contentBlocks.push({
-            type: mediaType,
-            mimeType: part.mediaType,
-            data: extractBase64Data(part.data),
-          });
+          let base64Data: string | undefined;
+          if (typeof part.data === "string") {
+            base64Data = extractBase64Data(part.data);
+          } else if (part.data instanceof Uint8Array) {
+            base64Data = convertUint8ArrayToBase64(part.data);
+          }
+          // URL case: skip (cannot resolve remote URLs synchronously at provider level)
+          if (base64Data !== undefined) {
+            contentBlocks.push({
+              type: mediaType,
+              mimeType: part.mediaType,
+              data: base64Data,
+            });
+          }
         }
       }
     }
