@@ -35,7 +35,7 @@ const PROMPT_TEMPLATE =
 </rules>
 
 <format>
-Get tool schemas:
+Get tool definitions:
 \`\`\`json
 {
   "tool": "man",

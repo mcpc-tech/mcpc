@@ -24,6 +24,7 @@ out/
 
 # Testing
 coverage/
+.coverage/
 .nyc_output/
 
 # Logs

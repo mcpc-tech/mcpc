@@ -2,21 +2,22 @@
   "version": "5",
   "specifiers": {
     "jsr:@es-toolkit/es-toolkit@^1.37.2": "1.44.0",
-    "jsr:@std/assert@1": "1.0.17",
-    "jsr:@std/assert@^1.0.14": "1.0.17",
+    "jsr:@mcpc/plugin-markdown-loader@^0.0.14": "0.0.14",
+    "jsr:@std/assert@1": "1.0.19",
+    "jsr:@std/assert@^1.0.14": "1.0.19",
     "jsr:@std/cli@^1.0.25": "1.0.26",
-    "jsr:@std/cli@^1.0.26": "1.0.26",
+    "jsr:@std/cli@^1.0.26": "1.0.28",
     "jsr:@std/encoding@^1.0.10": "1.0.10",
     "jsr:@std/fmt@^1.0.8": "1.0.9",
     "jsr:@std/fs@^1.0.21": "1.0.22",
     "jsr:@std/html@^1.0.5": "1.0.5",
-    "jsr:@std/http@^1.0.14": "1.0.23",
+    "jsr:@std/http@^1.0.14": "1.0.25",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/media-types@^1.1.0": "1.1.0",
     "jsr:@std/net@^1.0.6": "1.0.6",
     "jsr:@std/path@^1.1.4": "1.1.4",
     "jsr:@std/streams@^1.0.16": "1.0.17",
-    "jsr:@std/yaml@^1.0.5": "1.0.11",
+    "jsr:@std/yaml@^1.0.5": "1.0.12",
     "npm:@agentclientprotocol/sdk@~0.14.1": "0.14.1_zod@3.25.76",
     "npm:@ai-sdk/provider-utils@4": "4.0.8_zod@3.25.76",
     "npm:@ai-sdk/provider-utils@^2.2.8": "2.2.8_zod@3.25.76",
@@ -58,8 +59,20 @@
     "@es-toolkit/es-toolkit@1.44.0": {
       "integrity": "647a7e777945a3ac81bd1783670f85429c2a661510d9af36becc6963ddfca00d"
     },
+    "@mcpc/plugin-markdown-loader@0.0.14": {
+      "integrity": "77939001776ad01b61e84a85d97a1e8443d1f9a5950e7c95a2b68bc24b5f13c0",
+      "dependencies": [
+        "jsr:@std/yaml"
+      ]
+    },
     "@std/assert@1.0.17": {
       "integrity": "df5ebfffe77c03b3fa1401e11c762cc8f603d51021c56c4d15a8c7ab45e90dbe",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/assert@1.0.19": {
+      "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
       "dependencies": [
         "jsr:@std/internal"
       ]
@@ -69,6 +82,9 @@
       "dependencies": [
         "jsr:@std/internal"
       ]
+    },
+    "@std/cli@1.0.28": {
+      "integrity": "74ef9b976db59ca6b23a5283469c9072be6276853807a83ec6c7ce412135c70a"
     },
     "@std/encoding@1.0.10": {
       "integrity": "8783c6384a2d13abd5e9e87a7ae0520a30e9f56aeeaa3bdf910a3eaaf5c811a1"
@@ -96,6 +112,9 @@
         "jsr:@std/streams"
       ]
     },
+    "@std/http@1.0.25": {
+      "integrity": "577b4252290af1097132812b339fffdd55fb0f4aeb98ff11bdbf67998aa17193"
+    },
     "@std/internal@1.0.12": {
       "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
     },
@@ -116,6 +135,9 @@
     },
     "@std/yaml@1.0.11": {
       "integrity": "bd139ce77f2d06cbed3713c8b26d301d2a2e12ecc7986130a268107e212143ee"
+    },
+    "@std/yaml@1.0.12": {
+      "integrity": "7deabca4545bcedd07c5f69ea53acea71b8b4c67562f224e17b90d75944cb20c"
     }
   },
   "npm": {
@@ -1441,8 +1463,8 @@
       },
       "packages/cli": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.42",
-          "jsr:@mcpc/plugin-markdown-loader@^0.0.13",
+          "jsr:@mcpc/core@~0.3.43",
+          "jsr:@mcpc/plugin-markdown-loader@^0.0.14",
           "jsr:@mcpc/utils@~0.2.13",
           "jsr:@std/assert@^1.0.14",
           "jsr:@std/cli@^1.0.26",
@@ -1493,7 +1515,7 @@
       },
       "packages/mcpc-builder": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.42",
+          "jsr:@mcpc/core@~0.3.43",
           "jsr:@mcpc/plugin-markdown-loader@^0.0.13",
           "jsr:@std/assert@^1.0.14",
           "npm:@modelcontextprotocol/sdk@^1.8.0",
@@ -1502,7 +1524,7 @@
       },
       "packages/plugin-code-execution": {
         "dependencies": [
-          "jsr:@mcpc/core@~0.3.42",
+          "jsr:@mcpc/core@~0.3.43",
           "jsr:@mcpc/utils@~0.2.13",
           "jsr:@std/assert@1",
           "npm:@mcpc-tech/handle-sandbox@^0.0.8",

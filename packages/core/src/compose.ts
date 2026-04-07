@@ -218,24 +218,39 @@ export class ComposableMCPServer extends Server {
     description: string,
     paramsSchema: Schema<T> | JSONSchema,
     cb: (args: T, extra?: unknown) => unknown,
-    options: { internal?: boolean; hidden?: boolean; plugins?: ToolPlugin[] } =
-      {},
+    options: {
+      internal?: boolean;
+      hidden?: boolean;
+      plugins?: ToolPlugin[];
+      outputSchema?: Schema<unknown> | JSONSchema;
+    } = {},
   ) {
     // Extract JSON Schema from wrapped or unwrapped format
     const jsonSchemaObj = extractJsonSchema(paramsSchema as Schema<T>);
+    const outputSchemaObj = options.outputSchema
+      ? extractJsonSchema(options.outputSchema as Schema<unknown>)
+      : undefined;
 
     this.toolManager.registerTool(
       name,
       description,
       jsonSchemaObj,
       cb as ToolCallback,
-      options,
+      {
+        ...options,
+        outputSchema: outputSchemaObj,
+      },
     );
 
     // Add to public tools if not internal (for tools registered via server.tool())
     // This makes tools registered in setup callbacks public by default
     if (!options.internal) {
-      this.toolManager.addPublicTool(name, description, jsonSchemaObj);
+      this.toolManager.addPublicTool(
+        name,
+        description,
+        jsonSchemaObj,
+        outputSchemaObj,
+      );
     }
 
     // Add any plugins specified for this tool to plugin manager
@@ -594,6 +609,7 @@ export class ComposableMCPServer extends Server {
     name: string;
     description: string;
     inputSchema: JSONSchema;
+    outputSchema?: JSONSchema;
   }> {
     const internalNames = this.getInternalToolNames();
     const registry = this.toolManager.getToolRegistry();
@@ -603,7 +619,8 @@ export class ComposableMCPServer extends Server {
       return {
         name,
         description: tool?.description || "",
-        inputSchema: tool?.schema || { type: "object" },
+        inputSchema: tool?.inputSchema || { type: "object" },
+        ...(tool?.outputSchema ? { outputSchema: tool.outputSchema } : {}),
       };
     });
   }
@@ -630,13 +647,15 @@ export class ComposableMCPServer extends Server {
     name: string;
     description: string;
     inputSchema: JSONSchema;
+    outputSchema?: JSONSchema;
   }> {
     const registry = this.toolManager.getToolRegistry();
 
     return Array.from(registry.entries()).map(([name, tool]) => ({
       name,
       description: tool?.description || "",
-      inputSchema: tool?.schema || { type: "object" },
+      inputSchema: tool?.inputSchema || { type: "object" },
+      ...(tool?.outputSchema ? { outputSchema: tool.outputSchema } : {}),
     }));
   }
 
@@ -645,7 +664,13 @@ export class ComposableMCPServer extends Server {
    */
   getHiddenToolSchema(
     name: string,
-  ): { description: string; schema: JSONSchema } | undefined {
+  ):
+    | {
+      description: string;
+      inputSchema: JSONSchema;
+      outputSchema?: JSONSchema;
+    }
+    | undefined {
     return this.toolManager.getHiddenToolSchema(name);
   }
 
@@ -840,6 +865,9 @@ export class ComposableMCPServer extends Server {
         tool.description || "",
         tool.inputSchema as JSONSchema,
         tool.execute,
+        {
+          outputSchema: tool.outputSchema as JSONSchema | undefined,
+        },
       );
     });
 
@@ -946,7 +974,10 @@ export class ComposableMCPServer extends Server {
         tool.description || "",
         jsonSchema(tool.inputSchema as any),
         tool.execute,
-        { internal: false }, // Not internal, will be added to publicTools
+        {
+          internal: false,
+          outputSchema: tool.outputSchema as JSONSchema | undefined,
+        }, // Not internal, will be added to publicTools
       );
     });
 

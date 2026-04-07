@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/cli",
-  "version": "0.1.53",
+  "version": "0.1.54",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -13,10 +13,10 @@
   },
   "imports": {
     "@mcpc-tech/plugin-code-execution": "npm:@mcpc-tech/plugin-code-execution@^0.0.8",
-    "@mcpc/core": "jsr:@mcpc/core@^0.3.42",
-    "@mcpc/core/plugins/skills": "jsr:@mcpc/core@^0.3.42/plugins/skills",
-    "@mcpc/core/plugins/bash": "jsr:@mcpc/core@^0.3.42/plugins/bash",
-    "@mcpc/plugin-markdown-loader": "jsr:@mcpc/plugin-markdown-loader@^0.0.13",
+    "@mcpc/core": "jsr:@mcpc/core@^0.3.43",
+    "@mcpc/core/plugins/skills": "jsr:@mcpc/core@^0.3.43/plugins/skills",
+    "@mcpc/core/plugins/bash": "jsr:@mcpc/core@^0.3.43/plugins/bash",
+    "@mcpc/plugin-markdown-loader": "jsr:@mcpc/plugin-markdown-loader@^0.0.14",
     "@mcpc/utils": "jsr:@mcpc/utils@^0.2.13",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
     "@mcpc-tech/ripgrep-napi": "npm:@mcpc-tech/ripgrep-napi@^0.0.4",

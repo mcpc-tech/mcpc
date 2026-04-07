@@ -33,7 +33,11 @@ export async function processToolsWithPlugins(
     const tempTool: ComposedTool = {
       name: toolId,
       description: toolData.description,
-      inputSchema: (toolData.schema as Tool["inputSchema"]) || defaultSchema,
+      inputSchema: (toolData.inputSchema as Tool["inputSchema"]) ||
+        defaultSchema,
+      ...(toolData.outputSchema
+        ? { outputSchema: toolData.outputSchema as Tool["outputSchema"] }
+        : {}),
       execute: toolData.callback,
     };
 
@@ -53,6 +57,9 @@ export async function processToolsWithPlugins(
       processedTool.description || toolData.description,
       processedTool.inputSchema as JSONSchema,
       processedTool.execute,
+      {
+        outputSchema: processedTool.outputSchema as JSONSchema | undefined,
+      },
     );
   }
 }

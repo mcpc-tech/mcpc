@@ -17,7 +17,8 @@ export class ToolManager {
     {
       callback: ToolCallback;
       description: string;
-      schema?: JSONSchema;
+      inputSchema?: JSONSchema;
+      outputSchema?: JSONSchema;
     }
   >();
   private toolConfigs = new Map<string, ToolConfig>();
@@ -37,14 +38,19 @@ export class ToolManager {
   registerTool(
     name: string,
     description: string,
-    schema: JSONSchema | undefined,
+    inputSchema: JSONSchema | undefined,
     callback: ToolCallback,
-    options: { internal?: boolean; hidden?: boolean } = {},
+    options: {
+      internal?: boolean;
+      hidden?: boolean;
+      outputSchema?: JSONSchema;
+    } = {},
   ): void {
     this.toolRegistry.set(name, {
       callback,
       description,
-      schema,
+      inputSchema,
+      outputSchema: options.outputSchema,
     });
 
     // Set visibility config based on options
@@ -63,14 +69,18 @@ export class ToolManager {
   addPublicTool(
     name: string,
     description: string,
-    schema: JSONSchema | undefined,
+    inputSchema: JSONSchema | undefined,
+    outputSchema?: JSONSchema,
   ): void {
     const existingTool = this.publicTools.find((t) => t.name === name);
     if (!existingTool) {
       this.publicTools.push({
         name,
         description,
-        inputSchema: schema as Tool["inputSchema"],
+        inputSchema: inputSchema as Tool["inputSchema"],
+        ...(outputSchema
+          ? { outputSchema: outputSchema as Tool["outputSchema"] }
+          : {}),
       });
     }
     // Mark as public in toolConfigs for getPublicToolNames()
@@ -219,13 +229,20 @@ export class ToolManager {
    */
   getHiddenToolSchema(
     name: string,
-  ): { description: string; schema: JSONSchema } | undefined {
+  ):
+    | {
+      description: string;
+      inputSchema: JSONSchema;
+      outputSchema?: JSONSchema;
+    }
+    | undefined {
     const tool = this.toolRegistry.get(name);
     const config = this.toolConfigs.get(name);
-    if (tool && config?.visibility?.hidden && tool.schema) {
+    if (tool && config?.visibility?.hidden && tool.inputSchema) {
       return {
         description: tool.description,
-        schema: tool.schema,
+        inputSchema: tool.inputSchema,
+        ...(tool.outputSchema ? { outputSchema: tool.outputSchema } : {}),
       };
     }
     return undefined;
@@ -243,7 +260,12 @@ export class ToolManager {
    */
   getToolEntries(): [
     string,
-    { callback: ToolCallback; description: string; schema?: JSONSchema },
+    {
+      callback: ToolCallback;
+      description: string;
+      inputSchema?: JSONSchema;
+      outputSchema?: JSONSchema;
+    },
   ][] {
     return Array.from(this.toolRegistry.entries());
   }
@@ -253,7 +275,12 @@ export class ToolManager {
    */
   getToolRegistry(): Map<
     string,
-    { callback: ToolCallback; description: string; schema?: JSONSchema }
+    {
+      callback: ToolCallback;
+      description: string;
+      inputSchema?: JSONSchema;
+      outputSchema?: JSONSchema;
+    }
   > {
     return this.toolRegistry;
   }
@@ -273,8 +300,11 @@ export class ToolManager {
         name,
         description: tool.description,
         inputSchema: jsonSchema(
-          tool.schema || { type: "object", properties: {} },
+          tool.inputSchema || { type: "object", properties: {} },
         ),
+        ...(tool.outputSchema
+          ? { outputSchema: jsonSchema(tool.outputSchema) }
+          : {}),
         execute: tool.callback,
       };
     }
@@ -293,9 +323,13 @@ export class ToolManager {
     return {
       name,
       description: tool.description,
-      inputSchema: (tool.schema ?? { type: "object", properties: {} }) as Tool[
-        "inputSchema"
-      ],
+      inputSchema:
+        (tool.inputSchema ?? { type: "object", properties: {} }) as Tool[
+          "inputSchema"
+        ],
+      ...(tool.outputSchema
+        ? { outputSchema: tool.outputSchema as Tool["outputSchema"] }
+        : {}),
       execute: tool.callback,
     };
   }
@@ -312,9 +346,12 @@ export class ToolManager {
         name,
         description: tool.description,
         inputSchema:
-          (tool.schema ?? { type: "object", properties: {} }) as Tool[
+          (tool.inputSchema ?? { type: "object", properties: {} }) as Tool[
             "inputSchema"
           ],
+        ...(tool.outputSchema
+          ? { outputSchema: tool.outputSchema as Tool["outputSchema"] }
+          : {}),
         execute: tool.callback,
       });
     }

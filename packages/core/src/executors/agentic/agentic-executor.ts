@@ -15,7 +15,7 @@ import process from "node:process";
  *
  * Key features:
  * - Uses `tool` + `args` for a clean, consistent interface
- * - `man` command for fetching tool schemas (like Unix manual)
+ * - `man` command for fetching tool definitions, including input/output schemas (like Unix manual)
  * - No `hasDefinitions` - trusts model's context memory
  * - Runtime validation of tool args using each tool's inputSchema
  */

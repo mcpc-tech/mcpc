@@ -48,7 +48,7 @@ export function createArgsDefFactory(
      *
      * Only two fields:
      * - `tool`: which tool to execute (enum includes "man" + all tool names)
-     * - `args`: object with parameters. For "man": { tools: ["a", "b"] }. For others: tool parameters.
+     * - `args`: object with parameters. For "man": { tools: ["a", "b"] } to fetch tool definitions (including input/output schemas). For others: tool parameters.
      */
     forAgentic: function (allToolNames: string[]): JSONSchema {
       // "man" is a built-in command for getting tool schemas

@@ -27,7 +27,16 @@ Deno.test("Client list tools - agentic server + public tools", async () => {
         (args: { message: string }) => ({
           content: [{ type: "text" as const, text: `Echo: ${args.message}` }],
         }),
-        { internal: false },
+        {
+          internal: false,
+          outputSchema: {
+            type: "object",
+            properties: {
+              echoedMessage: { type: "string" },
+            },
+            required: ["echoedMessage"],
+          },
+        },
       );
     },
   );
@@ -50,6 +59,15 @@ Deno.test("Client list tools - agentic server + public tools", async () => {
     tools.tools.length,
     2,
     "Should have 2 tools registered (agent+public tool)",
+  );
+
+  const echoTool = tools.tools.find((tool) => tool.name === "echo");
+  assertEquals(echoTool !== undefined, true, "Echo tool should exist");
+  assertEquals(
+    (echoTool?.outputSchema?.properties?.echoedMessage as { type?: string })
+      ?.type,
+    "string",
+    "Public tool should expose outputSchema via listTools()",
   );
 });
 
@@ -101,7 +119,7 @@ Deno.test("Client list tools - agentic server + internal", async () => {
 
   assertArrayIncludes(
     (
-      tools.tools[0].inputSchema.properties?.action as unknown as {
+      tools.tools[0].inputSchema.properties?.tool as unknown as {
         enum: string[];
       }
     ).enum,
@@ -220,14 +238,14 @@ Deno.test(
         "Agent tool should exist",
       );
 
-      const actionEnum = (
-        agentTool!.inputSchema.properties?.action as unknown as {
+      const toolEnum = (
+        agentTool!.inputSchema.properties?.tool as unknown as {
           enum: string[];
         }
       ).enum;
 
       assertArrayIncludes(
-        actionEnum,
+        toolEnum,
         ["desktop-commander_read_file", "desktop-commander_write_file"],
         "Agent should include tools from MCP dependencies",
       );

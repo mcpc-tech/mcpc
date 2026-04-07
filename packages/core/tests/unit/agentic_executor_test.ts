@@ -102,6 +102,18 @@ Deno.test(
           () => ({
             content: [{ type: "text", text: "Alpha executed" }],
           }),
+          {
+            outputSchema: {
+              type: "object",
+              properties: {
+                alphaResult: {
+                  type: "string",
+                  description: "Structured alpha result",
+                },
+              },
+              required: ["alphaResult"],
+            },
+          },
         );
         server.tool(
           "tool-beta",
@@ -136,6 +148,8 @@ Deno.test(
       assertEquals(contentText.includes("tool-beta"), true);
       assertEquals(contentText.includes("param1"), true);
       assertEquals(contentText.includes("param2"), true);
+      assertEquals(contentText.includes("outputSchema"), true);
+      assertEquals(contentText.includes("alphaResult"), true);
     } finally {
       await server.close?.();
     }

@@ -36,7 +36,7 @@ export const SystemPrompts = {
 </rules>
 
 <format>
-Get tool schemas: \`{ "tool": "man", "args": { "tools": ["tool1", "tool2"] } }\`
+Get tool definitions: \`{ "tool": "man", "args": { "tools": ["tool1", "tool2"] } }\`
 Execute a tool: \`{ "tool": "tool_name", "args": { /* parameters */ } }\`
 </format>`,
 
