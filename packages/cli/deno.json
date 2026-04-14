@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/cli",
-  "version": "0.1.55",
+  "version": "0.1.56",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -12,12 +12,13 @@
     "./app": "./src/app.ts"
   },
   "imports": {
-    "@mcpc-tech/plugin-code-execution": "npm:@mcpc-tech/plugin-code-execution@^0.0.25",
-    "@mcpc/core": "jsr:@mcpc/core@^0.3.43",
-    "@mcpc/core/plugins/skills": "jsr:@mcpc/core@^0.3.43/plugins/skills",
-    "@mcpc/core/plugins/bash": "jsr:@mcpc/core@^0.3.43/plugins/bash",
+    "@mcpc/plugin-code-execution": "jsr:@mcpc/plugin-code-execution@^0.0.26",
+    "@mcpc/plugin-code-execution-sampling": "jsr:@mcpc/plugin-code-execution-sampling@^0.0.2",
+    "@mcpc/core": "jsr:@mcpc/core@^0.3.44",
+    "@mcpc/core/plugins/skills": "jsr:@mcpc/core@^0.3.44/plugins/skills",
+    "@mcpc/core/plugins/bash": "jsr:@mcpc/core@^0.3.44/plugins/bash",
     "@mcpc/plugin-markdown-loader": "jsr:@mcpc/plugin-markdown-loader@^0.0.14",
-    "@mcpc/utils": "jsr:@mcpc/utils@^0.2.13",
+    "@mcpc/utils": "jsr:@mcpc/utils@^0.2.14",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
     "@mcpc-tech/ripgrep-napi": "npm:@mcpc-tech/ripgrep-napi@^0.0.4",
     "@hono/zod-openapi": "npm:@hono/zod-openapi@^0.19.2",

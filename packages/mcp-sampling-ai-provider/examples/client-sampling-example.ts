@@ -14,6 +14,7 @@ import {
 import { generateText, jsonSchema, tool } from "ai";
 import { cwd } from "node:process";
 import { writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 const client = new Client(
   { name: "my-client", version: "1.0.0" },
@@ -72,10 +73,21 @@ setupClientSampling(client, {
       console.log("✅ Token usage:", result.usage);
       console.log("✅ Tool results:", result.toolResults);
 
+      const content = [];
+      if (result.text) {
+        content.push({ type: "text" as const, text: result.text });
+      }
+      content.push(...result.toolCalls.map((toolCall) => ({
+        type: "tool_use" as const,
+        id: toolCall.toolCallId,
+        name: toolCall.toolName,
+        input: toolCall.input as { [x: string]: unknown },
+      })));
+
       return {
         model: modelId,
         role: "assistant" as const,
-        content: { type: "text" as const, text: result.text },
+        content,
         stopReason: convertAISDKFinishReasonToMCP(result.finishReason),
       };
     } catch (error) {
@@ -95,28 +107,39 @@ setupClientSampling(client, {
   },
 });
 
+const backgroundServerPath = fileURLToPath(
+  new URL("./background_code_analysis.ts", import.meta.url),
+);
+const serverPath = Deno.env.get("MCP_SAMPLING_SERVER_PATH") ||
+  backgroundServerPath;
+const toolName = Deno.env.get("MCP_SAMPLING_TOOL_NAME") ||
+  "analyze-code-changes";
+const toolArgsRaw = Deno.env.get("MCP_SAMPLING_TOOL_ARGS");
+const toolArgs = toolArgsRaw ? JSON.parse(toolArgsRaw) : { workDir: cwd() };
+
 const transport = new StdioClientTransport({
   command: "deno",
   args: [
     "run",
     "-A",
-    "examples/background_code_analysis.ts",
+    serverPath,
   ],
 });
 
-await client.connect(transport);
+try {
+  await client.connect(transport);
 
-console.log("Connected to MCP server with sampling support.");
+  console.log("Connected to MCP server with sampling support.");
 
-const tools = await client.listTools();
-console.log("Available tools:", tools);
+  const tools = await client.listTools();
+  console.log("Available tools:", tools);
 
-// Call analyze-code-changes tool
-console.log("\nCalling analyze-code-changes...");
-const analysisResult = await client.callTool({
-  name: "analyze-code-changes",
-  arguments: {
-    workDir: cwd(),
-  },
-});
-console.log("Analysis result:", analysisResult);
+  console.log(`\nCalling ${toolName}...`);
+  const analysisResult = await client.callTool({
+    name: toolName,
+    arguments: toolArgs,
+  });
+  console.log("Analysis result:", analysisResult);
+} finally {
+  await client.close();
+}

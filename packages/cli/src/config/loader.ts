@@ -53,7 +53,7 @@ import process from "node:process";
 import { DEFAULT_SKILLS_PATHS } from "../defaults.ts";
 
 /** CLI version - synced with deno.json */
-const CLI_VERSION = "0.1.55";
+const CLI_VERSION = "0.1.56";
 
 export interface MCPCConfig {
   /**
@@ -298,7 +298,7 @@ OPTIONS:
                             Add custom HTTP header for URL fetching
                             Format: "Key: Value" or "Key=Value"
     --mode <mode>           Set execution mode for agents
-                            Modes: agentic, ai_sampling, ai_acp, code_execution
+                            Modes: agentic, ai_sampling, ai_acp, code_execution, code_execution_sampling
     --add                   Add MCP servers to ~/.mcpc/config.json and exit
     --wrap                  Wrap and run MCP servers immediately
     --mcp-stdio <cmd>       Add an MCP server with stdio transport

@@ -11,15 +11,31 @@ export interface ToolCallHandler {
   (toolName: string, params: unknown): Promise<CallToolResult>;
 }
 
+export interface SandboxHandler {
+  (...args: unknown[]): Promise<unknown>;
+}
+
 export type { SandboxConfig };
 
 export class SandboxExecutor {
   private sandbox: Sandbox;
   private toolCallHandler?: ToolCallHandler;
+  private extraHandlers = new Map<string, SandboxHandler>();
+  private started = false;
 
   constructor(config: SandboxConfig = {}, toolCallHandler?: ToolCallHandler) {
     this.sandbox = new Sandbox(config);
     this.toolCallHandler = toolCallHandler;
+  }
+
+  /**
+   * Register an additional host handler for sandboxed code.
+   */
+  registerHandler(name: string, handler: SandboxHandler): void {
+    this.extraHandlers.set(name, handler);
+    if (this.started) {
+      this.sandbox.registerHandler(name, handler);
+    }
   }
 
   /**
@@ -29,14 +45,20 @@ export class SandboxExecutor {
     // Register the tool call handler
     if (this.toolCallHandler) {
       this.sandbox.registerHandler(
-        "callMCPTool",
+        "tool",
         async (...args: unknown[]) => {
           const [toolName, params] = args as [string, unknown];
           return await this.toolCallHandler!(toolName, params);
         },
       );
     }
+
+    for (const [name, handler] of this.extraHandlers) {
+      this.sandbox.registerHandler(name, handler);
+    }
+
     this.sandbox.start();
+    this.started = true;
   }
 
   /**
@@ -92,6 +114,7 @@ export class SandboxExecutor {
    * Stop sandbox process
    */
   stop(): void {
+    this.started = false;
     this.sandbox.stop();
   }
 }

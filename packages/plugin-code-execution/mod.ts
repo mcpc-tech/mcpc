@@ -31,5 +31,6 @@ export { default } from "./src/plugin.ts";
 export {
   type SandboxConfig,
   SandboxExecutor,
+  type SandboxHandler,
   type ToolCallHandler,
 } from "./src/sandbox-executor.ts";

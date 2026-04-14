@@ -1,6 +1,6 @@
 {
-  "name": "@mcpc/plugin-code-execution",
-  "version": "0.0.26",
+  "name": "@mcpc/plugin-code-execution-sampling",
+  "version": "0.0.2",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -8,14 +8,16 @@
   "exports": {
     ".": "./mod.ts",
     "./plugin": "./src/plugin.ts",
-    "./sandbox": "./src/sandbox-executor.ts"
+    "./sampling": "./src/sandbox-sampling.ts"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.0",
-    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.25.3",
     "@mcpc/core": "jsr:@mcpc/core@^0.3.44",
     "@mcpc/utils": "jsr:@mcpc/utils@^0.2.14",
-    "@mcpc-tech/handle-sandbox": "npm:@mcpc-tech/handle-sandbox@^0.0.11"
+    "@mcpc/plugin-code-execution": "jsr:@mcpc/plugin-code-execution@^0.0.26",
+    "@mcpc/mcp-sampling-ai-provider": "jsr:@mcpc/mcp-sampling-ai-provider@^0.1.23",
+    "ai": "npm:ai@^5.0.60"
   },
   "publish": {
     "exclude": [
@@ -25,7 +27,6 @@
     ]
   },
   "tasks": {
-    "dev": "deno run --allow-all examples/basic-usage.ts",
     "test": "deno test --allow-all tests/"
   }
 }

@@ -57,6 +57,13 @@
       }
     },
     {
+      "name": "@mcpc/plugin-code-execution-sampling",
+      "version": "latest",
+      "packageJson": {
+        "name": "@mcpc-tech/plugin-code-execution-sampling"
+      }
+    },
+    {
       "name": "@mcpc/plugin-markdown-loader",
       "version": "latest",
       "packageJson": {

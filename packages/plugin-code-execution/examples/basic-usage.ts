@@ -24,7 +24,7 @@ Available tools:
 <tool name="desktop-commander.list_directory"/>
 
 I can execute JavaScript code securely in a sandboxed environment.
-The code can call MCP tools via \`callMCPTool(toolName, params)\` function.`,
+The code can call MCP tools via \`tool(toolName, params)\` function.`,
     deps: {
       mcpServers: {
         "desktop-commander": {

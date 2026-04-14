@@ -101,7 +101,12 @@ export interface MarkdownAgentFrontMatter {
    */
   description?: string;
   /** Execution mode */
-  mode?: "agentic" | "ai_sampling" | "ai_acp" | "code_execution";
+  mode?:
+    | "agentic"
+    | "ai_sampling"
+    | "ai_acp"
+    | "code_execution"
+    | "code_execution_sampling";
   /** Maximum execution steps */
   maxSteps?: number;
   /** Maximum tokens for sampling */

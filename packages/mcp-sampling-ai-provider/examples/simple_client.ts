@@ -10,6 +10,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { LoggingMessageNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
 import { convertMCPToolsToAISDK, setupClientSampling } from "../mod.ts";
 import { generateText, jsonSchema, tool } from "ai";
+import { fileURLToPath } from "node:url";
 
 const DEBUG = true;
 
@@ -63,12 +64,16 @@ setupClientSampling(client, {
 });
 
 // 3. Connect to Server
+const simpleServerPath = fileURLToPath(
+  new URL("./simple_server.ts", import.meta.url),
+);
+
 const transport = new StdioClientTransport({
   command: "deno",
   args: [
     "run",
     "-A",
-    "examples/simple_server.ts",
+    simpleServerPath,
   ],
 });
 
@@ -99,4 +104,6 @@ try {
   console.log(result.content);
 } catch (error) {
   console.error("❌ Tool call failed:", error);
+} finally {
+  await client.close();
 }

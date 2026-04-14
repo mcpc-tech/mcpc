@@ -5,7 +5,8 @@
 import { createLargeResultPlugin } from "@mcpc/core/plugins/large-result";
 import { createSkillsPlugin } from "@mcpc/core/plugins/skills";
 import { createBashPlugin } from "@mcpc/core/plugins/bash";
-import { createCodeExecutionPlugin } from "@mcpc-tech/plugin-code-execution";
+import { createCodeExecutionPlugin } from "@mcpc/plugin-code-execution";
+import { createCodeExecutionSamplingPlugin } from "@mcpc/plugin-code-execution-sampling";
 import { markdownLoaderPlugin } from "@mcpc/plugin-markdown-loader";
 import type { ComposeDefinition, ToolPlugin } from "@mcpc/core";
 import { resolve } from "node:path";
@@ -16,6 +17,17 @@ export const DEFAULT_SKILLS_PATHS = [".agent/skills"];
 
 /** Default code execution timeout (5 minutes) */
 export const DEFAULT_CODE_EXECUTION_TIMEOUT = 300_000;
+
+function getExecutionModePlugins(): ToolPlugin[] {
+  return [
+    createCodeExecutionPlugin({
+      sandbox: { timeout: DEFAULT_CODE_EXECUTION_TIMEOUT },
+    }),
+    createCodeExecutionSamplingPlugin({
+      sandbox: { timeout: DEFAULT_CODE_EXECUTION_TIMEOUT },
+    }),
+  ];
+}
 
 /**
  * Get global plugins applied to all agents
@@ -30,6 +42,7 @@ export function getGlobalPlugins(
     markdownLoaderPlugin(),
     createSkillsPlugin({ paths: resolvedPaths }),
     createBashPlugin(),
+    ...getExecutionModePlugins(),
   ];
 }
 
@@ -37,11 +50,7 @@ export function getGlobalPlugins(
  * Get agent-level plugins
  */
 export function getAgentPlugins(): ToolPlugin[] {
-  return [
-    createCodeExecutionPlugin({
-      sandbox: { timeout: DEFAULT_CODE_EXECUTION_TIMEOUT },
-    }),
-  ];
+  return getExecutionModePlugins();
 }
 
 /**
