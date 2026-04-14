@@ -7,12 +7,13 @@ is powered by dedicated executor implementations in
 
 ## Mode Overview
 
-| Mode             | Description                         | Use Case                                       | Requires Sampling |
-| ---------------- | ----------------------------------- | ---------------------------------------------- | ----------------- |
-| `agentic`        | Interactive step-by-step execution  | Standard agent interactions                    | No                |
-| `ai_sampling`    | AI SDK sampling mode                | Autonomous execution with AI SDK               | Yes               |
-| `ai_acp`         | AI SDK ACP mode                     | Coding agents (Claude Code, etc.)              | No                |
-| `code_execution` | Secure JavaScript sandbox execution | Code generation and execution with tool access | No                |
+| Mode                      | Description                                   | Use Case                                             | Requires Sampling |
+| ------------------------- | --------------------------------------------- | ---------------------------------------------------- | ----------------- |
+| `agentic`                 | Interactive step-by-step execution            | Standard agent interactions                          | No                |
+| `ai_sampling`             | AI SDK sampling mode                          | Autonomous execution with AI SDK                     | Yes               |
+| `ai_acp`                  | AI SDK ACP mode                               | Coding agents (Claude Code, etc.)                    | No                |
+| `code_execution`          | Secure JavaScript sandbox execution           | Code generation and execution with tool access       | No                |
+| `code_execution_sampling` | Secure sandbox plus MCP sampling-backed calls | Sandbox execution that can also ask the client model | Yes               |
 
 ## 1. Agentic Mode (default)
 
@@ -325,13 +326,15 @@ for detailed information.
 
 ## Choosing the Right Mode
 
-| Scenario                         | Recommended Mode |
-| -------------------------------- | ---------------- |
-| Simple interactive agent         | `agentic`        |
-| Autonomous AI SDK execution      | `ai_sampling`    |
-| Coding agent integration         | `ai_acp`         |
-| Code generation and execution    | `code_execution` |
-| Data processing with tool access | `code_execution` |
+| Scenario                                      | Recommended Mode          |
+| --------------------------------------------- | ------------------------- |
+| Simple interactive agent                      | `agentic`                 |
+| Autonomous AI SDK execution                   | `ai_sampling`             |
+| Coding agent integration                      | `ai_acp`                  |
+| Code generation and execution                 | `code_execution`          |
+| Data processing with tool access              | `code_execution`          |
+| Sandbox execution plus model reasoning        | `code_execution_sampling` |
+| Structured sampling inside sandboxed programs | `code_execution_sampling` |
 
 ## Configuration Reference
 
@@ -356,11 +359,14 @@ interface SandboxConfig {
 
 ## Advanced: Mode Plugins
 
-Each execution mode is implemented as a built-in plugin. You can find them in:
+The core built-in execution mode plugins live in:
 
 - `packages/core/src/plugins/built-in/mode-agentic-plugin.ts`
 - `packages/core/src/plugins/built-in/mode-ai-sampling-plugin.ts`
 - `packages/core/src/plugins/built-in/mode-ai-acp-plugin.ts`
 
-The code execution mode is a separate plugin package that can be installed and
-used independently.
+The sandbox-oriented modes are separate plugin packages that can also be
+installed and used independently:
+
+- `packages/plugin-code-execution`
+- `packages/plugin-code-execution-sampling`

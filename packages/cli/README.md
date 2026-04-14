@@ -86,7 +86,9 @@ Example JSON configuration:
 
 ### 3. Standalone Mode (No External MCP Servers)
 
-Run with built-in capabilities only, using the `code_execution` mode:
+Run with built-in capabilities only. `code_execution` is the default mode, and
+`code_execution_sampling` is also available when the connected MCP client
+advertises sampling support:
 
 ```bash
 # Default mode - code execution without external dependencies
@@ -94,6 +96,9 @@ mcpc
 
 # Explicit standalone with code execution
 mcpc --config '[{"name":null,"options":{"mode":"code_execution"}}]'
+
+# Sampling-backed standalone sandbox execution
+mcpc --config '[{"name":null,"options":{"mode":"code_execution_sampling"}}]'
 ```
 
 ## Configuration Files
@@ -252,10 +257,22 @@ mcpc --wrap --mode code_execution --name "code-runner" \
   --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
 ```
 
+#### `code_execution_sampling`
+
+Combines the secure JavaScript sandbox with MCP sampling-backed model calls. Use
+this when code running inside the sandbox should be able to call both MCP tools
+and the connected client's sampling interface.
+
+```bash
+mcpc --wrap --mode code_execution_sampling --name "sampling-runner" \
+  --mcp-stdio "npx -y @wonderwhy-er/desktop-commander"
+```
+
 > **Note:** Different modes may require specific plugins to be available. The
-> `agentic` mode is always available by default. The `code_execution` mode
-> requires `@mcpc-tech/plugin-code-execution` which is included by default in
-> the CLI.
+> `agentic` mode is always available by default. Both `code_execution` and
+> `code_execution_sampling` are included by default in the CLI. The
+> `code_execution_sampling` mode also requires the connected MCP client to
+> advertise sampling support.
 
 ### Config Options
 
