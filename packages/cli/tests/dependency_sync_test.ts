@@ -5,22 +5,47 @@ const codeExecutionPackagePath = new URL(
   "../../plugin-code-execution/deno.json",
   import.meta.url,
 );
+const codeExecutionSamplingPackagePath = new URL(
+  "../../plugin-code-execution-sampling/deno.json",
+  import.meta.url,
+);
 
-Deno.test("CLI package sync - plugin-code-execution npm import tracks local package version", async () => {
+async function readVersion(filePath: URL): Promise<string | undefined> {
+  const pkg = JSON.parse(await Deno.readTextFile(filePath)) as {
+    version?: string;
+  };
+  return pkg.version;
+}
+
+async function readCliImports(): Promise<Record<string, string>> {
   const cliPackage = JSON.parse(await Deno.readTextFile(cliPackagePath)) as {
     imports?: Record<string, string>;
   };
-  const codeExecutionPackage = JSON.parse(
-    await Deno.readTextFile(codeExecutionPackagePath),
-  ) as { version?: string };
+  return cliPackage.imports ?? {};
+}
 
-  const actualImport = cliPackage.imports?.["@mcpc-tech/plugin-code-execution"];
-  const localVersion = codeExecutionPackage.version;
+Deno.test("CLI package sync - plugin-code-execution jsr import tracks local package version", async () => {
+  const cliImports = await readCliImports();
+  const localVersion = await readVersion(codeExecutionPackagePath);
+  const actualImport = cliImports["@mcpc/plugin-code-execution"];
 
   assertExists(actualImport);
   assertExists(localVersion);
   assertEquals(
     actualImport,
-    `npm:@mcpc-tech/plugin-code-execution@^${localVersion}`,
+    `jsr:@mcpc/plugin-code-execution@^${localVersion}`,
+  );
+});
+
+Deno.test("CLI package sync - plugin-code-execution-sampling jsr import tracks local package version", async () => {
+  const cliImports = await readCliImports();
+  const localVersion = await readVersion(codeExecutionSamplingPackagePath);
+  const actualImport = cliImports["@mcpc/plugin-code-execution-sampling"];
+
+  assertExists(actualImport);
+  assertExists(localVersion);
+  assertEquals(
+    actualImport,
+    `jsr:@mcpc/plugin-code-execution-sampling@^${localVersion}`,
   );
 });

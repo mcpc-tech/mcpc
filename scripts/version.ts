@@ -43,19 +43,40 @@ function syncWorkspaceImportVersions(
       continue;
     }
 
-    const match = value.match(/^jsr:(@mcpc\/[^@/]+)@\^(\d+\.\d+\.\d+)(\/.*)?$/);
-    if (!match) {
+    const jsrMatch = value.match(
+      /^jsr:(@mcpc\/[^@/]+)@\^(\d+\.\d+\.\d+)(\/.*)?$/,
+    );
+    if (jsrMatch) {
+      const [, depName, currentVersion, suffix = ""] = jsrMatch;
+      const nextVersion = versionMap.get(depName);
+
+      if (!nextVersion || nextVersion === currentVersion) {
+        continue;
+      }
+
+      pkg.imports[key] = `jsr:${depName}@^${nextVersion}${suffix}`;
+      console.log(
+        `Synced ${pkg.name} import ${key}: ${currentVersion} → ${nextVersion}`,
+      );
       continue;
     }
 
-    const [, depName, currentVersion, suffix = ""] = match;
-    const nextVersion = versionMap.get(depName);
+    const npmMatch = value.match(
+      /^npm:(@mcpc-tech\/[^@/]+)@\^(\d+\.\d+\.\d+)(\/.*)?$/,
+    );
+    if (!npmMatch) {
+      continue;
+    }
+
+    const [, depName, currentVersion, suffix = ""] = npmMatch;
+    const workspaceDepName = depName.replace(/^@mcpc-tech\//, "@mcpc/");
+    const nextVersion = versionMap.get(workspaceDepName);
 
     if (!nextVersion || nextVersion === currentVersion) {
       continue;
     }
 
-    pkg.imports[key] = `jsr:${depName}@^${nextVersion}${suffix}`;
+    pkg.imports[key] = `npm:${depName}@^${nextVersion}${suffix}`;
     console.log(
       `Synced ${pkg.name} import ${key}: ${currentVersion} → ${nextVersion}`,
     );
@@ -70,6 +91,7 @@ const packages = [
   "./packages/acp-ai-provider/deno.json",
   "./packages/mcpc-builder/deno.json",
   "./packages/plugin-code-execution/deno.json",
+  "./packages/plugin-code-execution-sampling/deno.json",
   "./packages/plugin-markdown-loader/deno.json",
 ];
 
