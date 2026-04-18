@@ -3,8 +3,14 @@
  * Tests silent mode (global + per-instance), level control, and child loggers
  */
 
-import { assertEquals, assertNotEquals } from "@std/assert";
-import { createLogger, logger, MCPLogger, setSilent, isSilent } from "../../src/utils/logger.ts";
+import { assertEquals } from "@std/assert";
+import {
+  createLogger,
+  isSilent,
+  logger,
+  MCPLogger,
+  setSilent,
+} from "../../src/utils/logger.ts";
 
 Deno.test("MCPLogger - default state is not silent", () => {
   const l = createLogger("test-default");

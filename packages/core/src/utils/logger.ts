@@ -167,7 +167,7 @@ export class MCPLogger {
   }
 }
 
-export const logger = new MCPLogger("mcpc");
+export const logger: MCPLogger = new MCPLogger("mcpc");
 
 export function createLogger(name: string, server?: Server): MCPLogger {
   return new MCPLogger(name, server);
