@@ -4,6 +4,7 @@ import type { SamplingConfig } from "./types.ts";
 import type { ToolPlugin } from "./plugin-types.ts";
 import type { ToolRefXml } from "./types.ts";
 import type { ExecutionMode } from "./prompts/types.ts";
+import { setSilent } from "./utils/logger.ts";
 
 export interface ComposeDefinition {
   /**
@@ -178,6 +179,14 @@ export interface McpcOptions {
    * Useful for adding internal tools or custom configurations.
    */
   setup?: (server: ComposableMCPServer) => void | Promise<void>;
+
+  /**
+   * Suppress console log output.
+   * When true, logs are not printed to stderr but MCP protocol logging still works
+   * (clients can still receive logs via `logging/setLevel`).
+   * @default false
+   */
+  silent?: boolean;
 }
 
 /**
@@ -264,6 +273,11 @@ export async function mcpc(
   const options: McpcOptions = typeof optionsOrSetup === "function"
     ? { setup: optionsOrSetup }
     : (optionsOrSetup ?? {});
+
+  // Apply silent mode: suppress console output from all loggers
+  if (options.silent) {
+    setSilent(true);
+  }
 
   // Load loader plugins first (before resolving compose inputs)
   // These plugins register file loaders (e.g., markdown-loader) needed to parse file paths

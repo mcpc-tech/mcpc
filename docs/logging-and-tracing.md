@@ -9,7 +9,10 @@ MCPC implements the
 
 ### Features
 
-- **Always Visible**: Logs output to console for immediate visibility
+- **Silent Mode**: Suppress console output via `silent: true` option or
+  `setSilent()`
+- **Always Visible**: Logs output to console for immediate visibility (unless
+  silent)
 - **MCP Protocol**: Logs sent via `server.sendLoggingMessage()` for client
   consumption
 - **Dynamic Level Control**: Clients can adjust log levels via
@@ -56,6 +59,30 @@ await childLogger.info("Message"); // Logs as "my-component.subcomponent"
 // Level control
 logger.setLevel("warning"); // Only warning and higher
 const currentLevel = logger.getLevel();
+```
+
+### Silent Mode
+
+Suppress console output when using mcpc as a JS library. MCP protocol logging
+still works — clients can still receive logs via `logging/setLevel`.
+
+**Via `mcpc()` options (recommended):**
+
+```typescript
+const server = await mcpc(
+  [{ name: "my-server", version: "1.0.0" }],
+  agents,
+  { silent: true }, // Suppress console output for all loggers
+);
+```
+
+**Via logger instance (fine-grained):**
+
+```typescript
+import { createLogger } from "@mcpc/core";
+
+const noisyLogger = createLogger("noisy-component");
+noisyLogger.silent = true; // Only suppress this logger
 ```
 
 ### Where It's Used

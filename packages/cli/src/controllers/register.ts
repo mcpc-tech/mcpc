@@ -5,9 +5,13 @@ import { coreHandler } from "./core.controller.ts";
 import { streamableHttpHandler } from "./streamable-http.controller.ts";
 import type { MCPCConfig } from "../config/loader.ts";
 
-export const registerAgent = (app: OpenAPIHono, config?: MCPCConfig) => {
+export const registerAgent = (
+  app: OpenAPIHono,
+  config?: MCPCConfig,
+  options?: { silent?: boolean },
+) => {
   messageHandler(app);
   sseHandler(app);
   coreHandler(app);
-  streamableHttpHandler(app, config);
+  streamableHttpHandler(app, config, options);
 };

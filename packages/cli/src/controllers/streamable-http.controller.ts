@@ -7,12 +7,13 @@ import type { MCPCConfig } from "../config/loader.ts";
 export const streamableHttpHandler = (
   app: OpenAPIHono,
   providedConfig?: MCPCConfig,
+  options?: { silent?: boolean },
 ) => {
   app.post("/mcp", async (c) => {
     try {
       // Use provided config or load from environment/file
       const config = providedConfig || await loadConfig();
-      const server = await createServer(config ?? undefined);
+      const server = await createServer(config ?? undefined, options);
 
       const body = await c.req.json();
 

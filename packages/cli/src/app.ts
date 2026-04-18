@@ -11,6 +11,7 @@ import {
 
 export const createServer = async (
   config?: MCPCConfig,
+  options?: { silent?: boolean },
 ): Promise<ComposableMCPServer> => {
   const serverConfig = config || {
     name: "mcpc-server",
@@ -32,12 +33,15 @@ export const createServer = async (
       },
     ],
     serverConfig.agents,
-    { plugins: getGlobalPlugins(skillsPaths) },
+    { plugins: getGlobalPlugins(skillsPaths), silent: options?.silent },
   );
 };
 
-export const createApp = (config?: MCPCConfig): OpenAPIHono => {
+export const createApp = (
+  config?: MCPCConfig,
+  options?: { silent?: boolean },
+): OpenAPIHono => {
   const app = new OpenAPIHono();
-  registerAgent(app, config);
+  registerAgent(app, config, options);
   return app;
 };

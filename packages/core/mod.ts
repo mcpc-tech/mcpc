@@ -93,6 +93,14 @@ export {
   parseMcpcConfigs,
 } from "./src/set-up-mcp-compose.ts";
 
+// Logging utilities
+export {
+  createLogger,
+  logger,
+  type LogLevel,
+  MCPLogger,
+} from "./src/utils/logger.ts";
+
 // Schema utilities (replaces AI SDK dependency)
 export {
   extractJsonSchema,

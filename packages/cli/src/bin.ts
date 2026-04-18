@@ -8,7 +8,15 @@ import { createServer } from "./app.ts";
 import { loadConfig } from "./config/loader.ts";
 import { getAgentPlugins } from "./defaults.ts";
 
+function parseArgs(args: string[]): { silent: boolean } {
+  return {
+    silent: args.includes("--silent"),
+  };
+}
+
 (async () => {
+  const { silent } = parseArgs(Deno.args);
+
   const config = await loadConfig();
 
   // Add agent-level plugins (skip string paths - resolved by markdownLoaderPlugin)
@@ -17,13 +25,15 @@ import { getAgentPlugins } from "./defaults.ts";
     agent.plugins = [...(agent.plugins || []), ...getAgentPlugins()];
   });
 
-  console.error(
-    config
-      ? `Loaded configuration with ${config.agents.length} agent(s)`
-      : "No configuration found, using default example configuration",
-  );
+  if (!silent) {
+    console.error(
+      config
+        ? `Loaded configuration with ${config.agents.length} agent(s)`
+        : "No configuration found, using default example configuration",
+    );
+  }
 
-  const server = await createServer(config || undefined);
+  const server = await createServer(config || undefined, { silent });
   const transport = new StdioServerTransport();
   await server.connect(transport);
 })();
