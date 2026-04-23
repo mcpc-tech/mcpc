@@ -57,6 +57,28 @@ type ACPJsonRpcError = {
 
 type ACPPromptResponse = Awaited<ReturnType<ClientSideConnection["prompt"]>>;
 
+function getACPResponse(response: ACPPromptResponse) {
+  return {
+    acp: JSON.parse(JSON.stringify(response)),
+  };
+}
+
+function mapACPStopReasonToAISDK(
+  stopReason?: string,
+): LanguageModelV2FinishReason {
+  switch (stopReason) {
+    case "end_turn":
+      return "stop";
+    case "max_tokens":
+    case "max_turn_requests":
+      return "length";
+    case "cancelled":
+      return "other";
+    default:
+      return "other";
+  }
+}
+
 function toCatchableError(error: unknown, stderrText?: string): Error {
   if (
     error !== null &&
@@ -707,10 +729,20 @@ export class ACPLanguageModel implements LanguageModelV2 {
       throw new Error("Not connected");
     }
 
-    return await this.withLazyAuthRetry("prompt", () =>
-      this.connection!.prompt(
-        request as Parameters<ClientSideConnection["prompt"]>[0],
-      ));
+    try {
+      const response = await this.withLazyAuthRetry(
+        "prompt",
+        () =>
+          this.connection!.prompt(
+            request as Parameters<ClientSideConnection["prompt"]>[0],
+          ),
+      );
+      this.debug.appendPromptResponse(response);
+      return response;
+    } catch (error) {
+      this.debug.appendPromptError(error);
+      throw error;
+    }
   }
 
   /**
@@ -1311,9 +1343,8 @@ export class ACPLanguageModel implements LanguageModelV2 {
 
       const result = {
         content,
-        finishReason: response.stopReason === "end_turn"
-          ? ("stop" as const)
-          : ("other" as const),
+        finishReason: mapACPStopReasonToAISDK(response.stopReason),
+        providerMetadata: getACPResponse(response),
         usage: {
           inputTokens: 0,
           outputTokens: 0,
@@ -1426,7 +1457,8 @@ export class ACPLanguageModel implements LanguageModelV2 {
           const response = result.response;
           controller.enqueue({
             type: "finish",
-            finishReason: response.stopReason === "end_turn" ? "stop" : "other",
+            finishReason: mapACPStopReasonToAISDK(response.stopReason),
+            providerMetadata: getACPResponse(response),
             usage: {
               inputTokens: 0,
               outputTokens: 0,
