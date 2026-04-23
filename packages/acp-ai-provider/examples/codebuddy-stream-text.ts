@@ -34,16 +34,16 @@ async function main() {
 
   console.log({ prompt });
 
-  const { textStream } = streamText({
+  const result = streamText({
     model: provider.languageModel(),
     prompt,
   });
 
-  for await (const chunk of textStream) {
-    process.stdout.write(chunk);
+  for await (const chunk of result.fullStream) {
+    console.log(JSON.stringify(chunk));
   }
 
-  process.stdout.write("\n");
+  console.log("Finish reason:", await result.finishReason);
 }
 
 main().catch((error: unknown) => {

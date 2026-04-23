@@ -142,3 +142,64 @@ Deno.test("ACPLanguageModel - model properties are consistent", () => {
   assertEquals(model.provider, "acp");
   assertEquals(model.specificationVersion, "v3");
 });
+
+Deno.test("ACPLanguageModel - maps ACP stop reasons to AI SDK finish reasons", async () => {
+  const model = new ACPLanguageModel(
+    "test-agent",
+    undefined,
+    createProviderSettings(),
+  );
+
+  const promptResponses = [
+    { stopReason: "end_turn" },
+    { stopReason: "max_tokens" },
+    { stopReason: "max_turn_requests" },
+    { stopReason: "refusal" },
+    { stopReason: "cancelled" },
+  ];
+
+  let responseIndex = 0;
+
+  (model as unknown as {
+    ensureConnected: () => Promise<void>;
+    promptWithLazyAuthRetry: (
+      request: unknown,
+    ) => Promise<{ stopReason: string }>;
+    cleanup: () => void;
+  }).ensureConnected = async () => {
+    (model as unknown as {
+      sessionId: string;
+      client: unknown;
+      connection: unknown;
+    }).sessionId = "session-1";
+  };
+
+  (model as unknown as {
+    promptWithLazyAuthRetry: (
+      request: unknown,
+    ) => Promise<{ stopReason: string }>;
+  }).promptWithLazyAuthRetry = async () =>
+    promptResponses[responseIndex++] as {
+      stopReason: string;
+    };
+
+  (model as unknown as { cleanup: () => void }).cleanup = () => {};
+
+  const finishReasons: string[] = [];
+
+  for (let i = 0; i < promptResponses.length; i++) {
+    const result = await model.doGenerate({
+      prompt: [{ role: "user", content: "test" }],
+    } as any);
+    finishReasons.push(result.finishReason.unified);
+    assertEquals(result.finishReason.raw, promptResponses[i].stopReason);
+  }
+
+  assertEquals(finishReasons, [
+    "stop",
+    "length",
+    "length",
+    "other",
+    "other",
+  ]);
+});

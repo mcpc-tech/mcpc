@@ -56,6 +56,28 @@ type ACPJsonRpcError = {
 
 type ACPPromptResponse = Awaited<ReturnType<ClientSideConnection["prompt"]>>;
 
+function getACPResponse(response: ACPPromptResponse) {
+  return {
+    acp: JSON.parse(JSON.stringify(response)),
+  };
+}
+
+function mapACPStopReasonToAISDK(
+  stopReason?: string,
+): LanguageModelV3GenerateResult["finishReason"]["unified"] {
+  switch (stopReason) {
+    case "end_turn":
+      return "stop";
+    case "max_tokens":
+    case "max_turn_requests":
+      return "length";
+    case "cancelled":
+      return "other";
+    default:
+      return "other";
+  }
+}
+
 function toCatchableError(error: unknown, stderrText?: string): Error {
   if (
     error !== null &&
@@ -708,10 +730,20 @@ export class ACPLanguageModel implements LanguageModelV3 {
       throw new Error("Not connected");
     }
 
-    return await this.withLazyAuthRetry("prompt", () =>
-      this.connection!.prompt(
-        request as Parameters<ClientSideConnection["prompt"]>[0],
-      ));
+    try {
+      const response = await this.withLazyAuthRetry(
+        "prompt",
+        () =>
+          this.connection!.prompt(
+            request as Parameters<ClientSideConnection["prompt"]>[0],
+          ),
+      );
+      this.debug.appendPromptResponse(response);
+      return response;
+    } catch (error) {
+      this.debug.appendPromptError(error);
+      throw error;
+    }
   }
 
   /**
@@ -1319,9 +1351,10 @@ export class ACPLanguageModel implements LanguageModelV3 {
       const result: LanguageModelV3GenerateResult = {
         content,
         finishReason: {
-          unified: response.stopReason === "end_turn" ? "stop" : "other",
-          raw: undefined,
+          unified: mapACPStopReasonToAISDK(response.stopReason),
+          raw: response.stopReason,
         },
+        providerMetadata: getACPResponse(response),
         usage: {
           inputTokens: {
             total: undefined,
@@ -1443,9 +1476,10 @@ export class ACPLanguageModel implements LanguageModelV3 {
           controller.enqueue({
             type: "finish",
             finishReason: {
-              unified: response.stopReason === "end_turn" ? "stop" : "other",
-              raw: undefined,
+              unified: mapACPStopReasonToAISDK(response.stopReason),
+              raw: response.stopReason,
             },
+            providerMetadata: getACPResponse(response),
             usage: {
               inputTokens: {
                 total: undefined,
