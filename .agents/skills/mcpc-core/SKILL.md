@@ -140,7 +140,7 @@ import {
 // In ComposeDefinition
 plugins: [
   createLargeResultPlugin({ maxSize: 8000 }),
-  createSkillsPlugin({ paths: [".agent/skills"] }),
+  createSkillsPlugin({ paths: [".agents/skills"] }),
   createBashPlugin(),
   "./my-plugin.ts?param=value", // File path with query params
 ];
@@ -182,14 +182,14 @@ content:
 
 ```typescript
 createSkillsPlugin({
-  paths: [join(projectRoot, ".agent/skills")],
+  paths: [join(projectRoot, ".agents/skills")],
 });
 ```
 
 Skills directory structure:
 
 ```
-.agent/skills/
+.agents/skills/
 └── my-skill/
     ├── SKILL.md          ← main instructions (loaded by default)
     └── references/

@@ -15,7 +15,7 @@ import { createSkillsPlugin } from "../plugins.ts";
 
 // Get directory of current file for reliable relative paths
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// Skills are in .agent/skills at project root
+// Skills are in .agents/skills at project root
 const projectRoot = join(__dirname, "../../..");
 
 export const server = await mcpc(
@@ -40,7 +40,7 @@ export const server = await mcpc(
 
       plugins: [
         createSkillsPlugin({
-          paths: [join(projectRoot, ".agent/skills")],
+          paths: [join(projectRoot, ".agents/skills")],
         }),
       ],
     },
@@ -53,7 +53,7 @@ await server.connect(transport);
 /**
  * Skills Directory Structure:
  *
- * .agent/skills/
+ * .agents/skills/
  * └── creating-slidev-presentations/
  *     └── SKILL.md
  *

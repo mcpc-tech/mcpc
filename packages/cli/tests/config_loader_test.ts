@@ -324,7 +324,7 @@ Deno.test("Config Loader - default skills path when not specified", async () => 
 
     // Should use default skills path
     assertExists(config);
-    assertEquals(config.skills, [".agent/skills"]);
+    assertEquals(config.skills, [".agents/skills"]);
   } finally {
     Object.defineProperty(process, "argv", {
       value: originalArgv,

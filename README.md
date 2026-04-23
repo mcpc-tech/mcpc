@@ -148,7 +148,7 @@ Install the `mcpc-core` skill into your project using
 npx skills add mcpc-tech/mcpc
 ```
 
-This installs the skill into `.agent/skills/mcpc-core/`, giving your agent
+This installs the skill into `.agents/skills/mcpc-core/`, giving your agent
 on-demand access to the full `@mcpc/core` API reference, usage patterns, plugin
 guide, and gotchas.
 

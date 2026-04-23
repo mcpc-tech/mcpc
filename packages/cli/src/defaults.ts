@@ -13,7 +13,7 @@ import { resolve } from "node:path";
 import process from "node:process";
 
 /** Default skills directory */
-export const DEFAULT_SKILLS_PATHS = [".agent/skills"];
+export const DEFAULT_SKILLS_PATHS = [".agents/skills"];
 
 /** Default code execution timeout (5 minutes) */
 export const DEFAULT_CODE_EXECUTION_TIMEOUT = 300_000;

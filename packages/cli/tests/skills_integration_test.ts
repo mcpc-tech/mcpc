@@ -21,17 +21,17 @@ async function writeSkill(
   );
 }
 
-Deno.test("CLI skills integration - createServer loads skills from default .agent/skills path", async () => {
+Deno.test("CLI skills integration - createServer loads skills from default .agents/skills path", async () => {
   const originalCwd = Deno.cwd();
   const tempDir = await Deno.makeTempDir();
 
   try {
-    const defaultSkillsDir = join(tempDir, ".agent", "skills");
+    const defaultSkillsDir = join(tempDir, ".agents", "skills");
     await writeSkill(
       defaultSkillsDir,
       "default-skill",
       "# Default Skill\n\nLoaded from the default skills path.",
-      "Loads from default .agent/skills",
+      "Loads from default .agents/skills",
     );
 
     Deno.chdir(tempDir);
@@ -56,7 +56,7 @@ Deno.test("CLI skills integration - createServer loads skills from default .agen
       assertStringIncludes(text, "Loaded from the default skills path.");
       assertStringIncludes(
         text,
-        join(tempDir, ".agent", "skills", "default-skill"),
+        join(tempDir, ".agents", "skills", "default-skill"),
       );
     } finally {
       await server.close();

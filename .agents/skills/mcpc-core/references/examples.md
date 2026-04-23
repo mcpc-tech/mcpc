@@ -137,7 +137,7 @@ const server = await mcpc(
     options: { mode: "agentic" },
     description: "I am a presentation assistant using Slidev.",
     plugins: [
-      createSkillsPlugin({ paths: [join(projectRoot, ".agent/skills")] }),
+      createSkillsPlugin({ paths: [join(projectRoot, ".agents/skills")] }),
     ],
   }],
 );
@@ -219,7 +219,7 @@ const server = await mcpc(
 <tool name="dev-assistant__load-skill"/>
 <tool name="bash"/>`,
     plugins: [
-      createSkillsPlugin({ paths: [".agent/skills"] }),
+      createSkillsPlugin({ paths: [".agents/skills"] }),
       createBashPlugin(),
     ],
   }],

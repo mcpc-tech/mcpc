@@ -43,7 +43,7 @@ I can:
 
       plugins: [
         createSkillsPlugin({
-          paths: [join(projectRoot, ".agent/skills")],
+          paths: [join(projectRoot, ".agents/skills")],
         }),
         createBashPlugin(),
       ],
@@ -69,7 +69,7 @@ await server.connect(transport);
  *    bash({ command: "bash /path/to/scripts/deploy.sh" })
  *    Returns: Script output
  *
- * Available skills (from .agent/skills/):
+ * Available skills (from .agents/skills/):
  * - creating-slidev-presentations: Slidev presentation guide (has scripts/dev.sh)
  *
  * Claude Desktop Configuration:
