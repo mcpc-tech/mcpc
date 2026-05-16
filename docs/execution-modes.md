@@ -352,7 +352,10 @@ npx jsr add @mcpc/plugin-code-execution-sampling
 ### Configuration
 
 ```typescript
-import { createCodeExecutionSamplingPlugin } from "@mcpc/plugin-code-execution-sampling";
+// If installed with npm:
+import { createCodeExecutionSamplingPlugin } from "@mcpc-tech/plugin-code-execution-sampling";
+// If added via JSR instead, use:
+// import { createCodeExecutionSamplingPlugin } from "@mcpc/plugin-code-execution-sampling";
 
 {
   plugins: [
