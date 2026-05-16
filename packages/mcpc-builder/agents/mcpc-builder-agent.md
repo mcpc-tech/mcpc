@@ -2,7 +2,6 @@
 name: mcpc-builder-agent
 description: |
   Builds custom agentic tools from mcpc.tech registry.
-
   <tool name="mcpc-builder.search_mcp_servers" description="Search MCP servers"/>
   <tool name="mcpc-builder.get_env_var_schemas" description="Get env var requirements"/>
   <tool name="mcpc-builder.compose_mcpc_config" description="Generate config"/>

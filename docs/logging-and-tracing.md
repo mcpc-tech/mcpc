@@ -88,7 +88,6 @@ noisyLogger.silent = true; // Only suppress this logger
 ### Where It's Used
 
 - **compose.ts**: Server lifecycle events, tool matching warnings
-- **base-sampling-executor.ts**: Iteration progress, summarization failures
 - **logging-plugin.ts**: Composition completion details
 
 ## OpenTelemetry Tracing
