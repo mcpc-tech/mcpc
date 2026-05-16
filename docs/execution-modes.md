@@ -7,13 +7,17 @@ is powered by dedicated executor implementations in
 
 ## Mode Overview
 
-| Mode                      | Description                                   | Use Case                                             | Requires Sampling |
-| ------------------------- | --------------------------------------------- | ---------------------------------------------------- | ----------------- |
-| `agentic`                 | Interactive step-by-step execution            | Standard agent interactions                          | No                |
-| `ai_sampling`             | AI SDK sampling mode                          | Autonomous execution with AI SDK                     | Yes               |
-| `ai_acp`                  | AI SDK ACP mode                               | Coding agents (Claude Code, etc.)                    | No                |
-| `code_execution`          | Secure JavaScript sandbox execution           | Code generation and execution with tool access       | No                |
-| `code_execution_sampling` | Secure sandbox plus MCP sampling-backed calls | Sandbox execution that can also ask the client model | Yes               |
+| Mode                      | Description                                   | Use Case                                             | Requires Plugin | Requires Sampling |
+| ------------------------- | --------------------------------------------- | ---------------------------------------------------- | --------------- | ----------------- |
+| `agentic`                 | Interactive step-by-step execution            | Standard agent interactions                          | Built-in        | No                |
+| `ai_sampling`             | AI SDK sampling mode                          | Autonomous execution with AI SDK                     | Built-in        | Yes               |
+| `ai_acp`                  | AI SDK ACP mode                               | Coding agents (Claude Code, etc.)                    | Built-in        | No                |
+| `code_execution`          | Secure JavaScript sandbox execution           | Code generation and execution with tool access       | External        | No                |
+| `code_execution_sampling` | Secure sandbox plus MCP sampling-backed calls | Sandbox execution that can also ask the client model | External        | Yes               |
+
+> **Note:** `agentic`, `ai_sampling`, and `ai_acp` are built-in modes — just set
+> `options.mode` and they work. `code_execution` and `code_execution_sampling`
+> require installing and loading their respective plugin packages.
 
 ## 1. Agentic Mode (default)
 
@@ -179,6 +183,9 @@ Protocol) provider.
 
 ## 4. Code Execution Mode
 
+> **Requires external plugin:** This mode is not built-in. You must install and
+> load `@mcpc/plugin-code-execution` explicitly. See Installation below.
+
 Secure JavaScript code execution in a Deno sandbox with bidirectional JSON-RPC
 communication for MCP tool access. Features progressive tool disclosure to
 minimize context usage.
@@ -324,6 +331,114 @@ for detailed information.
 
 ---
 
+## 5. Code Execution Sampling Mode
+
+> **Requires external plugin:** This mode is not built-in. You must install and
+> load `@mcpc/plugin-code-execution-sampling` explicitly.
+
+Combines the secure Deno sandbox from `code_execution` mode with MCP
+sampling-backed LLM calls. Sandboxed code can invoke a `sampling` handler to ask
+the client model for reasoning, making it suitable for tasks that need both code
+execution and AI reasoning.
+
+### Installation
+
+```bash
+npm install @mcpc-tech/plugin-code-execution-sampling
+# or
+npx jsr add @mcpc/plugin-code-execution-sampling
+```
+
+### Configuration
+
+```typescript
+// If installed with npm:
+import { createCodeExecutionSamplingPlugin } from "@mcpc-tech/plugin-code-execution-sampling";
+// If added via JSR instead, use:
+// import { createCodeExecutionSamplingPlugin } from "@mcpc/plugin-code-execution-sampling";
+
+{
+  plugins: [
+    createCodeExecutionSamplingPlugin({
+      sandbox: {
+        timeout: 30000,
+        memoryLimit: 512,
+        permissions: [],
+      },
+      sampling: {
+        maxSteps: 50,
+        maxTokens: 128_000,
+      },
+    }),
+  ],
+  options: {
+    mode: "code_execution_sampling",
+  },
+}
+```
+
+> **Requires**: `capabilities: { sampling: {} }` in client
+
+### Implementation
+
+**Plugin**:
+[`packages/plugin-code-execution-sampling/src/plugin.ts`](../packages/plugin-code-execution-sampling/src/plugin.ts)
+
+### How It Works
+
+1. LLM generates JavaScript code to execute (same `man`/`exec` interface as
+   `code_execution`)
+2. Code runs in secure Deno sandbox with access to MCP tools via `callMCPTool`
+3. Sandboxed code can call `callMCPSampling(prompt, context)` to invoke the
+   client model for reasoning
+4. Results from both MCP tools and sampling calls are returned to the LLM
+
+### When to Use
+
+- Sandbox execution that also needs model reasoning
+- Tasks requiring both deterministic code and AI judgment
+- Structured sampling inside sandboxed programs
+
+### Example
+
+```typescript
+import { mcpc } from "@mcpc/core";
+import { createCodeExecutionSamplingPlugin } from "@mcpc/plugin-code-execution-sampling";
+
+const server = await mcpc(
+  [{ name: "analyzer", version: "1.0.0" }, {
+    capabilities: { tools: {}, sampling: {} },
+  }],
+  [{
+    name: "analyzer",
+    description: `
+      Code analysis agent with sampling.
+      <tool name="filesystem.read_file"/>
+    `,
+    deps: {
+      mcpServers: {
+        "filesystem": {
+          command: "npx",
+          args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+          transportType: "stdio",
+        },
+      },
+    },
+    plugins: [
+      createCodeExecutionSamplingPlugin({
+        sandbox: { timeout: 30000 },
+        sampling: { maxSteps: 30 },
+      }),
+    ],
+    options: {
+      mode: "code_execution_sampling",
+    },
+  }],
+);
+```
+
+---
+
 ## Choosing the Right Mode
 
 | Scenario                                      | Recommended Mode          |
@@ -359,14 +474,38 @@ interface SandboxConfig {
 
 ## Advanced: Mode Plugins
 
-The core built-in execution mode plugins live in:
+Execution modes are implemented as plugins that hook into the
+`registerAgentTool` lifecycle. Each mode has a corresponding plugin that
+implements its execution strategy.
 
-- `packages/core/src/plugins/built-in/mode-agentic-plugin.ts`
-- `packages/core/src/plugins/built-in/mode-ai-sampling-plugin.ts`
-- `packages/core/src/plugins/built-in/mode-ai-acp-plugin.ts`
+**Built-in plugins** (loaded automatically, included in `getBuiltInPlugins()`):
 
-The sandbox-oriented modes are separate plugin packages that can also be
-installed and used independently:
+- [`packages/core/src/plugins/built-in/mode-agentic-plugin.ts`](../packages/core/src/plugins/built-in/mode-agentic-plugin.ts)
+  — `agentic`
+- [`packages/core/src/plugins/built-in/mode-ai-sampling-plugin.ts`](../packages/core/src/plugins/built-in/mode-ai-sampling-plugin.ts)
+  — `ai_sampling`
+- [`packages/core/src/plugins/built-in/mode-ai-acp-plugin.ts`](../packages/core/src/plugins/built-in/mode-ai-acp-plugin.ts)
+  — `ai_acp`
 
-- `packages/plugin-code-execution`
-- `packages/plugin-code-execution-sampling`
+**External plugin packages** (must be installed and loaded via `plugins`):
+
+- [`packages/plugin-code-execution`](../packages/plugin-code-execution) —
+  `code_execution`
+- [`packages/plugin-code-execution-sampling`](../packages/plugin-code-execution-sampling)
+  — `code_execution_sampling`
+
+To add an external mode:
+
+```typescript
+import { createCodeExecutionPlugin } from "@mcpc/plugin-code-execution";
+
+const server = await mcpc(
+  [{ name: "s", version: "1.0.0" }, { capabilities: { tools: {} } }],
+  [{
+    name: "agent",
+    // ...
+    plugins: [createCodeExecutionPlugin()],
+    options: { mode: "code_execution" },
+  }],
+);
+```

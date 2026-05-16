@@ -25,6 +25,8 @@ export type ExecutionMode =
   | "agentic"
   | "ai_sampling"
   | "ai_acp"
+  | "code_execution"
+  | "code_execution_sampling"
   | (string & Record<never, never>);
 
 /**

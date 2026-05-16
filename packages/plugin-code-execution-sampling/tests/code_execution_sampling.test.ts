@@ -26,7 +26,9 @@ type SamplingTestServer = {
   close?: () => Promise<void>;
   sendLoggingMessage: (_message: unknown) => void;
   getClientCapabilities: () => { sampling: Record<string, unknown> };
-  createMessage: (_params: unknown) => MockSamplingResponse | Promise<MockSamplingResponse>;
+  createMessage: (
+    _params: unknown,
+  ) => MockSamplingResponse | Promise<MockSamplingResponse>;
 };
 
 function getCombinedText(result: ToolResult): string {

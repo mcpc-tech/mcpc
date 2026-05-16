@@ -35,9 +35,10 @@ can use it to:
   share via MCP, and declare tool dependencies
 - **Flexible execution modes**: Multiple specialized modes to fit different
   scenarios - interactive agent (`agentic`), AI SDK sampling (`ai_sampling`), AI
-  ACP mode (`ai_acp`), and secure code execution
-  ([`code_execution`](packages/plugin-code-execution/)) - each with dedicated
-  implementations
+  ACP mode (`ai_acp`), secure code execution
+  ([`code_execution`](packages/plugin-code-execution/)), and sandbox + sampling
+  ([`code_execution_sampling`](packages/plugin-code-execution-sampling/)) - each
+  with dedicated implementations
 
 ## Quick Start
 
@@ -234,12 +235,17 @@ Three simple steps:
 
 MCPC provides multiple flexible execution modes to fit different scenarios:
 
-| Mode             | Description                                | Use Case                      |
-| ---------------- | ------------------------------------------ | ----------------------------- |
-| `agentic`        | Interactive step-by-step execution         | Standard agent interactions   |
-| `ai_sampling`    | AI SDK sampling mode                       | Autonomous AI SDK execution   |
-| `ai_acp`         | AI SDK ACP mode                            | Coding agents (Claude Code)   |
-| `code_execution` | Secure JavaScript sandbox with tool access | Code generation and execution |
+| Mode                      | Description                                   | Use Case                                             | Requires Plugin |
+| ------------------------- | --------------------------------------------- | ---------------------------------------------------- | --------------- |
+| `agentic`                 | Interactive step-by-step execution            | Standard agent interactions                          | Built-in        |
+| `ai_sampling`             | AI SDK sampling mode                          | Autonomous AI SDK execution                          | Built-in        |
+| `ai_acp`                  | AI SDK ACP mode                               | Coding agents (Claude Code, etc.)                    | Built-in        |
+| `code_execution`          | Secure JavaScript sandbox with tool access    | Code generation and execution                        | External        |
+| `code_execution_sampling` | Secure sandbox plus MCP sampling-backed calls | Sandbox execution that can also ask the client model | External        |
+
+> **Note:** `agentic`, `ai_sampling`, and `ai_acp` are built-in modes — just set
+> `options.mode` and they work. `code_execution` and `code_execution_sampling`
+> require installing and loading their respective plugin packages.
 
 ### Quick Example
 
