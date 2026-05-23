@@ -70,9 +70,9 @@ export function createSandboxSamplingHandler(
             inputSchema: jsonSchema(
               outputSchema as Record<string, unknown>,
             ),
-            execute: async (args) => {
+            execute: (args) => {
               submittedResult = args;
-              return "Result submitted.";
+              return Promise.resolve("Result submitted.");
             },
           }),
         },

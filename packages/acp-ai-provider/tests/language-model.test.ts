@@ -166,22 +166,23 @@ Deno.test("ACPLanguageModel - maps ACP stop reasons to AI SDK finish reasons", a
       request: unknown,
     ) => Promise<{ stopReason: string }>;
     cleanup: () => void;
-  }).ensureConnected = async () => {
+  }).ensureConnected = () => {
     (model as unknown as {
       sessionId: string;
       client: unknown;
       connection: unknown;
     }).sessionId = "session-1";
+    return Promise.resolve();
   };
 
   (model as unknown as {
     promptWithLazyAuthRetry: (
       request: unknown,
     ) => Promise<{ stopReason: string }>;
-  }).promptWithLazyAuthRetry = async () =>
-    promptResponses[responseIndex++] as {
+  }).promptWithLazyAuthRetry = () =>
+    Promise.resolve(promptResponses[responseIndex++] as {
       stopReason: string;
-    };
+    });
 
   (model as unknown as { cleanup: () => void }).cleanup = () => {};
 

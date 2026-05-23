@@ -62,10 +62,10 @@ function mockSampling(server: SamplingEnabledServer, responseText: string) {
 
   server.sendLoggingMessage = () => {};
   server.getClientCapabilities = () => ({ sampling: { tools: {} } });
-  server.createMessage = async (_params: unknown) => {
+  server.createMessage = (_params: unknown) => {
     createMessageCalls += 1;
     if (createMessageCalls === 1) {
-      return {
+      return Promise.resolve({
         model: "test-model",
         role: "assistant",
         content: [
@@ -77,15 +77,15 @@ function mockSampling(server: SamplingEnabledServer, responseText: string) {
           },
         ],
         stopReason: "endTurn",
-      };
+      });
     }
 
-    return {
+    return Promise.resolve({
       model: "test-model",
       role: "assistant",
       content: { type: "text", text: "Done." },
       stopReason: "endTurn",
-    };
+    });
   };
 }
 
