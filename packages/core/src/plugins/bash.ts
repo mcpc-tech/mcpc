@@ -25,6 +25,28 @@ export interface BashPluginOptions {
   maxLines?: number;
   /** Command execution timeout in ms */
   timeoutMs?: number;
+  /**
+   * Custom sandbox function. When provided, replaces the default
+   * `bash -c <command>` execution entirely.
+   *
+   * The plugin still handles output truncation and isError.
+   *
+   * @example
+   * // Delegate to an external service
+   * sandbox: async (command, { cwd, signal }) => {
+   *   const resp = await fetch("https://example.com/run", {
+   *     method: "POST",
+   *     body: JSON.stringify({ command, cwd }),
+   *     signal,
+   *   });
+   *   const data = await resp.json();
+   *   return { stdout: data.stdout, stderr: data.stderr, exitCode: data.exitCode };
+   * }
+   */
+  sandbox?: (
+    command: string,
+    options: { cwd: string; signal: AbortSignal },
+  ) => Promise<{ stdout: string; stderr: string; exitCode: number | null }>;
 }
 
 /**
@@ -75,6 +97,7 @@ export function executeBash(
   return new Promise((resolve) => {
     const stdout: string[] = [];
     const stderr: string[] = [];
+    let resolved = false;
 
     // Use -c to run command string
     const proc = spawn("bash", ["-c", command], {
@@ -90,7 +113,21 @@ export function executeBash(
       stderr.push(data.toString());
     });
 
+    const timer = setTimeout(() => {
+      if (resolved) return;
+      resolved = true;
+      proc.kill("SIGTERM");
+      resolve({
+        stdout: stdout.join(""),
+        stderr: stderr.join("") + "\n\n[TIMEOUT] Command execution timed out",
+        exitCode: null,
+      });
+    }, timeoutMs);
+
     proc.on("close", (code) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timer);
       resolve({
         stdout: stdout.join(""),
         stderr: stderr.join(""),
@@ -99,22 +136,15 @@ export function executeBash(
     });
 
     proc.on("error", (err) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timer);
       resolve({
         stdout: "",
         stderr: err.message,
         exitCode: null,
       });
     });
-
-    // Timeout protection
-    setTimeout(() => {
-      proc.kill("SIGTERM");
-      resolve({
-        stdout: stdout.join(""),
-        stderr: stderr.join("") + "\n\n[TIMEOUT] Command execution timed out",
-        exitCode: null,
-      });
-    }, timeoutMs);
   });
 }
 
@@ -122,10 +152,11 @@ export function executeBash(
  * Create a bash plugin that provides command execution capability
  */
 export function createBashPlugin(options: BashPluginOptions = {}): ToolPlugin {
-  const { maxBytes, maxLines, timeoutMs } = {
+  const { maxBytes, maxLines, timeoutMs, sandbox } = {
     maxBytes: DEFAULT_MAX_BYTES,
     maxLines: DEFAULT_MAX_LINES,
     timeoutMs: DEFAULT_TIMEOUT_MS,
+    sandbox: undefined as BashPluginOptions["sandbox"],
     ...options,
   };
 
@@ -173,7 +204,23 @@ export function createBashPlugin(options: BashPluginOptions = {}): ToolPlugin {
         },
         async (args: { command: string; cwd?: string }) => {
           const cwd = args.cwd || process.cwd();
-          const result = await executeBash(args.command, cwd, timeoutMs);
+
+          const ac = new AbortController();
+          const timer = setTimeout(() => ac.abort(), timeoutMs);
+
+          let result: {
+            stdout: string;
+            stderr: string;
+            exitCode: number | null;
+          };
+          try {
+            result = sandbox
+              ? await sandbox(args.command, { cwd, signal: ac.signal })
+              : await executeBash(args.command, cwd, timeoutMs);
+          } finally {
+            clearTimeout(timer);
+          }
+
           const { output, truncated } = truncateOutput(
             result.stdout,
             result.stderr,
@@ -191,7 +238,7 @@ export function createBashPlugin(options: BashPluginOptions = {}): ToolPlugin {
 
           return {
             content: [{ type: "text", text: finalOutput }],
-            isError: result.exitCode !== null && result.exitCode !== 0,
+            isError: result.exitCode === null || result.exitCode !== 0,
           };
         },
         { internal: true },
