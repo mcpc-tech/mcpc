@@ -16,7 +16,9 @@
     "./packages/mcpc-builder",
     "./packages/plugin-code-execution",
     "./packages/plugin-code-execution-sampling",
-    "./packages/plugin-markdown-loader"
+    "./packages/plugin-markdown-loader",
+    "./packages/plugin-bash-just",
+    "./packages/plugin-bash-exec"
   ],
   "imports": {
     "@mcpc/utils": "./packages/utils/mod.ts",
@@ -29,6 +31,8 @@
     "@mcpc/plugin-code-execution/sandbox": "./packages/plugin-code-execution/src/sandbox-executor.ts",
     "@mcpc/plugin-code-execution-sampling": "./packages/plugin-code-execution-sampling/mod.ts",
     "@mcpc/plugin-markdown-loader": "./packages/plugin-markdown-loader/mod.ts",
+    "@mcpc/plugin-bash-just": "./packages/plugin-bash-just/mod.ts",
+    "@mcpc/plugin-bash-exec": "./packages/plugin-bash-exec/mod.ts",
     "@es-toolkit/es-toolkit": "jsr:@es-toolkit/es-toolkit@^1.37.2",
     "json-schema-faker": "npm:json-schema-faker@^0.5.9",
     "json-schema-traverse": "npm:json-schema-traverse@^1.0.0",
