@@ -69,6 +69,20 @@
       "packageJson": {
         "name": "@mcpc-tech/plugin-markdown-loader"
       }
+    },
+    {
+      "name": "@mcpc/plugin-bash-just",
+      "version": "latest",
+      "packageJson": {
+        "name": "@mcpc-tech/plugin-bash-just"
+      }
+    },
+    {
+      "name": "@mcpc/plugin-bash-exec",
+      "version": "latest",
+      "packageJson": {
+        "name": "@mcpc-tech/plugin-bash-exec"
+      }
     }
   ]
 }

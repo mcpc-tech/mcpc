@@ -113,7 +113,7 @@ Deno.test("Builder MCP server - exposes builder tools to MCP clients", async () 
 
 Deno.test("Builder MCP server - search_mcp_servers returns formatted results via client", async () => {
   const originalSearchServers = registryClient.searchServers;
-  registryClient.searchServers = async () => ({
+  registryClient.searchServers = () => Promise.resolve({
     total: 1,
     hasMore: false,
     servers: [
@@ -151,7 +151,7 @@ Deno.test("Builder MCP server - search_mcp_servers returns formatted results via
 
 Deno.test("Builder MCP server - get_env_var_schemas returns registry data via client", async () => {
   const originalGetEnvVarSchemas = registryClient.getEnvVarSchemas;
-  registryClient.getEnvVarSchemas = async () => ({
+  registryClient.getEnvVarSchemas = () => Promise.resolve({
     github: [{
       name: "GITHUB_TOKEN",
       isRequired: true,
@@ -186,7 +186,7 @@ Deno.test("Builder MCP server - compose_mcpc_config writes markdown config via c
   const originalHome = Deno.env.get("HOME");
   const tempHome = await Deno.makeTempDir();
 
-  configBuilder.composeMCPCConfig = async () => ({
+  configBuilder.composeMCPCConfig = () => Promise.resolve({
     config: {
       name: "demo-server",
       version: "1.0.0",
