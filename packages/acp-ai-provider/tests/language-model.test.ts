@@ -180,9 +180,11 @@ Deno.test("ACPLanguageModel - maps ACP stop reasons to AI SDK finish reasons", a
       request: unknown,
     ) => Promise<{ stopReason: string }>;
   }).promptWithLazyAuthRetry = () =>
-    Promise.resolve(promptResponses[responseIndex++] as {
-      stopReason: string;
-    });
+    Promise.resolve(
+      promptResponses[responseIndex++] as {
+        stopReason: string;
+      },
+    );
 
   (model as unknown as { cleanup: () => void }).cleanup = () => {};
 
@@ -203,4 +205,65 @@ Deno.test("ACPLanguageModel - maps ACP stop reasons to AI SDK finish reasons", a
     "other",
     "other",
   ]);
+});
+
+Deno.test("ACPLanguageModel - emits JSON-serializable tool error results", async () => {
+  const model = new ACPLanguageModel(
+    "test-agent",
+    undefined,
+    createProviderSettings(),
+  );
+  const parts: unknown[] = [];
+  const toolOutput = [
+    {
+      type: "content",
+      content: { type: "text", text: "permission denied" },
+    },
+  ];
+
+  const stream = new ReadableStream({
+    start(controller) {
+      (model as unknown as {
+        handleStreamNotification: (
+          controller: ReadableStreamDefaultController<unknown>,
+          notification: unknown,
+        ) => void;
+      }).handleStreamNotification(controller, {
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: "tool-1",
+          title: "read_file",
+          status: "failed",
+          rawInput: { path: "/tmp/secret.txt" },
+          rawOutput: toolOutput,
+          content: [],
+        },
+      });
+      controller.close();
+    },
+  });
+
+  for await (const part of stream) {
+    parts.push(part);
+  }
+
+  const toolResult = parts.find((part) =>
+    typeof part === "object" &&
+    part !== null &&
+    (part as { type?: string }).type === "tool-result"
+  ) as {
+    isError?: boolean;
+    result: unknown;
+  } | undefined;
+
+  assertExists(toolResult);
+  assertEquals(toolResult.isError, true);
+  assertEquals(toolResult.result, {
+    error: "permission denied",
+    toolResult: toolOutput,
+  });
+  assertEquals(
+    JSON.parse(JSON.stringify(toolResult.result)),
+    toolResult.result,
+  );
 });

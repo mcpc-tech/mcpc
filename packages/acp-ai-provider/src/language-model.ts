@@ -1194,16 +1194,22 @@ export class ACPLanguageModel implements LanguageModelV3 {
           break;
         }
 
+        const result = isError
+          ? {
+            error: formatToolError(toolResult),
+            toolResult: toolResult as any,
+          }
+          : toolResult as any;
+
         // Send the tool result (for server-side tools)
         controller.enqueue({
           type: "tool-result",
           toolCallId,
           toolName: ACP_PROVIDER_AGENT_DYNAMIC_TOOL_NAME,
-          result: toolResult as any,
+          result,
           // https://github.com/vercel/ai/blob/282f062922cb59167dd3a11e3af67cfa0b75f317/packages/ai/src/generate-text/run-tools-transformation.ts#L316
           ...(isError && {
             isError: true,
-            result: new Error(formatToolError(toolResult)),
           }),
         });
 
