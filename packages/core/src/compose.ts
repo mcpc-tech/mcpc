@@ -18,7 +18,7 @@ import type { ComposeDefinition, FileLoader } from "./set-up-mcp-compose.ts";
 import type { JSONSchema, ToolCallback } from "./types.ts";
 import { processToolTags } from "./utils/common/tool-tag-processor.ts";
 import { getBuiltInPlugins } from "./plugins/built-in/index.ts";
-import { createLogger } from "./utils/logger.ts";
+import { createLogger, setSilent } from "./utils/logger.ts";
 
 // Import plugin types and utilities
 import type { ComposedTool, ToolConfig, ToolPlugin } from "./plugin-types.ts";
@@ -48,7 +48,10 @@ export class ComposableMCPServer extends Server {
     return this.toolManager.getToolNameMapping();
   }
 
-  constructor(_serverInfo: Implementation, options: ServerOptions) {
+  constructor(
+    _serverInfo: Implementation,
+    options: ServerOptions & { silent?: boolean },
+  ) {
     // Automatically add common capabilities
     const enhancedOptions = {
       ...options,
@@ -60,6 +63,12 @@ export class ComposableMCPServer extends Server {
       },
     };
     super(_serverInfo, enhancedOptions);
+
+    // Suppress @mcpc/core console output when silent is requested.
+    if (options.silent) {
+      setSilent(true);
+    }
+
     this.logger.setServer(this);
     this.pluginManager = new PluginManager(this);
     this.toolManager = new ToolManager();

@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/mcp-sampling-ai-provider",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"

@@ -53,7 +53,7 @@ import process from "node:process";
 import { DEFAULT_SKILLS_PATHS } from "../defaults.ts";
 
 /** CLI version - synced with deno.json */
-const CLI_VERSION = "0.1.59";
+const CLI_VERSION = "0.1.60";
 
 export interface MCPCConfig {
   /**
