@@ -19,7 +19,7 @@
     "test:watch": "deno test --allow-all --watch tests/"
   },
   "imports": {
-    "@mcpc/acp-ai-provider": "npm:@mcpc-tech/acp-ai-provider@^0.3.4",
+    "@mcpc/acp-ai-provider": "npm:@mcpc-tech/acp-ai-provider@^0.1.52",
     "@mcpc/utils": "jsr:@mcpc/utils@^0.2.15",
     "@mcpc-tech/ripgrep-napi": "npm:@mcpc-tech/ripgrep-napi@^0.0.4",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.25.1",
