@@ -180,9 +180,11 @@ Deno.test("ACPLanguageModel - maps ACP stop reasons to AI SDK finish reasons", a
       request: unknown,
     ) => Promise<{ stopReason: string }>;
   }).promptWithLazyAuthRetry = () =>
-    Promise.resolve(promptResponses[responseIndex++] as {
-      stopReason: string;
-    });
+    Promise.resolve(
+      promptResponses[responseIndex++] as {
+        stopReason: string;
+      },
+    );
 
   (model as unknown as { cleanup: () => void }).cleanup = () => {};
 
