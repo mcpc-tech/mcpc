@@ -5,11 +5,13 @@ on:
     branches: [main, develop]
     paths:
       - "packages/core/**"
+      - "packages/acp-ai-provider/**"
       - ".github/workflows/**"
   pull_request:
     branches: [main]
     paths:
       - "packages/core/**"
+      - "packages/acp-ai-provider/**"
       - ".github/workflows/**"
 
 jobs:
@@ -90,3 +92,42 @@ jobs:
         with:
           file: ./packages/core/coverage.lcov
           flags: mcpc-core
+
+  test-acp-ai-provider:
+    name: Test acp-ai-provider with Deno ${{ matrix.deno-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        deno-version: ["2.4.x", "2.x"]
+      fail-fast: false
+
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Deno ${{ matrix.deno-version }}
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ matrix.deno-version }}
+
+      - name: Install Dependencies
+        working-directory: packages/acp-ai-provider
+        run: deno cache mod.ts
+
+      - name: Run Linter
+        working-directory: packages/acp-ai-provider
+        run: deno lint
+
+      - name: Check Formatting
+        working-directory: packages/acp-ai-provider
+        run: deno fmt --check
+
+      - name: Type Check
+        working-directory: packages/acp-ai-provider
+        run: deno check mod.ts
+
+      - name: Run Tests
+        working-directory: packages/acp-ai-provider
+        run: deno task test
