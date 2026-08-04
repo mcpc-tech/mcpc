@@ -17,18 +17,19 @@ const TEST_SERVER = "io.github.wonderwhy-er/desktop-commander";
 
 // Helper to check if network is available
 async function isNetworkAvailable(): Promise<boolean> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
     const resp = await fetch("https://mcpc.tech/health", {
       signal: controller.signal,
     });
-    clearTimeout(timeoutId);
     // Consume the response body to avoid leaks
     await resp.text();
     return true;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
