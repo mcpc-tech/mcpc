@@ -56,6 +56,28 @@ type ACPJsonRpcError = {
 
 type ACPPromptResponse = Awaited<ReturnType<ClientSideConnection["prompt"]>>;
 
+/**
+ * How long to wait for an aborted ACP turn to drain (i.e. for the original
+ * `session/prompt` to respond with `StopReason::Cancelled`) before giving up.
+ * Some agents may not honor `session/cancel`; without a bound the consumer's
+ * `ReadableStream.cancel()` could hang forever.
+ */
+const CANCEL_DRAIN_TIMEOUT_MS = 30_000;
+
+/**
+ * Races a promise against a timeout, clearing the timer once one of them
+ * settles so no dangling timer is left behind.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
 function getACPResponse(response: ACPPromptResponse) {
   return {
     acp: JSON.parse(JSON.stringify(response)),
@@ -214,6 +236,10 @@ export class ACPLanguageModel implements LanguageModelV3 {
   private currentModeId: string | null = null;
   private isFreshSession = true;
 
+  // Serializes prompt turns across doStream/doGenerate calls. A new turn only
+  // starts after the previous one has fully drained (e.g. after abort/cancel).
+  private activeTurn: Promise<void> = Promise.resolve();
+
   // Captured stderr output from the agent process.
   private stderrChunks: string[] = [];
 
@@ -265,6 +291,27 @@ export class ACPLanguageModel implements LanguageModelV3 {
     this.currentThinkingId = null; // Added this line to match state
     this.toolCallsMap.clear();
     this.clientToolAbort = null;
+  }
+
+  /**
+   * Claims the model's single active-turn slot.
+   *
+   * Must be called synchronously before the first `await` of any
+   * turn-producing method so that concurrent calls are serialized even when
+   * they enter in the same tick. Returns a promise to wait for the previous
+   * turn to drain and a function that marks the current turn as finished.
+   */
+  private beginTurn(): {
+    waitForPrevious: Promise<void>;
+    finishTurn: () => void;
+  } {
+    let finishTurn!: () => void;
+    const turnDone = new Promise<void>((resolve) => {
+      finishTurn = resolve;
+    });
+    const waitForPrevious = this.activeTurn;
+    this.activeTurn = turnDone;
+    return { waitForPrevious, finishTurn };
   }
 
   private hasToolInput(input: unknown): boolean {
@@ -1222,6 +1269,11 @@ export class ACPLanguageModel implements LanguageModelV3 {
   async doGenerate(
     options: LanguageModelV3CallOptions,
   ): Promise<LanguageModelV3GenerateResult> {
+    // Serialize with streaming turns so a new prompt is only issued after the
+    // previous turn has fully drained.
+    const { waitForPrevious, finishTurn } = this.beginTurn();
+    await waitForPrevious.catch(() => {});
+
     try {
       // Build JSON schema prompt if responseFormat requests JSON output
       const jsonResponseFormat = isJsonResponseFormat(options.responseFormat)
@@ -1377,6 +1429,8 @@ export class ACPLanguageModel implements LanguageModelV3 {
     } catch (error) {
       this.cleanup();
       throw error;
+    } finally {
+      finishTurn();
     }
   }
 
@@ -1387,137 +1441,213 @@ export class ACPLanguageModel implements LanguageModelV3 {
     stream: ReadableStream<LanguageModelV3StreamPart>;
     warnings: undefined;
   }> {
-    // IMPORTANT: Extract and register ACP tools BEFORE ensureConnected
-    // This ensures Tool Proxy can discover them when it starts
-    const acpTools = extractACPTools(options.tools);
+    // Claim the active-turn slot BEFORE any await. This serializes prompt
+    // turns: a new prompt is only issued after the previous turn has fully
+    // drained (e.g. an aborted turn has responded with `cancelled`).
+    const { waitForPrevious, finishTurn } = this.beginTurn();
+    await waitForPrevious.catch(() => {});
 
-    // Detect JSON output mode and build schema prompt if needed
-    const jsonResponseFormat = isJsonResponseFormat(options.responseFormat)
-      ? options.responseFormat
-      : null;
-    const jsonSchemaPrompt = jsonResponseFormat
-      ? buildJsonSchemaPrompt(jsonResponseFormat)
-      : undefined;
-
-    // Now connect with the registered tools
     try {
+      // IMPORTANT: Extract and register ACP tools BEFORE ensureConnected
+      // This ensures Tool Proxy can discover them when it starts
+      const acpTools = extractACPTools(options.tools);
+
+      // Detect JSON output mode and build schema prompt if needed
+      const jsonResponseFormat = isJsonResponseFormat(options.responseFormat)
+        ? options.responseFormat
+        : null;
+      const jsonSchemaPrompt = jsonResponseFormat
+        ? buildJsonSchemaPrompt(jsonResponseFormat)
+        : undefined;
+
+      // Now connect with the registered tools
       await this.ensureConnected(acpTools.length > 0 ? acpTools : undefined);
+
+      /*
+        If we just created the session (isFreshSession=true), we send full prompt.
+        If we reused it, we send filtered prompt.
+        After sending, we are no longer "fresh" for subsequent calls on this instance.
+      */
+      const promptContent = convertAiSdkMessagesToAcp(
+        options,
+        this.isFreshSession,
+        jsonSchemaPrompt,
+      );
+      this.isFreshSession = false;
+
+      const sessionId = this.sessionId!;
+      const client = this.client;
+      const connection = this.connection;
+      const cleanup = () => this.cleanup();
+
+      // Get a reference to the bound method
+      const streamHandler = this.handleStreamNotification.bind(this);
+
+      let cancelRequested = false;
+      let consumerCancelled = false;
+      let controllerClosed = false;
+      let promptSettled: Promise<void> = Promise.resolve();
+
+      // Sends session/cancel exactly once. This only notifies the agent; the
+      // turn is truly over when the original prompt settles (with `cancelled`).
+      const cancelTurn = async () => {
+        if (cancelRequested) return;
+        cancelRequested = true;
+        try {
+          await connection?.cancel({ sessionId });
+        } catch {
+          // Best effort: the connection may already be gone.
+        }
+      };
+
+      const onAbort = () => {
+        void cancelTurn();
+      };
+
+      if (!options.abortSignal?.aborted) {
+        options.abortSignal?.addEventListener("abort", onAbort, { once: true });
+      }
+
+      const stream = new ReadableStream<LanguageModelV3StreamPart>({
+        start: async (
+          controller: ReadableStreamDefaultController<
+            LanguageModelV3StreamPart
+          >,
+        ) => {
+          try {
+            controller.enqueue({ type: "stream-start", warnings: [] });
+
+            // Reset stream state for this new stream
+            this.resetStreamState();
+
+            if (options.abortSignal?.aborted) {
+              // Aborted before the prompt was issued: nothing to cancel, just
+              // end the turn and close the empty stream.
+              controllerClosed = true;
+              controller.close();
+              return;
+            }
+
+            // Set up client tool abort mechanism
+            const clientToolPromise = new Promise<void>((resolve) => {
+              this.clientToolAbort = { controller, resolve };
+            });
+
+            if (client) {
+              client.setSessionUpdateHandler(
+                (notification: SessionNotification) => {
+                  // Drop stale notifications once the consumer cancelled or the
+                  // controller is closed (abort/cancel drain, or the client-tool
+                  // abort path closing the stream itself).
+                  if (consumerCancelled || controllerClosed) return;
+                  if (controller.desiredSize === null) {
+                    controllerClosed = true;
+                    return;
+                  }
+                  // Call the centralized handler
+                  streamHandler(controller, notification);
+                },
+              );
+            }
+
+            // Race between normal completion and client tool abort
+            const promptPromise = this.promptWithLazyAuthRetry({
+              sessionId,
+              prompt: promptContent,
+            });
+            promptSettled = promptPromise.then(
+              () => undefined,
+              () => undefined,
+            );
+
+            const result = await Promise.race([
+              promptPromise.then((response) => ({
+                type: "response" as const,
+                response,
+              })),
+              clientToolPromise.then(() => ({ type: "client-tool" as const })),
+            ]);
+
+            // If client tool was detected, stream is already closed
+            if (result.type === "client-tool") {
+              return;
+            }
+
+            // Nothing left to emit if the consumer cancelled the stream or the
+            // controller was closed while draining.
+            if (consumerCancelled || controllerClosed) {
+              return;
+            }
+
+            // Normal completion
+            const response = result.response;
+            controller.enqueue({
+              type: "finish",
+              finishReason: {
+                unified: mapACPStopReasonToAISDK(response.stopReason),
+                raw: response.stopReason,
+              },
+              providerMetadata: getACPResponse(response),
+              usage: {
+                inputTokens: {
+                  total: undefined,
+                  noCache: undefined,
+                  cacheRead: undefined,
+                  cacheWrite: undefined,
+                },
+                outputTokens: {
+                  total: undefined,
+                  text: undefined,
+                  reasoning: undefined,
+                },
+              },
+            });
+            controllerClosed = true;
+            controller.close();
+          } catch (error) {
+            if (!consumerCancelled && !controllerClosed) {
+              controller.enqueue({
+                type: "error",
+                error: toCatchableError(error, this.stderrChunks.join("")),
+              });
+            }
+          } finally {
+            options.abortSignal?.removeEventListener("abort", onAbort);
+            finishTurn();
+            cleanup();
+          }
+        },
+        cancel: async () => {
+          consumerCancelled = true;
+          try {
+            await cancelTurn();
+            // Wait for the original prompt to settle (normally with
+            // `cancelled`) instead of only waiting for the cancel notification
+            // to be written. Bound the drain so a misbehaving agent cannot hang
+            // the consumer's cancel() forever.
+            await withTimeout(promptSettled, CANCEL_DRAIN_TIMEOUT_MS);
+          } finally {
+            cleanup();
+          }
+        },
+      });
+
+      // In structured JSON mode, wrap the stream with a transform that strips
+      // markdown fences from text content (models sometimes wrap JSON in ```json blocks
+      // despite being instructed not to).
+      const outputStream = jsonResponseFormat
+        ? stream.pipeThrough(createJsonCleanupTransform())
+        : stream;
+
+      return { stream: outputStream, warnings: undefined };
     } catch (error) {
-      // If connection/session setup fails before stream starts,
-      // ensure child process does not keep the event loop alive.
+      // If connection/session setup fails before the stream starts, ensure the
+      // child process does not keep the event loop alive and release the
+      // active-turn slot.
+      finishTurn();
       this.forceCleanup();
       throw error;
     }
-
-    /*
-      If we just created the session (isFreshSession=true), we send full prompt.
-      If we reused it, we send filtered prompt.
-      After sending, we are no longer "fresh" for subsequent calls on this instance.
-    */
-    const promptContent = convertAiSdkMessagesToAcp(
-      options,
-      this.isFreshSession,
-      jsonSchemaPrompt,
-    );
-    this.isFreshSession = false;
-
-    const sessionId = this.sessionId!;
-    const client = this.client;
-    const cleanup = () => this.cleanup();
-
-    // Get a reference to the bound method
-    const streamHandler = this.handleStreamNotification.bind(this);
-
-    const stream = new ReadableStream<LanguageModelV3StreamPart>({
-      start: async (
-        controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>,
-      ) => {
-        controller.enqueue({ type: "stream-start", warnings: [] });
-
-        // Reset stream state for this new stream
-        this.resetStreamState();
-
-        // Set up client tool abort mechanism
-        const clientToolPromise = new Promise<void>((resolve) => {
-          this.clientToolAbort = { controller, resolve };
-        });
-
-        try {
-          if (client) {
-            client.setSessionUpdateHandler(
-              (notification: SessionNotification) => {
-                // Call the centralized handler
-                streamHandler(controller, notification);
-              },
-            );
-          }
-
-          // Race between normal completion and client tool abort
-          const promptPromise = this.promptWithLazyAuthRetry({
-            sessionId,
-            prompt: promptContent,
-          });
-
-          const result = await Promise.race([
-            promptPromise.then((response) => ({
-              type: "response" as const,
-              response,
-            })),
-            clientToolPromise.then(() => ({ type: "client-tool" as const })),
-          ]);
-
-          // If client tool was detected, stream is already closed
-          if (result.type === "client-tool") {
-            return;
-          }
-
-          // Normal completion
-          const response = result.response;
-          controller.enqueue({
-            type: "finish",
-            finishReason: {
-              unified: mapACPStopReasonToAISDK(response.stopReason),
-              raw: response.stopReason,
-            },
-            providerMetadata: getACPResponse(response),
-            usage: {
-              inputTokens: {
-                total: undefined,
-                noCache: undefined,
-                cacheRead: undefined,
-                cacheWrite: undefined,
-              },
-              outputTokens: {
-                total: undefined,
-                text: undefined,
-                reasoning: undefined,
-              },
-            },
-          });
-
-          controller.close();
-          cleanup();
-        } catch (error) {
-          cleanup();
-          controller.enqueue({
-            type: "error",
-            error: toCatchableError(error, this.stderrChunks.join("")),
-          });
-        }
-      },
-      cancel: () => {
-        cleanup();
-      },
-    });
-
-    // In structured JSON mode, wrap the stream with a transform that strips
-    // markdown fences from text content (models sometimes wrap JSON in ```json blocks
-    // despite being instructed not to).
-    const outputStream = jsonResponseFormat
-      ? stream.pipeThrough(createJsonCleanupTransform())
-      : stream;
-
-    return { stream: outputStream, warnings: undefined };
   }
 
   get tools(): Record<string, ReturnType<typeof tool>> {
