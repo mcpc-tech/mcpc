@@ -114,17 +114,18 @@ Deno.test("Builder MCP server - exposes builder tools to MCP clients", async () 
 
 Deno.test("Builder MCP server - search_mcp_servers returns formatted results via client", async () => {
   const originalSearchServers = registryClient.searchServers;
-  registryClient.searchServers = () => Promise.resolve({
-    total: 1,
-    hasMore: false,
-    servers: [
-      {
-        name: "demo/server",
-        description: "Demo registry entry",
-        toolNames: ["read_file", "write_file"],
-      },
-    ],
-  });
+  registryClient.searchServers = () =>
+    Promise.resolve({
+      total: 1,
+      hasMore: false,
+      servers: [
+        {
+          name: "demo/server",
+          description: "Demo registry entry",
+          toolNames: ["read_file", "write_file"],
+        },
+      ],
+    });
 
   const { client, server } = await createConnectedBuilderClient();
 
@@ -152,13 +153,14 @@ Deno.test("Builder MCP server - search_mcp_servers returns formatted results via
 
 Deno.test("Builder MCP server - get_env_var_schemas returns registry data via client", async () => {
   const originalGetEnvVarSchemas = registryClient.getEnvVarSchemas;
-  registryClient.getEnvVarSchemas = () => Promise.resolve({
-    github: [{
-      name: "GITHUB_TOKEN",
-      isRequired: true,
-      isSecret: true,
-    }],
-  });
+  registryClient.getEnvVarSchemas = () =>
+    Promise.resolve({
+      github: [{
+        name: "GITHUB_TOKEN",
+        isRequired: true,
+        isSecret: true,
+      }],
+    });
 
   const { client, server } = await createConnectedBuilderClient();
 
@@ -187,47 +189,48 @@ Deno.test("Builder MCP server - compose_mcpc_config writes markdown config via c
   const originalHome = Deno.env.get("HOME");
   const tempHome = await Deno.makeTempDir();
 
-  configBuilder.composeMCPCConfig = () => Promise.resolve({
-    config: {
-      name: "demo-server",
-      version: "1.0.0",
-      agents: [
-        {
-          name: "demo-tool",
-          description: "Demo builder config",
-          deps: {
-            mcpServers: {
-              github: {
-                command: "npx",
-                args: ["-y", "@demo/github"],
-                transportType: "stdio" as const,
+  configBuilder.composeMCPCConfig = () =>
+    Promise.resolve({
+      config: {
+        name: "demo-server",
+        version: "1.0.0",
+        agents: [
+          {
+            name: "demo-tool",
+            description: "Demo builder config",
+            deps: {
+              mcpServers: {
+                github: {
+                  command: "npx",
+                  args: ["-y", "@demo/github"],
+                  transportType: "stdio" as const,
+                },
               },
             },
+            options: {
+              mode: "agentic" as const,
+            },
           },
-          options: {
-            mode: "agentic" as const,
-          },
+        ],
+      },
+      requiredVars: [
+        {
+          serverName: "github",
+          type: "env" as const,
+          name: "GITHUB_TOKEN",
+          description: "GitHub token",
+          isSecret: true,
         },
       ],
-    },
-    requiredVars: [
-      {
-        serverName: "github",
-        type: "env" as const,
-        name: "GITHUB_TOKEN",
-        description: "GitHub token",
-        isSecret: true,
+      mcpServers: {
+        github: {
+          command: "npx",
+          args: ["-y", "@demo/github"],
+          transportType: "stdio" as const,
+        },
       },
-    ],
-    mcpServers: {
-      github: {
-        command: "npx",
-        args: ["-y", "@demo/github"],
-        transportType: "stdio" as const,
-      },
-    },
-    toolReferences: ['<tool name="github.__ALL__"/>'],
-  });
+      toolReferences: ['<tool name="github.__ALL__"/>'],
+    });
 
   configBuilder.generateMarkdownConfig = () =>
     `---
