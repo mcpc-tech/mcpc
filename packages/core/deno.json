@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/core",
-  "version": "0.3.47",
+  "version": "0.3.48",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -20,7 +20,7 @@
   },
   "imports": {
     "@mcpc/acp-ai-provider": "npm:@mcpc-tech/acp-ai-provider@^0.1.52",
-    "@mcpc/utils": "jsr:@mcpc/utils@^0.2.15",
+    "@mcpc/utils": "jsr:@mcpc/utils@^0.2.16",
     "@mcpc-tech/ripgrep-napi": "npm:@mcpc-tech/ripgrep-napi@^0.0.4",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.25.1",
     "@opentelemetry/api": "npm:@opentelemetry/api@^1.9.0",
@@ -39,6 +39,6 @@
     "ai": "npm:ai@^5.0.60",
     "@ai-sdk/provider": "npm:@ai-sdk/provider@^2.0.0",
     "@ai-sdk/provider-utils": "npm:@ai-sdk/provider-utils@^2.2.8",
-    "@mcpc/mcp-sampling-ai-provider": "jsr:@mcpc/mcp-sampling-ai-provider@^0.1.24"
+    "@mcpc/mcp-sampling-ai-provider": "jsr:@mcpc/mcp-sampling-ai-provider@^0.1.25"
   }
 }
