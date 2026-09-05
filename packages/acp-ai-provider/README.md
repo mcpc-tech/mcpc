@@ -417,11 +417,12 @@ function cleanupSession(sessionId: string) {
 See [session-management-example.ts](./examples/session-management-example.ts)
 for a complete working example.
 
-### Selecting Models and Modes
+### Selecting Models, Modes, and Session Config Options
 
-Some ACP agents support multiple models or modes. Use `initSession()` to
-discover and select them (or simply provide an arbitrary value to get an error
-message listing available options):
+Some ACP agents support multiple models, modes, or general session config
+options. Use `initSession()` to discover what the current agent advertises.
+Config IDs and values are agent-defined, so do not assume that the same ID is
+used by every agent.
 
 ```typescript
 const provider = createACPProvider({
@@ -434,19 +435,45 @@ const provider = createACPProvider({
 // Initialize and get available options
 const session = await provider.initSession();
 
-// Check available modes (e.g., "default", "acceptEdits", "plan")
+// Existing model/mode APIs remain supported.
 console.log(session.modes?.availableModes);
-
-// Check available models (e.g. "default", "opus", "haiku")
 console.log(session.models?.availableModels);
+await provider.setMode("plan");
+await provider.setModel("opus");
 
-// Now use the model
+// Inspect arbitrary options advertised by this agent.
+console.log(session.configOptions);
+console.log(provider.getConfigOptions("thought_level"));
+
+// Set an option using its advertised ID and value.
+const option = session.configOptions?.find((item) =>
+  item.category === "thought_level"
+);
+if (option) {
+  await provider.setConfigOption(option.id, "high");
+}
+
+// Or resolve the option by semantic category without hard-coding its ID.
+await provider.setThoughtLevel("high");
+await provider.setConfigOptionByCategory("model_config", "balanced");
+
 const result = await generateText({
-  // You can optionally specify the model ID here
-  model: provider.languageModel("opus", "plan"),
+  model: provider.languageModel(),
   prompt: "...",
 });
 ```
+
+`setConfigOption()` returns the ACP `SetSessionConfigOptionResponse`. The
+provider caches its returned `configOptions`, because changing one option may
+change the available values or state of other options. `getConfigOptions()`
+therefore reflects the latest successful update for the provider's active
+session.
+
+`setConfigOptionByCategory()` and `setThoughtLevel()` only select an option when
+exactly one advertised option has that category. They throw when none or
+multiple match; in the multiple-match case, inspect `getConfigOptions(category)`
+and call `setConfigOption()` with the intended ID. Unknown custom categories are
+supported.
 
 ## FAQ
 

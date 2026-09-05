@@ -41,9 +41,13 @@ export type { ProviderAgentDynamicToolInput } from "./src/language-model.ts";
 export type {
   ModelInfo,
   NewSessionResponse,
+  SessionConfigOption,
+  SessionConfigOptionCategory,
+  SessionConfigValueId,
   SessionMode,
   SessionModelState,
   SessionModeState,
+  SetSessionConfigOptionResponse,
 } from "@agentclientprotocol/sdk";
 
 // ACP Tool - for defining tools that work with streamText
