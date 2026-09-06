@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/cli",
-  "version": "0.1.61",
+  "version": "0.1.62",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -12,13 +12,13 @@
     "./app": "./src/app.ts"
   },
   "imports": {
-    "@mcpc/plugin-code-execution": "jsr:@mcpc/plugin-code-execution@^0.0.29",
-    "@mcpc/plugin-code-execution-sampling": "jsr:@mcpc/plugin-code-execution-sampling@^0.0.5",
-    "@mcpc/core": "jsr:@mcpc/core@^0.3.48",
-    "@mcpc/core/plugins/skills": "jsr:@mcpc/core@^0.3.48/plugins/skills",
-    "@mcpc/core/plugins/bash": "jsr:@mcpc/core@^0.3.48/plugins/bash",
-    "@mcpc/plugin-markdown-loader": "jsr:@mcpc/plugin-markdown-loader@^0.0.17",
-    "@mcpc/utils": "jsr:@mcpc/utils@^0.2.16",
+    "@mcpc/plugin-code-execution": "jsr:@mcpc/plugin-code-execution@^0.0.30",
+    "@mcpc/plugin-code-execution-sampling": "jsr:@mcpc/plugin-code-execution-sampling@^0.0.6",
+    "@mcpc/core": "jsr:@mcpc/core@^0.3.49",
+    "@mcpc/core/plugins/skills": "jsr:@mcpc/core@^0.3.49/plugins/skills",
+    "@mcpc/core/plugins/bash": "jsr:@mcpc/core@^0.3.49/plugins/bash",
+    "@mcpc/plugin-markdown-loader": "jsr:@mcpc/plugin-markdown-loader@^0.0.18",
+    "@mcpc/utils": "jsr:@mcpc/utils@^0.2.17",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.8.0",
     "@mcpc-tech/ripgrep-napi": "npm:@mcpc-tech/ripgrep-napi@^0.0.4",
     "@hono/zod-openapi": "npm:@hono/zod-openapi@^0.19.2",
