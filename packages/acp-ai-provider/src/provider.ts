@@ -5,7 +5,13 @@
 import { ACPLanguageModel } from "./language-model.ts";
 import type { tool } from "ai";
 import type { ACPProviderSettings } from "./types.ts";
-import type { NewSessionResponse } from "@agentclientprotocol/sdk";
+import type {
+  NewSessionResponse,
+  SessionConfigOption,
+  SessionConfigOptionCategory,
+  SetSessionConfigOptionRequest,
+  SetSessionConfigOptionResponse,
+} from "@agentclientprotocol/sdk";
 
 /**
  * ACP Provider - implements AI SDK provider pattern
@@ -123,6 +129,54 @@ export class ACPProvider {
       throw new Error("No model initialized. Call languageModel() first.");
     }
     return this.model.setModel(modelId);
+  }
+
+  /**
+   * Returns config options advertised by the active ACP session, optionally
+   * filtered by semantic category.
+   */
+  getConfigOptions(
+    category?: SessionConfigOptionCategory,
+  ): SessionConfigOption[] {
+    return this.model?.getConfigOptions(category) ?? [];
+  }
+
+  /**
+   * Sets any ACP session config option using its agent-advertised ID.
+   */
+  setConfigOption(
+    configId: string,
+    value: SetSessionConfigOptionRequest["value"],
+  ): Promise<SetSessionConfigOptionResponse> {
+    if (!this.model) {
+      throw new Error("No model initialized. Call initSession() first.");
+    }
+    return this.model.setConfigOption(configId, value);
+  }
+
+  /**
+   * Sets the single config option advertised for a semantic category.
+   */
+  setConfigOptionByCategory(
+    category: SessionConfigOptionCategory,
+    value: SetSessionConfigOptionRequest["value"],
+  ): Promise<SetSessionConfigOptionResponse> {
+    if (!this.model) {
+      throw new Error("No model initialized. Call initSession() first.");
+    }
+    return this.model.setConfigOptionByCategory(category, value);
+  }
+
+  /**
+   * Sets the option advertised with the standard `thought_level` category.
+   */
+  setThoughtLevel(
+    value: SetSessionConfigOptionRequest["value"],
+  ): Promise<SetSessionConfigOptionResponse> {
+    if (!this.model) {
+      throw new Error("No model initialized. Call initSession() first.");
+    }
+    return this.model.setThoughtLevel(value);
   }
 
   /**

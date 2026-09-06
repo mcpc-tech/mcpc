@@ -2,7 +2,7 @@
  * Tests for ACP Language Model
  */
 
-import { assertEquals, assertExists } from "@std/assert";
+import { assertEquals, assertExists, assertRejects } from "@std/assert";
 import { ACPLanguageModel } from "../src/language-model.ts";
 import type { ACPProviderSettings } from "../src/types.ts";
 
@@ -98,6 +98,144 @@ Deno.test("ACPLanguageModel - maps ACP stop reasons to AI SDK finish reasons", a
     "other",
     "other",
   ]);
+});
+
+function setupConfigOptionModel() {
+  const model = new ACPLanguageModel(
+    "test-agent",
+    undefined,
+    createProviderSettings(),
+  );
+  const requests: unknown[] = [];
+  const initialOptions = [
+    {
+      id: "agent-specific-reasoning-id",
+      name: "Thinking effort",
+      description: "Controls reasoning effort",
+      category: "thought_level",
+      type: "select" as const,
+      currentValue: "medium",
+      options: [
+        { value: "low", name: "Low" },
+        { value: "medium", name: "Medium" },
+        { value: "high", name: "High" },
+      ],
+    },
+    {
+      id: "agent-specific-style-id",
+      name: "Style",
+      category: "_style",
+      type: "select" as const,
+      currentValue: "concise",
+      options: [{ value: "concise", name: "Concise" }],
+    },
+  ];
+
+  (model as unknown as { sessionId: string }).sessionId = "session-1";
+  (model as unknown as { sessionResponse: unknown }).sessionResponse = {
+    sessionId: "session-1",
+    configOptions: initialOptions,
+  };
+  (model as unknown as { connection: unknown }).connection = {
+    setSessionConfigOption: (request: unknown) => {
+      requests.push(request);
+      return Promise.resolve({
+        configOptions: [
+          { ...initialOptions[0], currentValue: "high" },
+          initialOptions[1],
+        ],
+      });
+    },
+  };
+
+  return { model, requests };
+}
+
+Deno.test("setConfigOption forwards arbitrary IDs and refreshes config options", async () => {
+  const { model, requests } = setupConfigOptionModel();
+
+  const response = await model.setConfigOption(
+    "agent-defined-id",
+    "agent-defined-value",
+  );
+
+  assertEquals(requests, [{
+    sessionId: "session-1",
+    configId: "agent-defined-id",
+    value: "agent-defined-value",
+  }]);
+  assertEquals(response.configOptions[0].currentValue, "high");
+  assertEquals(
+    model.getConfigOptions("thought_level")[0].currentValue,
+    "high",
+  );
+});
+
+Deno.test("setThoughtLevel resolves the agent-advertised config ID by category", async () => {
+  const { model, requests } = setupConfigOptionModel();
+
+  await model.setThoughtLevel("high");
+
+  assertEquals(requests, [{
+    sessionId: "session-1",
+    configId: "agent-specific-reasoning-id",
+    value: "high",
+  }]);
+  assertEquals(
+    model.getConfigOptions("_style")[0].id,
+    "agent-specific-style-id",
+  );
+});
+
+Deno.test("config option updates refresh the active session cache", () => {
+  const { model } = setupConfigOptionModel();
+  const updatedOption = {
+    ...model.getConfigOptions("thought_level")[0],
+    currentValue: "low",
+  };
+
+  (model as unknown as {
+    handleStreamNotification: (
+      controller: { enqueue: (_part: unknown) => void },
+      notification: unknown,
+    ) => void;
+  }).handleStreamNotification(
+    { enqueue: () => {} },
+    {
+      sessionId: "session-1",
+      update: {
+        sessionUpdate: "config_option_update",
+        configOptions: [updatedOption],
+      },
+    },
+  );
+
+  assertEquals(model.getConfigOptions(), [updatedOption]);
+});
+
+Deno.test("setConfigOptionByCategory rejects missing and ambiguous categories", async () => {
+  const { model } = setupConfigOptionModel();
+
+  await assertRejects(
+    () => model.setConfigOptionByCategory("model_config", "x"),
+    Error,
+    'No session config option is available for category "model_config".',
+  );
+
+  const options = model.getConfigOptions();
+  (model as unknown as { sessionResponse: unknown }).sessionResponse = {
+    sessionId: "session-1",
+    configOptions: [
+      ...options,
+      { ...options[0], id: "second-reasoning-id" },
+    ],
+  };
+
+  await assertRejects(
+    () => model.setThoughtLevel("low"),
+    Error,
+    "Multiple session config options are available",
+  );
 });
 
 /**

@@ -16,7 +16,11 @@ import {
   type ReadTextFileResponse,
   type RequestPermissionRequest,
   type RequestPermissionResponse,
+  type SessionConfigOption,
+  type SessionConfigOptionCategory,
   type SessionNotification,
+  type SetSessionConfigOptionRequest,
+  type SetSessionConfigOptionResponse,
   type ToolCallContent,
   type ToolCallStatus,
   type WriteTextFileRequest,
@@ -770,6 +774,79 @@ export class ACPLanguageModel implements LanguageModelV3 {
     }
   }
 
+  /**
+   * Returns the session configuration options advertised by the agent.
+   * A category filters by the protocol's semantic category rather than an
+   * agent-specific config ID.
+   */
+  getConfigOptions(
+    category?: SessionConfigOptionCategory,
+  ): SessionConfigOption[] {
+    const configOptions = this.sessionResponse?.configOptions ?? [];
+    return category === undefined
+      ? [...configOptions]
+      : configOptions.filter((option) => option.category === category);
+  }
+
+  /**
+   * Sets an ACP session configuration option by its agent-advertised ID.
+   */
+  async setConfigOption(
+    configId: string,
+    value: SetSessionConfigOptionRequest["value"],
+  ): Promise<SetSessionConfigOptionResponse> {
+    if (!this.connection || !this.sessionId) {
+      throw new Error("Not connected. Call initSession() first.");
+    }
+
+    const response = await this.connection.setSessionConfigOption({
+      sessionId: this.sessionId,
+      configId,
+      value,
+    });
+
+    if (this.sessionResponse) {
+      this.sessionResponse = {
+        ...this.sessionResponse,
+        configOptions: response.configOptions,
+      };
+    }
+
+    return response;
+  }
+
+  /**
+   * Sets the single option advertised for a semantic category.
+   */
+  async setConfigOptionByCategory(
+    category: SessionConfigOptionCategory,
+    value: SetSessionConfigOptionRequest["value"],
+  ): Promise<SetSessionConfigOptionResponse> {
+    const matches = this.getConfigOptions(category);
+    if (matches.length === 0) {
+      throw new Error(
+        `No session config option is available for category "${category}".`,
+      );
+    }
+    if (matches.length > 1) {
+      const ids = matches.map((option) => option.id).join(", ");
+      throw new Error(
+        `Multiple session config options are available for category "${category}": ${ids}. Use setConfigOption() with an explicit config ID.`,
+      );
+    }
+
+    return await this.setConfigOption(matches[0].id, value);
+  }
+
+  /**
+   * Sets the option advertised with the standard `thought_level` category.
+   */
+  setThoughtLevel(
+    value: SetSessionConfigOptionRequest["value"],
+  ): Promise<SetSessionConfigOptionResponse> {
+    return this.setConfigOptionByCategory("thought_level", value);
+  }
+
   private async promptWithLazyAuthRetry(
     request: { sessionId: string; prompt: unknown },
   ): Promise<ACPPromptResponse> {
@@ -946,6 +1023,14 @@ export class ACPLanguageModel implements LanguageModelV3 {
 
     const update = notification.update;
     switch (update.sessionUpdate) {
+      case "config_option_update":
+        if (this.sessionResponse && notification.sessionId === this.sessionId) {
+          this.sessionResponse = {
+            ...this.sessionResponse,
+            configOptions: update.configOptions,
+          };
+        }
+        break;
       case "plan":
         this.flushPendingToolCalls(controller);
         this.emitRawContent(controller, {
