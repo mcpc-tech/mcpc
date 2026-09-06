@@ -252,6 +252,20 @@ function createModelConfigOption(currentValue: string) {
   };
 }
 
+function createModeConfigOption(currentValue: string) {
+  return {
+    id: "mode",
+    name: "Mode",
+    category: "mode",
+    type: "select" as const,
+    currentValue,
+    options: [
+      { value: "default", name: "Default" },
+      { value: "plan", name: "Plan" },
+    ],
+  };
+}
+
 Deno.test("setModel routes through the agent's session config option", async () => {
   const model = new ACPLanguageModel(
     "test-agent",
@@ -406,6 +420,160 @@ Deno.test("setModel rejects ambiguous or missing model config options", async ()
     () => model.setModel("gemini-3.7-flash"),
     Error,
     'no model option with category "model"',
+  );
+});
+
+Deno.test("setMode routes through the agent's session config option", async () => {
+  const model = new ACPLanguageModel(
+    "test-agent",
+    undefined,
+    createProviderSettings(),
+  );
+  const modeOption = createModeConfigOption("default");
+  const configRequests: unknown[] = [];
+  const modeRequests: unknown[] = [];
+
+  (model as unknown as { sessionId: string }).sessionId = "session-1";
+  (model as unknown as { sessionResponse: unknown }).sessionResponse = {
+    sessionId: "session-1",
+    configOptions: [modeOption],
+  };
+  (model as unknown as { connection: unknown }).connection = {
+    setSessionConfigOption: (request: unknown) => {
+      configRequests.push(request);
+      return Promise.resolve({
+        configOptions: [
+          { ...modeOption, currentValue: (request as { value: string }).value },
+        ],
+      });
+    },
+    setSessionMode: (request: unknown) => {
+      modeRequests.push(request);
+      return Promise.resolve({});
+    },
+  };
+
+  await model.setMode("plan");
+
+  assertEquals(configRequests, [{
+    sessionId: "session-1",
+    configId: "mode",
+    value: "plan",
+  }]);
+  assertEquals(modeRequests, []);
+  assertEquals(
+    model.getConfigOptions("mode")[0].currentValue,
+    "plan",
+  );
+});
+
+Deno.test("setMode validates the value against the advertised mode option", async () => {
+  const model = new ACPLanguageModel(
+    "test-agent",
+    undefined,
+    createProviderSettings(),
+  );
+  const modeOption = createModeConfigOption("default");
+
+  (model as unknown as { sessionId: string }).sessionId = "session-1";
+  (model as unknown as { sessionResponse: unknown }).sessionResponse = {
+    sessionId: "session-1",
+    configOptions: [modeOption],
+  };
+  (model as unknown as { connection: unknown }).connection = {
+    setSessionConfigOption: () =>
+      Promise.resolve({ configOptions: [modeOption] }),
+  };
+
+  await assertRejects(
+    () => model.setMode("ask"),
+    Error,
+    "is not available",
+  );
+});
+
+Deno.test("setMode falls back to the session modes API without a mode config option", async () => {
+  const model = new ACPLanguageModel(
+    "test-agent",
+    undefined,
+    createProviderSettings(),
+  );
+  const requests: unknown[] = [];
+
+  (model as unknown as { sessionId: string }).sessionId = "session-1";
+  (model as unknown as { sessionResponse: unknown }).sessionResponse = {
+    sessionId: "session-1",
+    modes: {
+      availableModes: [{ id: "default" }, { id: "plan" }],
+      currentModeId: "default",
+    },
+  };
+  (model as unknown as { connection: unknown }).connection = {
+    setSessionMode: (request: unknown) => {
+      requests.push(request);
+      return Promise.resolve({});
+    },
+  };
+
+  await model.setMode("plan");
+
+  assertEquals(requests, [{
+    sessionId: "session-1",
+    modeId: "plan",
+  }]);
+
+  await assertRejects(
+    () => model.setMode("ask"),
+    Error,
+    "is not available",
+  );
+});
+
+Deno.test("setMode rejects ambiguous or missing mode config options", async () => {
+  const model = new ACPLanguageModel(
+    "test-agent",
+    undefined,
+    createProviderSettings(),
+  );
+  const modeOption = createModeConfigOption("default");
+
+  (model as unknown as { sessionId: string }).sessionId = "session-1";
+  (model as unknown as { connection: unknown }).connection = {
+    setSessionConfigOption: () =>
+      Promise.resolve({ configOptions: [modeOption] }),
+  };
+  (model as unknown as { sessionResponse: unknown }).sessionResponse = {
+    sessionId: "session-1",
+    configOptions: [
+      modeOption,
+      { ...modeOption, id: "secondary-mode" },
+    ],
+  };
+
+  await assertRejects(
+    () => model.setMode("plan"),
+    Error,
+    'Multiple session config options are available for category "mode"',
+  );
+
+  (model as unknown as { sessionResponse: unknown }).sessionResponse = {
+    sessionId: "session-1",
+    configOptions: [
+      {
+        id: "style",
+        name: "Style",
+        category: "_style",
+        type: "select",
+        currentValue: "concise",
+        options: [{ value: "concise", name: "Concise" }],
+      },
+    ],
+  };
+
+  await assertRejects(
+    () => model.setMode("plan"),
+    Error,
+    'no mode option with category "mode"',
   );
 });
 

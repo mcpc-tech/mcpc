@@ -895,10 +895,39 @@ export class ACPLanguageModel implements LanguageModelV3 {
 
   /**
    * Sets the session mode (e.g., "ask", "plan").
+   *
+   * Agents built purely on session config options advertise mode selection
+   * through a config option (category "mode") instead of the session modes
+   * API. Prefer that config option when the agent advertises exactly one,
+   * and fall back to the stable session modes API (setSessionMode) for
+   * agents that expose `modes` without a config option.
    */
   async setMode(modeId: string): Promise<void> {
     if (!this.connection || !this.sessionId) {
       throw new Error("Not connected. Call preconnect() first.");
+    }
+
+    const modeOptions = this.getConfigOptions("mode");
+    if (modeOptions.length > 0) {
+      if (modeOptions.length > 1) {
+        const ids = modeOptions.map((option) => option.id).join(", ");
+        throw new Error(
+          `Multiple session config options are available for category "mode": ${ids}. Use setConfigOption() with an explicit config ID.`,
+        );
+      }
+
+      const option = modeOptions[0];
+      const availableValues = flattenSessionConfigSelectValues(option);
+      if (availableValues.length > 0 && !availableValues.includes(modeId)) {
+        const availableList = availableValues.join(", ");
+        throw new Error(
+          `Mode "${modeId}" is not available. Available modes: ${availableList}`,
+        );
+      }
+
+      await this.setConfigOption(option.id, modeId);
+      this.currentModeId = modeId;
+      return;
     }
 
     const availableModes = this.sessionResponse?.modes?.availableModes;
@@ -914,6 +943,10 @@ export class ACPLanguageModel implements LanguageModelV3 {
           `Mode "${modeId}" is not available${currentInfo}. Available modes: ${availableList}`,
         );
       }
+    } else if ((this.sessionResponse?.configOptions?.length ?? 0) > 0) {
+      throw new Error(
+        `Mode "${modeId}" cannot be applied: the agent advertises session config options but no mode option with category "mode". Inspect getConfigOptions() and call setConfigOption() with the intended config ID.`,
+      );
     }
 
     await this.connection.setSessionMode({ sessionId: this.sessionId, modeId });
