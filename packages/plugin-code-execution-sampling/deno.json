@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/plugin-code-execution-sampling",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -13,10 +13,10 @@
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.0",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.25.3",
-    "@mcpc/core": "jsr:@mcpc/core@^0.3.49",
-    "@mcpc/utils": "jsr:@mcpc/utils@^0.2.17",
-    "@mcpc/plugin-code-execution": "jsr:@mcpc/plugin-code-execution@^0.0.30",
-    "@mcpc/mcp-sampling-ai-provider": "jsr:@mcpc/mcp-sampling-ai-provider@^0.1.26",
+    "@mcpc/core": "jsr:@mcpc/core@^0.3.50",
+    "@mcpc/utils": "jsr:@mcpc/utils@^0.2.18",
+    "@mcpc/plugin-code-execution": "jsr:@mcpc/plugin-code-execution@^0.0.31",
+    "@mcpc/mcp-sampling-ai-provider": "jsr:@mcpc/mcp-sampling-ai-provider@^0.1.27",
     "ai": "npm:ai@^5.0.60"
   },
   "publish": {

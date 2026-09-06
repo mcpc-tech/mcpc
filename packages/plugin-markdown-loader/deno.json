@@ -1,6 +1,6 @@
 {
   "name": "@mcpc/plugin-markdown-loader",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcpc-tech/mcpc.git"
@@ -11,7 +11,7 @@
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.0",
     "@std/yaml": "jsr:@std/yaml@^1.0.5",
-    "@mcpc/core": "jsr:@mcpc/core@^0.3.49"
+    "@mcpc/core": "jsr:@mcpc/core@^0.3.50"
   },
   "publish": {
     "exclude": [
