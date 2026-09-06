@@ -238,6 +238,233 @@ Deno.test("setConfigOptionByCategory rejects missing and ambiguous categories", 
   );
 });
 
+function createModelConfigOption(currentValue: string) {
+  return {
+    id: "model",
+    name: "Model",
+    category: "model",
+    type: "select" as const,
+    currentValue,
+    options: [
+      { value: "gemini-3.7-flash-high", name: "High" },
+      { value: "gemini-3.7-flash", name: "Standard" },
+    ],
+  };
+}
+
+Deno.test("setModel routes through the agent's session config option", async () => {
+  const model = new ACPLanguageModel(
+    "test-agent",
+    undefined,
+    createProviderSettings(),
+  );
+  const modelOption = createModelConfigOption("gemini-3.7-flash-high");
+  const requests: unknown[] = [];
+  let legacyCalled = false;
+
+  (model as unknown as { sessionId: string }).sessionId = "session-1";
+  (model as unknown as { sessionResponse: unknown }).sessionResponse = {
+    sessionId: "session-1",
+    configOptions: [modelOption],
+  };
+  (model as unknown as { connection: unknown }).connection = {
+    setSessionConfigOption: (request: unknown) => {
+      requests.push(request);
+      return Promise.resolve({
+        configOptions: [
+          {
+            ...modelOption,
+            currentValue: (request as { value: string }).value,
+          },
+        ],
+      });
+    },
+    unstable_setSessionModel: () => {
+      legacyCalled = true;
+      return Promise.resolve({});
+    },
+  };
+
+  await model.setModel("gemini-3.7-flash");
+
+  assertEquals(requests, [{
+    sessionId: "session-1",
+    configId: "model",
+    value: "gemini-3.7-flash",
+  }]);
+  assertEquals(legacyCalled, false);
+  assertEquals(
+    model.getConfigOptions("model")[0].currentValue,
+    "gemini-3.7-flash",
+  );
+});
+
+Deno.test("setModel validates the value against the advertised model option", async () => {
+  const model = new ACPLanguageModel(
+    "test-agent",
+    undefined,
+    createProviderSettings(),
+  );
+  const modelOption = createModelConfigOption("gemini-3.7-flash-high");
+
+  (model as unknown as { sessionId: string }).sessionId = "session-1";
+  (model as unknown as { sessionResponse: unknown }).sessionResponse = {
+    sessionId: "session-1",
+    configOptions: [modelOption],
+  };
+  (model as unknown as { connection: unknown }).connection = {
+    setSessionConfigOption: () =>
+      Promise.resolve({ configOptions: [modelOption] }),
+  };
+
+  await assertRejects(
+    () => model.setModel("gemini-4"),
+    Error,
+    "is not available",
+  );
+});
+
+Deno.test("setModel falls back to the legacy model API without a model config option", async () => {
+  const model = new ACPLanguageModel(
+    "test-agent",
+    undefined,
+    createProviderSettings(),
+  );
+  const requests: unknown[] = [];
+
+  (model as unknown as { sessionId: string }).sessionId = "session-1";
+  (model as unknown as { sessionResponse: unknown }).sessionResponse = {
+    sessionId: "session-1",
+    models: {
+      availableModels: [{ modelId: "opus" }, { modelId: "haiku" }],
+      currentModelId: "opus",
+    },
+  };
+  (model as unknown as { connection: unknown }).connection = {
+    unstable_setSessionModel: (request: unknown) => {
+      requests.push(request);
+      return Promise.resolve({});
+    },
+  };
+
+  await model.setModel("haiku");
+
+  assertEquals(requests, [{
+    sessionId: "session-1",
+    modelId: "haiku",
+  }]);
+
+  await assertRejects(
+    () => model.setModel("claude"),
+    Error,
+    "is not available",
+  );
+});
+
+Deno.test("setModel rejects ambiguous or missing model config options", async () => {
+  const model = new ACPLanguageModel(
+    "test-agent",
+    undefined,
+    createProviderSettings(),
+  );
+  const modelOption = createModelConfigOption("gemini-3.7-flash-high");
+
+  (model as unknown as { sessionId: string }).sessionId = "session-1";
+  (model as unknown as { connection: unknown }).connection = {
+    setSessionConfigOption: () =>
+      Promise.resolve({ configOptions: [modelOption] }),
+  };
+  (model as unknown as { sessionResponse: unknown }).sessionResponse = {
+    sessionId: "session-1",
+    configOptions: [
+      modelOption,
+      { ...modelOption, id: "secondary-model" },
+    ],
+  };
+
+  await assertRejects(
+    () => model.setModel("gemini-3.7-flash"),
+    Error,
+    'Multiple session config options are available for category "model"',
+  );
+
+  (model as unknown as { sessionResponse: unknown }).sessionResponse = {
+    sessionId: "session-1",
+    configOptions: [
+      {
+        id: "style",
+        name: "Style",
+        category: "_style",
+        type: "select",
+        currentValue: "concise",
+        options: [{ value: "concise", name: "Concise" }],
+      },
+    ],
+  };
+
+  await assertRejects(
+    () => model.setModel("gemini-3.7-flash"),
+    Error,
+    'no model option with category "model"',
+  );
+});
+
+Deno.test("startSession re-applies the configured model after session re-creation", async () => {
+  const model = new ACPLanguageModel(
+    "test-agent",
+    undefined,
+    createProviderSettings(),
+  );
+  model.modelId = "gemini-3.7-flash";
+  const modelOption = createModelConfigOption("gemini-3.7-flash-high");
+  const requests: unknown[] = [];
+  let sessionCounter = 0;
+
+  (model as unknown as { connection: unknown }).connection = {
+    newSession: () => {
+      sessionCounter += 1;
+      return Promise.resolve({
+        sessionId: `session-${sessionCounter}`,
+        configOptions: [modelOption],
+      });
+    },
+    setSessionConfigOption: (request: unknown) => {
+      requests.push(request);
+      return Promise.resolve({
+        configOptions: [
+          {
+            ...modelOption,
+            currentValue: (request as { value: string }).value,
+          },
+        ],
+      });
+    },
+  };
+
+  await model.startSession();
+  assertEquals(requests.length, 1);
+
+  // Simulate a cleanup that drops the session but leaves a stale model state.
+  (model as unknown as { sessionId: string | null }).sessionId = null;
+  (model as unknown as { currentModelId: string | null }).currentModelId =
+    "gemini-3.7-flash";
+
+  await model.startSession();
+
+  assertEquals(requests, [
+    {
+      sessionId: "session-1",
+      configId: "model",
+      value: "gemini-3.7-flash",
+    },
+    {
+      sessionId: "session-2",
+      configId: "model",
+      value: "gemini-3.7-flash",
+    },
+  ]);
+});
+
 /**
  * Helpers for abort/cancel tests: stubs the ACP internals so we can drive
  * prompt resolution and observe session/cancel + prompt ordering.

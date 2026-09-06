@@ -218,6 +218,27 @@ export class ACPAISDKClient implements Client {
 }
 
 /**
+ * Flattens the selectable values advertised by a `select` session config
+ * option into a plain value list (groups are expanded). Returns an empty
+ * array when the option does not enumerate concrete values.
+ */
+function flattenSessionConfigSelectValues(
+  option: SessionConfigOption,
+): string[] {
+  const values: string[] = [];
+  for (const entry of option.options) {
+    if ("group" in entry) {
+      for (const selectOption of entry.options) {
+        values.push(selectOption.value);
+      }
+    } else {
+      values.push(entry.value);
+    }
+  }
+  return values;
+}
+
+/**
  * Implements the AI SDK LanguageModelV2 interface for the
  * Agent Client Protocol (ACP).
  *
@@ -593,12 +614,14 @@ export class ACPLanguageModel implements LanguageModelV3 {
         // Treat as fresh since we are establishing a new session.
         this.isFreshSession = true;
 
+        await this.syncConfiguredModelAndMode();
         await this.applySessionDelay();
         return;
       }
 
       // If session already exists and we didn't just update it, do nothing
       if (this.sessionId) {
+        await this.syncConfiguredModelAndMode();
         return;
       }
 
@@ -626,31 +649,31 @@ export class ACPLanguageModel implements LanguageModelV3 {
         this.isFreshSession = true;
       }
 
-      // Init models/modes after session creation
-      const { models, modes } = this.sessionResponse ?? {};
-
-      if (models?.currentModelId) {
-        this.currentModelId = models.currentModelId;
-      }
-      if (modes?.currentModeId) {
-        this.currentModeId = modes.currentModeId;
-      }
-
-      // Update model if needed
-      if (this.modelId && this.modelId !== this.currentModelId) {
-        await this.setModel(this.modelId);
-        this.currentModelId = this.modelId;
-      }
-
-      // Update mode if needed
-      if (this.modeId && this.modeId !== this.currentModeId) {
-        await this.setMode(this.modeId);
-        this.currentModeId = this.modeId;
-      }
-
+      await this.syncConfiguredModelAndMode();
       await this.applySessionDelay();
     } catch (error) {
       throw toCatchableError(error, this.stderrChunks.join(""));
+    }
+  }
+
+  /**
+   * Resets model/mode state from the current session response and re-applies
+   * any configured model/mode. Resetting unconditionally prevents a stale
+   * currentModelId/currentModeId left over from a previous session from
+   * suppressing setModel()/setMode() after the session is re-created.
+   */
+  private async syncConfiguredModelAndMode(): Promise<void> {
+    const { models, modes } = this.sessionResponse ?? {};
+    this.currentModelId = models?.currentModelId ?? null;
+    this.currentModeId = modes?.currentModeId ?? null;
+
+    if (this.modelId && this.modelId !== this.currentModelId) {
+      await this.setModel(this.modelId);
+      this.currentModelId = this.modelId;
+    }
+    if (this.modeId && this.modeId !== this.currentModeId) {
+      await this.setMode(this.modeId);
+      this.currentModeId = this.modeId;
     }
   }
 
@@ -899,10 +922,39 @@ export class ACPLanguageModel implements LanguageModelV3 {
 
   /**
    * Sets the session model.
+   *
+   * Newer ACP agents advertise model selection through a session config
+   * option (category "model") instead of the legacy unstable models API.
+   * Prefer that config option when the agent advertises exactly one, and
+   * fall back to unstable_setSessionModel for agents that still expose
+   * `models` without a config option.
    */
   async setModel(modelId: string): Promise<void> {
     if (!this.connection || !this.sessionId) {
       throw new Error("Not connected. Call preconnect() first.");
+    }
+
+    const modelOptions = this.getConfigOptions("model");
+    if (modelOptions.length > 0) {
+      if (modelOptions.length > 1) {
+        const ids = modelOptions.map((option) => option.id).join(", ");
+        throw new Error(
+          `Multiple session config options are available for category "model": ${ids}. Use setConfigOption() with an explicit config ID.`,
+        );
+      }
+
+      const option = modelOptions[0];
+      const availableValues = flattenSessionConfigSelectValues(option);
+      if (availableValues.length > 0 && !availableValues.includes(modelId)) {
+        const availableList = availableValues.join(", ");
+        throw new Error(
+          `Model "${modelId}" is not available. Available models: ${availableList}`,
+        );
+      }
+
+      await this.setConfigOption(option.id, modelId);
+      this.currentModelId = modelId;
+      return;
     }
 
     const { models } = this.sessionResponse ?? {};
@@ -919,6 +971,10 @@ export class ACPLanguageModel implements LanguageModelV3 {
           `Model "${modelId}" is not available${currentInfo}. Available models: ${availableList}`,
         );
       }
+    } else if ((this.sessionResponse?.configOptions?.length ?? 0) > 0) {
+      throw new Error(
+        `Model "${modelId}" cannot be applied: the agent advertises session config options but no model option with category "model". Inspect getConfigOptions() and call setConfigOption() with the intended config ID.`,
+      );
     }
 
     await this.connection.unstable_setSessionModel({
