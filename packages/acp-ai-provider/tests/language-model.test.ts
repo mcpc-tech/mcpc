@@ -633,6 +633,73 @@ Deno.test("startSession re-applies the configured model after session re-creatio
   ]);
 });
 
+Deno.test("startSession preserves loadSession config options instead of falling back to legacy APIs", async () => {
+  const model = new ACPLanguageModel(
+    "test-agent",
+    undefined,
+    createProviderSettings({ existingSessionId: "session-1" }),
+  );
+  model.modelId = "gemini-3.7-flash";
+  model.modeId = "plan";
+  const modelOption = createModelConfigOption("gemini-3.7-flash-high");
+  const modeOption = createModeConfigOption("default");
+  const configRequests: unknown[] = [];
+  let legacyModelCalled = false;
+  let legacyModeCalled = false;
+
+  (model as unknown as { connection: unknown }).connection = {
+    loadSession: () =>
+      Promise.resolve({
+        configOptions: [modelOption, modeOption],
+      }),
+    setSessionConfigOption: (request: unknown) => {
+      configRequests.push(request);
+      const { configId, value } = request as {
+        configId: string;
+        value: string;
+      };
+      // Per the spec the response carries the full option set.
+      return Promise.resolve({
+        configOptions: [
+          {
+            ...modelOption,
+            currentValue: configId === "model"
+              ? value
+              : modelOption.currentValue,
+          },
+          {
+            ...modeOption,
+            currentValue: configId === "mode" ? value : modeOption.currentValue,
+          },
+        ],
+      });
+    },
+    unstable_setSessionModel: () => {
+      legacyModelCalled = true;
+      return Promise.resolve({});
+    },
+    setSessionMode: () => {
+      legacyModeCalled = true;
+      return Promise.resolve({});
+    },
+  };
+
+  await model.startSession();
+
+  // The load response's config options must survive so callers can see them.
+  assertEquals(model.getConfigOptions("model").length, 1);
+  assertEquals(model.getConfigOptions("mode").length, 1);
+
+  // Both settings must be routed through session config options, not the
+  // legacy unstable_setSessionModel / setSessionMode APIs.
+  assertEquals(configRequests, [
+    { sessionId: "session-1", configId: "model", value: "gemini-3.7-flash" },
+    { sessionId: "session-1", configId: "mode", value: "plan" },
+  ]);
+  assertEquals(legacyModelCalled, false);
+  assertEquals(legacyModeCalled, false);
+});
+
 /**
  * Helpers for abort/cancel tests: stubs the ACP internals so we can drive
  * prompt resolution and observe session/cancel + prompt ordering.

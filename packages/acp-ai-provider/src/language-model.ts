@@ -631,13 +631,19 @@ export class ACPLanguageModel implements LanguageModelV3 {
         // Protocol says loadSession usually just resumes.
         // But if we want to Add tools to a loaded session, we might need newSession logic?
         // For now, preserving original logic: loadSession takes mcpServers.
-        await this.connection.loadSession({
+        const loadSessionResponse = await this.connection.loadSession({
           sessionId: this.config.existingSessionId,
           cwd: this.config.session?.cwd ?? process.cwd(),
           mcpServers,
         });
         this.sessionId = this.config.existingSessionId;
-        this.sessionResponse = { sessionId: this.config.existingSessionId };
+        // Preserve the agent-advertised session state from the load response
+        // (configOptions/models/modes). Dropping it would make setModel()/setMode()
+        // fall back to the legacy models/modes APIs -- or skip them entirely.
+        this.sessionResponse = {
+          ...(loadSessionResponse ?? {}),
+          sessionId: this.config.existingSessionId,
+        };
         this.isFreshSession = false;
       } else {
         this.sessionResponse = await this.connection.newSession({
