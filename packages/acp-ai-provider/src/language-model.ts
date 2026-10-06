@@ -44,7 +44,7 @@ import {
   ACP_AUTH_REQUIRED_ERROR_CODE,
   isAuthRequiredError,
 } from "./lazy-auth.ts";
-import { ACPDebugLogger } from "./debug.ts";
+import { ACPDebugLogger, debugAuth, debugSession } from "./debug.ts";
 import {
   buildJsonSchemaPrompt,
   createJsonCleanupTransform,
@@ -545,20 +545,24 @@ export class ACPLanguageModel implements LanguageModelV3 {
 
         if (!configuredAuthMethodId) {
           const defaultAuthMethodId = this.availableAuthMethodIds[0];
-          console.log(
-            `[acp-ai-provider] Warning: authMethodId is not configured. Lazy auth will default to the first auth method \"${defaultAuthMethodId}\".`,
-            JSON.stringify(authMethods, null, 2),
+          debugAuth(
+            "authMethodId is not configured; lazy auth will default to the first auth method %s %O",
+            defaultAuthMethodId,
+            authMethods,
           );
         } else if (
           !this.availableAuthMethodIds.includes(configuredAuthMethodId)
         ) {
-          console.log(
-            `[acp-ai-provider] Warning: authMethodId \"${configuredAuthMethodId}\" is not in initialize.authMethods. Lazy auth auto-retry will be skipped unless you call authenticate() with a valid method.`,
-            JSON.stringify(authMethods, null, 2),
+          debugAuth(
+            "authMethodId %s is not in initialize.authMethods; lazy auth auto-retry will be skipped unless you call authenticate() with a valid method %O",
+            configuredAuthMethodId,
+            authMethods,
           );
         } else {
-          console.log(
-            `[acp-ai-provider] Lazy auth enabled with authMethodId=\"${configuredAuthMethodId}\". Authentication will run only when required (code ${ACP_AUTH_REQUIRED_ERROR_CODE}).`,
+          debugAuth(
+            "lazy auth enabled with authMethodId=%s; authentication will run only when required (code %s)",
+            configuredAuthMethodId,
+            ACP_AUTH_REQUIRED_ERROR_CODE,
           );
         }
       }
@@ -585,8 +589,8 @@ export class ACPLanguageModel implements LanguageModelV3 {
 
       // Set up tool proxy if tools are present and proxy doesn't exist
       if (acpTools && acpTools.length > 0 && !this.toolProxyHost) {
-        this.debug.log(
-          "[acp-ai-provider] Setting up tool proxy for client-side tools...",
+        debugSession(
+          "setting up tool proxy for client-side tools %O",
           acpTools.map((t) => t.name),
         );
         this.toolProxyHost = new ToolProxyHost("acp-ai-sdk-tools");
@@ -685,8 +689,9 @@ export class ACPLanguageModel implements LanguageModelV3 {
 
   private async applySessionDelay() {
     if (this.config.sessionDelayMs) {
-      this.debug.log(
-        `[acp-ai-provider] Waiting ${this.config.sessionDelayMs}ms after session setup...`,
+      debugSession(
+        "waiting %sms after session setup",
+        this.config.sessionDelayMs,
       );
       await new Promise((resolve) =>
         setTimeout(resolve, this.config.sessionDelayMs)
@@ -729,8 +734,11 @@ export class ACPLanguageModel implements LanguageModelV3 {
         throw error;
       }
 
-      this.debug.log(
-        `[acp-ai-provider] Authentication required during ${stage} (code ${ACP_AUTH_REQUIRED_ERROR_CODE}). Running lazy authenticate with methodId="${methodId}" and retrying once...`,
+      debugAuth(
+        "authentication required during %s (code %s); running lazy authenticate with methodId=%s and retrying once",
+        stage,
+        ACP_AUTH_REQUIRED_ERROR_CODE,
+        methodId,
       );
 
       await this.authenticate(methodId);
@@ -1379,8 +1387,9 @@ export class ACPLanguageModel implements LanguageModelV3 {
           // For client tools, we need to STOP the stream immediately
           // The client application must handle the tool execution
           // and submit the result in a subsequent request
-          this.debug.log(
-            `[acp-ai-provider] Detected client tool: ${clientToolInfo.toolName}, stopping stream`,
+          debugSession(
+            "detected client tool %s; stopping stream",
+            clientToolInfo.toolName,
           );
 
           // Emit the content if any (for UI purposes)
