@@ -172,7 +172,10 @@ will:
 2. retry the request **once**
 
 By default, if `authMethodId` is not set and `initialize.authMethods` is
-available, the provider will use the first method and print a warning.
+available, the provider will use the first method. Console tips about missing or
+invalid `authMethodId` (and "lazy auth enabled") are off by default; enable
+`DEBUG=acp-ai-provider:auth` (or `acp-ai-provider:*`) to see them (see
+[Debugging](#debugging)).
 
 To explicitly control this flow, set `authMethodId`:
 
@@ -611,21 +614,41 @@ try {
 
 ## Debugging
 
-Set the `ACP_AI_PROVIDER_DEBUG` environment variable to enable debug logging:
+Logging follows the [`debug`](https://github.com/debug-js/debug) env convention
+(no extra dependency). Namespaces are under `acp-ai-provider:` and write to
+**stderr** by default.
+
+| Namespace                    | What it covers                                     |
+| ---------------------------- | -------------------------------------------------- |
+| `acp-ai-provider:auth`       | authMethodId tips, lazy-auth retries               |
+| `acp-ai-provider:session`    | session delay, tool-proxy setup, client-tool stop  |
+| `acp-ai-provider:stream`     | chunk dumps from `logChunkToConsole`               |
+| `acp-ai-provider:transcript` | NDJSON agent-message transcript path + file writes |
 
 ```bash
-# Enable debug logging
-export ACP_AI_PROVIDER_DEBUG=1
+# Everything under this package
+export DEBUG=acp-ai-provider:*
+
+# Or pick namespaces
+export DEBUG=acp-ai-provider:auth,acp-ai-provider:transcript
 
 # Run your script
 npx tsx example.ts
 ```
 
-When enabled, raw ACP messages are logged to a temporary file:
+Example (stderr):
 
 ```
-[acp-ai-provider] Agent message log: /tmp/acp-ai-provider-xxx/agent-messages.ndjson
+acp-ai-provider:transcript Agent message log: /tmp/acp-ai-provider-xxx/agent-messages.ndjson
+acp-ai-provider:auth lazy auth enabled with authMethodId=chat-gpt; authentication will run only when required (code -32000)
 ```
+
+**Backward compatible:** `ACP_AI_PROVIDER_DEBUG=1` (or `true`) enables
+`acp-ai-provider:*` (and keeps any existing `DEBUG` value).
+
+Without these env vars, console tips stay quiet and no transcript file is
+written. Lazy auth itself still runs when the agent returns an auth-required
+error.
 
 ## Limitations
 
